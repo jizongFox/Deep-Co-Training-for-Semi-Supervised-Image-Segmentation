@@ -45,6 +45,6 @@ def get_dataloaders(dataset_dict: dict, dataloader_dict: dict):
                                                                     **dataloader_dict.get('batch_sampler')[1])
         val_loader = DataLoader(val_set, batch_sampler=val_sampler, batch_size=1)
     else:
-        val_loader = DataLoader(val_set, **{**dataloader_dict, **{'shuffle': False}})
+        val_loader = DataLoader(val_set, **{**dataloader_dict, **{'shuffle': False, 'batch_size': 1}})
     return {'train': train_loader,
             'val': val_loader}

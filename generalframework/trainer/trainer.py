@@ -180,7 +180,7 @@ class Trainer(Base):
             state_dict = {'segmentator': state_dict, 'best_score': metric, 'best_epoch': epoch}
             save_path = Path(os.path.join(self.save_dir, filename))
             torch.save(state_dict, os.path.join(self.save_dir, filename))
-            print(f'model saved @ {epoch} with metrics of {metric}')
+            print(f'model saved @ {epoch} with metrics of {metric}.')
 
     @classmethod
     def toOneHot(cls, pred_logit, mask):

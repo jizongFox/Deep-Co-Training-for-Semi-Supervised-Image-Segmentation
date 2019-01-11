@@ -8,13 +8,14 @@ Optim:
 
 Scheduler:
   name: MultiStepLR
-  milestones: [1,2,3,4]
+  milestones: [10,20,30,40,50,60,70,80,90]
+  gamma: 0.9
 
 Dataset:
   root_dir: "'../dataset/ACDC-all'"
   subfolders: ['img','gt']
-  transform: segment_transform((224,224))
-  #  augment: PILaugment
+  transform: segment_transform((256,256))
+  augment: PILaugment
   pin_memory: False
 
 Dataloader:
