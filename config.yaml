@@ -9,10 +9,10 @@ Optim:
 Scheduler:
   name: MultiStepLR
   milestones: [10,20,30,40,50,60,70,80,90]
-  gamma: 0.9
+  gamma: 0.5
 
 Dataset:
-  root_dir: "'../dataset/ACDC-all'"
+  root_dir: "'dataset/ACDC-all'"
   subfolders: ['img','gt']
   transform: segment_transform((256,256))
   augment: PILaugment
@@ -22,22 +22,22 @@ Dataloader:
   batch_size: 8
   num_workers: 8
   shuffle: True
-  #  batch_sampler: [PatientSampler,
-  #                  {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
-  batch_sampler: None
+  batch_sampler: [PatientSampler,
+                    {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
+#  batch_sampler: None
 
 Trainer:
-  max_epoch: 30
+  max_epoch: 80
   save_dir: tmp/run
-  save_train: True
+  save_train: False
   save_val: True
   device: cuda
-  axises: [0,1,2, 3]
+  axises: [1,2, 3]
   metricname: test.csv
-  checkpoint: tmp/run/best.pth
+#  checkpoint: tmp/run/best.pth
 
 Loss:
   name: cross_entropy
-  weight: [0.1, 1, 1, 2]
+  weight: [0.1, 2, 0.2, 0.1]
 
 

@@ -61,7 +61,7 @@ class Trainer(Base):
         state_dict = torch.load(checkpoint, map_location=torch.device('cpu'))
         self.segmentator.load_state_dict(state_dict['segmentator'])
         self.best_score = state_dict['best_score']
-        self.start_epoch = state_dict['best_epoch'] + 1
+        self.start_epoch = state_dict['best_epoch']
         print(f'>>>  {checkpoint} has been loaded successfully. Best score {self.best_score} @ {self.start_epoch}.')
         self.segmentator.train()
 
@@ -85,7 +85,7 @@ class Trainer(Base):
                    "train_loss": torch.zeros((self.max_epoch, train_b), device=device).type(torch.float32)}
 
         train_loader, val_loader = self.dataloaders['train'], self.dataloaders['val']
-        for epoch in range(self.start_epoch, self.max_epoch):
+        for epoch in range(self.start_epoch + 1, self.max_epoch):
             train_dice, _, train_loss = self._main_loop(train_loader, epoch, mode=ModelMode.TRAIN, save=self.save_train)
             with torch.no_grad():
                 val_dice, val_batch_dice, val_loss = self._main_loop(val_loader, epoch, mode=ModelMode.EVAL,
@@ -115,7 +115,7 @@ class Trainer(Base):
     def _main_loop(self, dataloader: DataLoader, epoch: int, mode, save: bool):
         self.segmentator.set_mode(mode)
         dataloader.dataset.set_mode(mode)
-        desc = f">> Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
+        desc = f">>    Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
         assert dataloader.dataset.training == mode
 
         n_img = len(dataloader.dataset)
@@ -179,8 +179,11 @@ class Trainer(Base):
             state_dict = self.segmentator.state_dict
             state_dict = {'segmentator': state_dict, 'best_score': metric, 'best_epoch': epoch}
             save_path = Path(os.path.join(self.save_dir, filename))
-            torch.save(state_dict, os.path.join(self.save_dir, filename))
-            print(f'model saved @ {epoch} with metrics of {metric}.')
+            torch.save(state_dict, save_path)
+            if Path(self.save_dir, "iter%.3d" % epoch).exists():
+                if Path(self.save_dir, "best").exists():
+                    shutil.rmtree(Path(self.save_dir, "best"))
+                shutil.copytree(Path(self.save_dir, "iter%.3d" % epoch), Path(self.save_dir, 'best'))
 
     @classmethod
     def toOneHot(cls, pred_logit, mask):

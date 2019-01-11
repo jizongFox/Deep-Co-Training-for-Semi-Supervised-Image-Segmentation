@@ -36,12 +36,13 @@ class MedicalImageDataset(Dataset):
         self.subfolders = subfolders
         self.transform = eval(transform) if isinstance(transform, str) else transform
         self.pin_memory = pin_memory
-        print(f'{self.name}:\t')
+        print(f'->> Building {self.name}:\t')
         self.imgs, self.filenames = self.make_dataset(self.root_dir, self.mode, self.subfolders, self.pin_memory)
         self.augment = eval(augment) if isinstance(augment,str) else augment
         self.equalize = equalize
         self.training = ModelMode.TRAIN
         self.metainfo_generator = None if metainfo is None else eval(metainfo)[0](**eval(metainfo)[1])
+        print('\n')
 
     def __len__(self):
         return int(len(self.imgs[self.subfolders[0]]))
@@ -139,7 +140,7 @@ def map_(fn: Callable[[A], B], iter: Iterable[A]) -> List[B]:
 
 class PatientSampler(Sampler):
     def __init__(self, dataset: MedicalImageDataset, grp_regex, shuffle=False) -> None:
-        imgs: List[str] = dataset.imgs
+        filenames: List[str] = dataset.filenames[dataset.subfolders[0]]
         # Might be needed in case of escape sequence fuckups
         # self.grp_regex = bytes(grp_regex, "utf-8").decode('unicode_escape')
         self.grp_regex = grp_regex
@@ -153,13 +154,13 @@ class PatientSampler(Sampler):
         # grouping_regex: Pattern = re.compile("grp_regex")
         grouping_regex: Pattern = re.compile(self.grp_regex)
 
-        stems: List[str] = [Path(filename[0]).stem for filename in imgs]  # avoid matching the extension
+        stems: List[str] = [Path(filename).stem for filename in filenames]  # avoid matching the extension
         matches: List[Match] = map_(grouping_regex.match, stems)
         patients: List[str] = [match.group(1) for match in matches]
 
         unique_patients: List[str] = list(set(patients))
-        assert len(unique_patients) < len(imgs)
-        print(f"Found {len(unique_patients)} unique patients out of {len(imgs)} images")
+        assert len(unique_patients) < len(filenames)
+        print(f"Found {len(unique_patients)} unique patients out of {len(filenames)} images")
 
         self.idx_map: Dict[str, List[int]] = dict(zip(unique_patients, repeat(None)))
         for i, patient in enumerate(patients):
@@ -168,7 +169,7 @@ class PatientSampler(Sampler):
 
             self.idx_map[patient] += [i]
         # print(self.idx_map)
-        assert sum(len(self.idx_map[k]) for k in unique_patients) == len(imgs)
+        assert sum(len(self.idx_map[k]) for k in unique_patients) == len(filenames)
 
         print("Patient to slices mapping done")
 

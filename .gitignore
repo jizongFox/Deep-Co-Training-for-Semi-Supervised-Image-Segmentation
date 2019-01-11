@@ -9,3 +9,5 @@ zzz*.py
 archive
 runs/
 envs
+tmp/
+tmp/*
