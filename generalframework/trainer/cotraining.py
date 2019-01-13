@@ -115,8 +115,8 @@ class CoTrainer(Trainer):
 
             c_dices, suploss = [], []
 
+            ## for labeled data update
             for enu_lab in range(len(fake_labeled_iterators)):
-                ## update the labeled dataset for each segmentator
                 [[img, gt], _, path] = fake_labeled_iterators[enu_lab].__next__()
                 img, gt = img.to(self.device), gt.to(self.device)
                 B = img.shape[0]
@@ -127,8 +127,24 @@ class CoTrainer(Trainer):
 
                 c_dices.append(c_dice)
 
+            ## record supervised data
             batch_slice = slice(done, done + B)
             coef_dice[batch_slice][..., 0] = torch.cat([x.unsqueeze(1) for x in c_dices], dim=1)
+
+            ## for unlabeled data update
+            [[unlab_img, _], _, path] = fake_unlabeled_iterator.__next__()
+            unlab_img = unlab_img.to(self.device)
+            unlab_preds: List[Tensor] = map_(lambda x: x.predict(unlab_img, logit=False), self.segmentators)
+            assert unlab_preds.__len__() == self.segmentators.__len__()
+
+            ## function for JSD
+            # todo
+            pred, loss = self.criterions.get('jsd')(unlab_preds)
+
+            ## record unlabeled data
+
+
+
             done += B
 
             big_slice = slice(0, done)
@@ -145,7 +161,6 @@ class CoTrainer(Trainer):
             #
         print('finished one epoch')
         print(f"{desc} " + ', '.join(f"{k}={v:.3f}" for (k, v) in nice_dict.items()))
-        print(done)
 
         #
         # for i, (imgs, metainfo, filenames) in enumerate(dataloader):

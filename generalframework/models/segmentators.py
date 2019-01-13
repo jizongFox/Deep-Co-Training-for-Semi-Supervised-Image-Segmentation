@@ -38,7 +38,7 @@ class Segmentator(ABC):
         pred_logit = self.torchnet(img)
         if logit:
             return pred_logit
-        return F.softmax(img, 1)
+        return F.softmax(pred_logit, 1)
 
     @property
     def training(self):
