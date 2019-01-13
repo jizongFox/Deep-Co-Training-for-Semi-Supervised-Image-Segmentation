@@ -4,7 +4,6 @@ from torch.autograd import Variable
 from visdom import Visdom
 import copy, os, shutil
 import matplotlib.pyplot as plt
-from generalframework.utils import dice_loss
 # plt.switch_backend('agg')
 import torch
 from pathlib import Path

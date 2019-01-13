@@ -45,22 +45,23 @@ class Segmentator(ABC):
         return self.torchnet.training
 
     def update(self, img: Tensor, gt: Tensor, criterion: NLLLoss,
-               mode=ModelMode.TRAIN) -> List[
-        Tensor]:
+               mode=ModelMode.TRAIN, is_backward=True) -> List[Tensor]:
+        assert img.shape.__len__() == 4
+        assert gt.shape.__len__() == 4
         if mode == ModelMode.TRAIN:
             assert self.training == True
         else:
             assert self.training == False
 
-        if mode == ModelMode.TRAIN:
+        if mode == ModelMode.TRAIN and is_backward:
             self.optimizer.zero_grad()
         pred = self.predict(img)
         loss = criterion(pred, gt.squeeze(1))
-        if mode == ModelMode.TRAIN:
+        if mode == ModelMode.TRAIN and is_backward:
             loss.backward()
             self.optimizer.step()
 
-        return [pred, loss.item()]
+        return [pred, loss]
 
     def schedulerStep(self):
         self.scheduler.step()

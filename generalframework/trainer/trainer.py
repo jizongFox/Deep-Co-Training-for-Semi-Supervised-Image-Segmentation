@@ -40,6 +40,7 @@ class Trainer(Base):
         self.dataloaders = dataloaders
         self.criterion = criterion
         self.save_dir = Path(save_dir)
+        assert not (self.save_dir.exists() and checkpoint is None), f'>> save_dir: {self.save_dir} exits.'
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.save_train = save_train
         self.save_val = save_val
@@ -115,7 +116,7 @@ class Trainer(Base):
     def _main_loop(self, dataloader: DataLoader, epoch: int, mode, save: bool):
         self.segmentator.set_mode(mode)
         dataloader.dataset.set_mode(mode)
-        desc = f">>    Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
+        desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
         assert dataloader.dataset.training == mode
 
         n_img = len(dataloader.dataset)

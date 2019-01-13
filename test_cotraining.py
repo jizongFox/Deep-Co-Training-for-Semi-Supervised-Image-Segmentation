@@ -1,13 +1,14 @@
 from generalframework.models import Segmentator
-from generalframework.trainer import Trainer
+from generalframework.trainer import Trainer, CoTrainer
 from generalframework.dataset import MedicalImageDataset, segment_transform, augment, get_dataloaders
 from generalframework.loss import get_loss_fn
 import yaml, os
+from copy import deepcopy as dcopy
 import torch
 import torch.nn as nn
 import warnings
 
-with open('config.yaml', 'r') as f:
+with open('config_cotrain.yaml', 'r') as f:
     config = yaml.load(f.read())
 
 print('->> Config:\n', config)
@@ -20,5 +21,10 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)
     criterion = get_loss_fn(config['Loss'].get('name'), **{k: v for k, v in config['Loss'].items() if k != 'name'})
 
-trainer = Trainer(model, dataloaders=dataloders, criterion=criterion, **config['Trainer'])
-trainer.start_training()
+cotrainner = CoTrainer(segmentators=[model, dcopy(model)],
+                       labeled_dataloaders=[dataloders['train'], dcopy(dataloders['train'])],
+                       unlabeled_dataloader=dcopy(dataloders['train']),
+                       val_dataloader=dataloders['val'],
+                       criterions={'sup': criterion, 'jsd': criterion, 'adv': criterion},
+                       **config['Trainer'])
+cotrainner.start_training()
