@@ -44,11 +44,12 @@ def test_iter():
     output_list1 = []
     output_list2 = []
 
-    for i in range(n_batches_2+1):
+    for i in range(n_batches_2 + 1):
         data1 = train_loader_1_.__next__()
         data2 = train_loader_2_.__next__()
         output_list1.extend(data1[2])
         output_list2.extend(data2[2])
+
     assert set(output_list1) == set([Path(x).stem for x in train_loader_1.dataset.filenames['img']])
     assert set(output_list2) == set([Path(x).stem for x in train_loader_2.dataset.filenames['img']])
 

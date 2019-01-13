@@ -21,7 +21,7 @@ A = TypeVar("A")
 B = TypeVar("B")
 T = TypeVar("T", Tensor, np.ndarray)
 
-tqdm_ = partial(tqdm, ncols=175,
+tqdm_ = partial(tqdm, ncols=75,
                 leave=False,
                 bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [' '{rate_fmt}{postfix}]')
 
@@ -74,26 +74,43 @@ def pred2class(pred: torch.Tensor):
     return pred.max(1)[1]
 
 
-class AverageMeter(object):
-    """Computes and stores the average and current value for scalar """
-
+class AverageValueMeter(object):
     def __init__(self):
-        """ Constructor """
+        super(AverageValueMeter, self).__init__()
         self.reset()
+        self.val = 0
+
+    def add(self, value, n=1):
+        self.val = value
+        self.sum += value
+        self.var += value * value
+        self.n += n
+
+        if self.n == 0:
+            self.mean, self.std = np.nan, np.nan
+        elif self.n == 1:
+            self.mean = 0.0 + self.sum  # This is to force a copy in torch/numpy
+            self.std = np.inf
+            self.mean_old = self.mean
+            self.m_s = 0.0
+        else:
+            self.mean = self.mean_old + (value - n * self.mean_old) / float(self.n)
+            self.m_s += (value - self.mean_old) * (value - self.mean)
+            self.mean_old = self.mean
+            self.std = np.sqrt(self.m_s / (self.n - 1.0))
+
+    def value(self):
+        return self.mean, self.std
 
     def reset(self):
-        """ Reset stats """
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        """ Update the stats assuming `val` is accumulated `n` times """
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
+        self.n = 0
+        self.sum = 0.0
+        self.var = 0.0
+        self.val = 0.0
+        self.mean = np.nan
+        self.mean_old = 0.0
+        self.m_s = 0.0
+        self.std = np.nan
 
 
 def extract_from_big_dict(big_dict, keys):

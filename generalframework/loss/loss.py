@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Union, List, Any
+from ..utils.utils import simplex
+from functools import reduce
 
 
 class CrossEntropyLoss2d(nn.Module):
@@ -36,3 +39,37 @@ class MSE_2D(nn.Module):
         target = target.squeeze()
         assert prob.shape == target.shape
         return self.loss(prob, target.float())
+
+
+class Entropy_2D(nn.Module):
+    def __init__(self):
+        super().__init__()
+        '''
+        the definition of Entropy is - \sum p(xi) log (p(xi))
+        '''
+
+    def forward(self, input: torch.Tensor):
+        assert input.shape.__len__() == 4
+        b, _, h, w = input.shape
+        assert simplex(input)
+        e = input * (input + 1e-10).log()
+        e = -1.0 * e.sum(1)
+        assert e.shape == torch.Size([b, h, w])
+        return e
+
+
+class JSD_2D(nn.Module):
+    def __init__(self):
+        super().__init__()
+        # self.C = num_probabilities
+        self.entropy = Entropy_2D()
+
+    def forward(self, input: List[torch.Tensor]):
+        # assert self.C == input.__len__()
+        for inprob in input:
+            assert simplex(inprob, 1)
+        mean_prob = reduce(lambda x, y: x + y, input) / len(input)
+        f_term = self.entropy(mean_prob)
+        mean_entropy = sum(list(map(lambda x,: self.entropy(x), input))) / len(input)
+        assert f_term.shape == mean_entropy.shape
+        return f_term - mean_entropy

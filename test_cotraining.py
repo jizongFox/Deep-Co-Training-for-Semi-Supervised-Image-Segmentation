@@ -17,14 +17,19 @@ dataloders = get_dataloaders(config['Dataset'], config['Dataloader'])
 
 model = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
 
+# with warnings.catch_warnings():
+#     warnings.filterwarnings("ignore", category=UserWarning)
+#     criterion = get_loss_fn(config['Loss'].get('name'), **{k: v for k, v in config['Loss'].items() if k != 'name'})
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)
-    criterion = get_loss_fn(config['Loss'].get('name'), **{k: v for k, v in config['Loss'].items() if k != 'name'})
+    criterions = {'sup': get_loss_fn('cross_entropy'),
+                  'jsd': get_loss_fn('jsd'),
+                  'adv': get_loss_fn('jsd')}
 
 cotrainner = CoTrainer(segmentators=[model, dcopy(model)],
                        labeled_dataloaders=[dataloders['train'], dcopy(dataloders['train'])],
                        unlabeled_dataloader=dcopy(dataloders['train']),
                        val_dataloader=dataloders['val'],
-                       criterions={'sup': criterion, 'jsd': criterion, 'adv': criterion},
+                       criterions=criterions,
                        **config['Trainer'])
 cotrainner.start_training()
