@@ -16,9 +16,10 @@ Dataset:
   subfolders: ['img','gt']
   transform: segment_transform((256,256))
   augment: PILaugment
-  pin_memory: False
+  pin_memory: True
 
 Dataloader:
+  pin_memory: True
   batch_size: 8
   num_workers: 8
   shuffle: True
@@ -27,13 +28,13 @@ Dataloader:
 
 Trainer:
   max_epoch: 100
-  save_dir: tmp/test2
-  save_train: False
+  save_dir: tmp/classification
+  save_train: True
   save_val: True
   device: cuda
   axises: [1,2,3]
   metricname: test.csv
-  checkpoint: tmp/test/best.pth
+
 
 Loss:
   name: cross_entropy

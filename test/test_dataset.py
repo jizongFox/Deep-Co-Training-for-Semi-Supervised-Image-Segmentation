@@ -55,4 +55,4 @@ def test_iter():
 
 
 if __name__ == '__main__':
-    test_iter()
+    test_dataset()
