@@ -463,3 +463,17 @@ def save_images(segs: Tensor, names: Iterable[str], root: str, mode: str, iter: 
             save_path.parent.mkdir(parents=True, exist_ok=True)
 
             imsave(str(save_path), seg.cpu().numpy())
+
+
+def ramp_up(epoch, max_epochs, max_val, mult):
+    if epoch == 0:
+        return 0.
+    elif epoch >= max_epochs:
+        return max_val
+    return max_val * np.exp(mult * (1. - float(epoch) / max_epochs) ** 2)
+
+
+def weight_schedule(epoch, max_epochs, max_val, mult, n_labeled, n_samples):
+    max_val = max_val * (float(n_labeled) / n_samples)
+    return ramp_up(epoch, max_epochs, max_val, mult)
+

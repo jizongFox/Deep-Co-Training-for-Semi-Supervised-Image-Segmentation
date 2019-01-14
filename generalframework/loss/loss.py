@@ -36,3 +36,21 @@ class MSE_2D(nn.Module):
         target = target.squeeze()
         assert prob.shape == target.shape
         return self.loss(prob, target.float())
+
+
+class JSDLoss(nn.Module):
+    def __init__(self):
+        super(JSDLoss, self).__init__()
+        self.loss = F.kl_div()  # nn.KLDivLoss()
+
+    def forward(self, predictions):
+        # List of predictions form n models
+        predictions = torch.cat(predictions, dim=0)
+        model_probs = F.softmax(predictions, dim=2)
+        # n: number of distributions, b: batch size, c: number of classes
+        # (h, w): image dimensions
+        n, b, c, h, w = model_probs.shape
+        mixture_dist = model_probs.mean(0, keepdim=True).expand(n, b, c, h, w)
+        entropy_mixture = model_probs.log()
+
+        return torch.sum(self.loss(entropy_mixture, mixture_dist))
