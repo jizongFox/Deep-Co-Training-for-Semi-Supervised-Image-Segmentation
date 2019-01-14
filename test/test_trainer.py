@@ -7,10 +7,10 @@ import torch
 import torch.nn as nn
 import warnings
 
-with open('config.yaml', 'r') as f:
+with open('../config.yaml', 'r') as f:
     config = yaml.load(f.read())
 
-print('->> Config:\n', config)
+print(config)
 
 dataloders = get_dataloaders(config['Dataset'], config['Dataloader'])
 

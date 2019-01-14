@@ -1,14 +1,15 @@
-from abc import ABC, abstractmethod
-from generalframework.arch import get_arch
-from typing import Union, Callable, List
+from abc import ABC
+from typing import List
+
 import torch
-from torch.nn import functional as F
 from torch import Tensor
 from torch import optim
-from torch.optim import lr_scheduler
 from torch.nn import NLLLoss
-from generalframework.utils import dice_coef, probs2one_hot, class2one_hot
+from torch.nn import functional as F
+from torch.optim import lr_scheduler
+
 from generalframework import ModelMode
+from generalframework.arch import get_arch
 
 
 class Segmentator(ABC):
@@ -38,29 +39,35 @@ class Segmentator(ABC):
         pred_logit = self.torchnet(img)
         if logit:
             return pred_logit
-        return F.softmax(img, 1)
+        return F.softmax(pred_logit, 1)
 
     @property
     def training(self):
         return self.torchnet.training
 
     def update(self, img: Tensor, gt: Tensor, criterion: NLLLoss,
-               mode=ModelMode.TRAIN) -> List[
-        Tensor]:
+               mode=ModelMode.TRAIN) -> List[Tensor]:
+        assert img.shape.__len__() == 4
+        assert gt.shape.__len__() == 4
         if mode == ModelMode.TRAIN:
+            self.train()
             assert self.training == True
         else:
+            self.eval()
             assert self.training == False
 
         if mode == ModelMode.TRAIN:
             self.optimizer.zero_grad()
-        pred = self.predict(img)
-        loss = criterion(pred, gt.squeeze(1))
-        if mode == ModelMode.TRAIN:
+            pred = self.predict(img)
+            loss = criterion(pred, gt.squeeze(1))
             loss.backward()
             self.optimizer.step()
-
-        return [pred, loss.item()]
+        else:
+            with torch.no_grad():
+                pred = self.predict(img)
+                loss = criterion(pred, gt.squeeze(1))
+        self.train()
+        return [pred.data, loss.data]
 
     def schedulerStep(self):
         self.scheduler.step()

@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Union, List, Any
+from ..utils.utils import simplex
+from functools import reduce
 
 
 class CrossEntropyLoss2d(nn.Module):
@@ -38,19 +41,35 @@ class MSE_2D(nn.Module):
         return self.loss(prob, target.float())
 
 
-class JSDLoss(nn.Module):
+class Entropy_2D(nn.Module):
     def __init__(self):
-        super(JSDLoss, self).__init__()
-        self.loss = F.kl_div()  # nn.KLDivLoss()
+        super().__init__()
+        '''
+        the definition of Entropy is - \sum p(xi) log (p(xi))
+        '''
 
-    def forward(self, predictions):
-        # List of predictions form n models
-        predictions = torch.cat(predictions, dim=0)
-        model_probs = F.softmax(predictions, dim=2)
-        # n: number of distributions, b: batch size, c: number of classes
-        # (h, w): image dimensions
-        n, b, c, h, w = model_probs.shape
-        mixture_dist = model_probs.mean(0, keepdim=True).expand(n, b, c, h, w)
-        entropy_mixture = model_probs.log()
+    def forward(self, input: torch.Tensor):
+        assert input.shape.__len__() == 4
+        b, _, h, w = input.shape
+        assert simplex(input)
+        e = input * (input + 1e-10).log()
+        e = -1.0 * e.sum(1)
+        assert e.shape == torch.Size([b, h, w])
+        return e
 
-        return torch.sum(self.loss(entropy_mixture, mixture_dist))
+
+class JSD_2D(nn.Module):
+    def __init__(self):
+        super().__init__()
+        # self.C = num_probabilities
+        self.entropy = Entropy_2D()
+
+    def forward(self, input: List[torch.Tensor]):
+        # assert self.C == input.__len__()
+        for inprob in input:
+            assert simplex(inprob, 1)
+        mean_prob = reduce(lambda x, y: x + y, input) / len(input)
+        f_term = self.entropy(mean_prob)
+        mean_entropy = sum(list(map(lambda x,: self.entropy(x), input))) / len(input)
+        assert f_term.shape == mean_entropy.shape
+        return f_term - mean_entropy

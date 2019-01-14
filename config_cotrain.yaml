@@ -20,22 +20,27 @@ Dataset:
 
 Dataloader:
   pin_memory: True
-  batch_size: 8
-  num_workers: 8
+  batch_size: 2
+  num_workers: 2
   shuffle: True
+  drop_last: True
   batch_sampler: [PatientSampler,
                   {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
 
 Trainer:
   max_epoch: 100
-  save_dir: tmp/classification
-  save_train: True
-  save_val: True
+  save_dir: tmp/cotraining
   device: cuda
-  axises: [1,2,3]
+  axises: [0,1,2,3]
   metricname: test.csv
-
+#  checkpoint: tmp/test/best.pth
 
 Loss:
   name: cross_entropy
-  weight: [1, 1, 1, 1]
+  weight: [0.01, 1, 1, 1]
+
+StartTraining:
+  train_jsd: True
+  train_adv: False
+  save_train: True
+  save_val: True

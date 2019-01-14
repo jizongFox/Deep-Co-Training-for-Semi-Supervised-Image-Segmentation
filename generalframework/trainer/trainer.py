@@ -40,6 +40,7 @@ class Trainer(Base):
         self.dataloaders = dataloaders
         self.criterion = criterion
         self.save_dir = Path(save_dir)
+        # assert not (self.save_dir.exists() and checkpoint is None), f'>> save_dir: {self.save_dir} exits.'
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.save_train = save_train
         self.save_val = save_val
@@ -78,11 +79,13 @@ class Trainer(Base):
         val_n: int = len(self.dataloaders['val'].dataset)
         val_b: int = len(self.dataloaders['val'])
 
-        metrics = {"val_dice": torch.zeros((self.max_epoch, val_n, n_class), device=device).type(torch.float32),
-                   "val_batch_dice": torch.zeros((self.max_epoch, val_b, n_class), device=device).type(torch.float32),
-                   "val_loss": torch.zeros((self.max_epoch, val_b), device=device).type(torch.float32),
-                   "train_dice": torch.zeros((self.max_epoch, train_n, n_class), device=device).type(torch.float32),
-                   "train_loss": torch.zeros((self.max_epoch, train_b), device=device).type(torch.float32)}
+        metrics = {"val_dice": torch.zeros((self.max_epoch, val_n, n_class), device=self.device).type(torch.float32),
+                   "val_batch_dice": torch.zeros((self.max_epoch, val_b, n_class), device=self.device).type(
+                       torch.float32),
+                   "val_loss": torch.zeros((self.max_epoch, val_b), device=self.device).type(torch.float32),
+                   "train_dice": torch.zeros((self.max_epoch, train_n, n_class), device=self.device).type(
+                       torch.float32),
+                   "train_loss": torch.zeros((self.max_epoch, train_b), device=self.device).type(torch.float32)}
 
         train_loader, val_loader = self.dataloaders['train'], self.dataloaders['val']
         for epoch in range(self.start_epoch + 1, self.max_epoch):
@@ -96,9 +99,9 @@ class Trainer(Base):
                 assert metrics[k][epoch].shape == eval(k).shape, (metrics[k][epoch].shape, eval(k).shape)
                 metrics[k][epoch] = eval(k)
             for k, e in metrics.items():
-                np.save(Path(self.save_dir, f"{k}.npy"), e.cpu().numpy())
+                np.save(Path(self.save_dir, f"{k}.npy"), e.detach().cpu().numpy())
 
-            df = pd.DataFrame({"train_loss": metrics["train_loss"].mean(dim=1).cpu().numpy(),
+            df = pd.DataFrame({"train_loss": metrics["train_loss"].mean(dim=1).detach().cpu().numpy(),
                                "val_loss": metrics["val_loss"].mean(dim=1).cpu().numpy(),
                                "train_dice": metrics["train_dice"][:, :, -1].mean(dim=1).cpu().numpy(),
                                # using the axis = 3
@@ -115,7 +118,7 @@ class Trainer(Base):
     def _main_loop(self, dataloader: DataLoader, epoch: int, mode, save: bool):
         self.segmentator.set_mode(mode)
         dataloader.dataset.set_mode(mode)
-        desc = f">>    Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
+        desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
         assert dataloader.dataset.training == mode
 
         n_img = len(dataloader.dataset)
@@ -130,22 +133,19 @@ class Trainer(Base):
             imgs = [img.to(self.device) for img in imgs]
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=UserWarning)
-                [preds, loss] = self.segmentator.update(imgs[0], imgs[1], self.criterion, mode=mode)
-            ohpredmask, ohmask = self.toOneHot(preds, imgs[1])
-            c_dice = dice_coef(ohpredmask, ohmask)
 
+                preds, loss = self.segmentator.update(imgs[0], imgs[1], self.criterion, mode=mode)
+            c_dice = dice_coef(*self.toOneHot(preds, imgs[1]))
+            #
             if mode == ModelMode.EVAL:
-                b_dice = dice_batch(ohpredmask, ohmask)
-
+                b_dice = dice_batch(*self.toOneHot(preds, imgs[1]))
+                batch_dice[i] = b_dice
+            #
             batch = slice(done, done + B)
             coef_dice[batch] = c_dice
-
-            if mode == ModelMode.EVAL:
-                batch_dice[batch] = b_dice
-
-            loss_log[batch] = loss
+            loss_log[i] = loss
             done += B
-
+            #
             if save:
                 save_images(segs=preds.max(1)[1], names=filenames, root=self.save_dir, mode=mode.value.lower(),
                             iter=epoch)
