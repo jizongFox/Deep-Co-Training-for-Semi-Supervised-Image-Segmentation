@@ -83,7 +83,7 @@ class Adv_2D(nn.Module):
 
     def forward(self, predictions: List[torch.Tensor], adversarials: List[torch.Tensor]):
         assert predictions.__len__() == adversarials.__len__()
-        for inprob, inadvs in zip(predictions, adversarials):
+        for inprob, inadvs in zip(predictions, reversed(adversarials)):
             assert simplex(inprob, 1)
             assert simplex(inadvs, 1)
         diff_loss = sum(list(map(lambda xy: self.entropy(xy[0]) + self.entropy(xy[1]), zip(predictions, adversarials))))
