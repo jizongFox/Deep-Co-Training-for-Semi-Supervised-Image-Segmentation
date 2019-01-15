@@ -30,7 +30,7 @@ Dataloader:
 Trainer:
   max_epoch: 100
   save_dir: tmp/cotraining
-  device: cuda
+  device: cpu # cuda
   axises: [0,1,2,3]
   metricname: test.csv
 #  checkpoint: tmp/test/best.pth
@@ -41,6 +41,6 @@ Loss:
 
 StartTraining:
   train_jsd: True
-  train_adv: False
+  train_adv: True # False
   save_train: True
   save_val: True

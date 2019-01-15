@@ -137,6 +137,7 @@ class CoTrainer(Trainer):
             coef_dice[batch_slice] = torch.cat([x.unsqueeze(1) for x in c_dices], dim=1)
             loss_log[batch_num] = torch.cat([x.unsqueeze(0) for x in sup_losses], dim=0)
             lab_done += lab_B
+
             # sup_loss = reduce(lambda x, y: x + y, sup_losses)
             if train_jsd:
                 ## for unlabeled data update
@@ -162,6 +163,46 @@ class CoTrainer(Trainer):
                 loss = jsdloss
                 loss.backward()
                 map_(lambda x: x.optimizer.step(), self.segmentators)
+
+            if train_adv:
+                ## for unlabeled data update
+                [[unlab_img, unlab_gt], _, _] = fake_unlabeled_iterator.__next__()
+                unlab_B = unlab_img.shape[0]
+                unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
+                unlab_preds: List[Tensor] = map_(lambda x: x.predict(unlab_img, logit=False), self.segmentators)
+                assert unlab_preds.__len__() == self.segmentators.__len__()
+
+                c_dices = map_(lambda x: dice_coef(*self.toOneHot(x, unlab_gt)), unlab_preds)
+                batch_slice = slice(unlab_done, unlab_done + unlab_B)
+                unlabel_coef_dice[batch_slice] = torch.cat([x.unsqueeze(1) for x in c_dices], dim=1)
+
+                # generating adversarial example
+                adv_preds = []
+                for segmentator in self.segmentators:
+                    if random() > 0.5:
+                        # from labeled data
+                        adv_imgs = adversarial_fgsm(img, epsilon=0.5, data_grad=img.grad.data).detach()
+                    else:
+                        # from unlabeled data
+                        if unlab_img.grad is not None:
+                            unlab_img.grad.zero_()
+                        unlab_pred = segmentator.predict(unlab_img, logit=False)
+                        unlab_mask = unlab_pred.max(1)[1]
+                        loss = nn.CrossEntropyLoss()(unlab_pred, unlab_mask.detach())
+                        loss.backward()
+                        adv_imgs = adversarial_fgsm(unlab_img, epsilon=0.5, data_grad=unlab_img.grad.data).detach()
+                    adv_preds.append(segmentator.predict(adv_imgs, logit=False))
+                assert adv_preds.__len__() == self.segmentators.__len__()
+
+                # function for ADV
+                advloss_2D = self.criterions.get('adv')(unlab_preds, adv_preds)
+                assert advloss_2D.shape == unlab_img.squeeze(1).shape
+                advloss = advloss_2D.mean()
+                unlab_done += unlab_B
+
+
+
+
 
             ## record unlabeled data
 
