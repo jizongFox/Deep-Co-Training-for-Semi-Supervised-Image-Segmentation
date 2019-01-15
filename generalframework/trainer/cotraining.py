@@ -95,6 +95,21 @@ class CoTrainer(Trainer):
                    0].dataset.training == ModelMode.TRAIN if augment_labeled_data else ModelMode.EVAL
         assert self.unlabeled_dataloader.dataset.training == ModelMode.TRAIN if augment_unlabeled_data else ModelMode.EVAL
 
+        lambda_cot_max = 10
+        lambda_adv_max = 0.5
+        ramp_up_mult = -5.
+        n_labeled = labeled_dataloaders[0].__len__()
+        n_samples = n_labeled + unlabeled_dataloader.__len__()
+        epoch_max_ramp = 80
+        lambda_cot, lambda_adv = adjust_multipliers(lambda_cot_max, lambda_adv_max, ramp_up_mult, n_labeled,
+                                                    n_samples, epoch, epoch_max_ramp=epoch_max_ramp)
+        if (epoch) % 10 == 0:
+            print('Unsupervised loss weight lambda_cot {} and lambda_adv {}'.format(lambda_cot, lambda_adv))
+
+        # turn it into a usable pytorch object
+        lambda_cot = torch.FloatTensor([lambda_cot]).to(self.device)
+        lambda_adv = torch.FloatTensor([lambda_adv]).to(self.device)
+
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
         # Here the concept of epoch is defined as the epoch
         n_img = len(self.labeled_dataloaders[0].dataset)
@@ -160,12 +175,12 @@ class CoTrainer(Trainer):
                 ## backward and update
                 # zero grad
                 map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
-                loss = jsdloss
+                loss = lambda_cot * jsdloss
                 loss.backward()
                 map_(lambda x: x.optimizer.step(), self.segmentators)
 
             if train_adv:
-                ## for unlabeled data update
+                # for unlabeled data update
                 [[unlab_img, unlab_gt], _, _] = fake_unlabeled_iterator.__next__()
                 unlab_B = unlab_img.shape[0]
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
@@ -187,8 +202,9 @@ class CoTrainer(Trainer):
                         if unlab_img.grad is not None:
                             unlab_img.grad.zero_()
                         unlab_pred = segmentator.predict(unlab_img, logit=False)
-                        unlab_mask = unlab_pred.max(1)[1]
-                        loss = nn.CrossEntropyLoss()(unlab_pred, unlab_mask.detach())
+                        # unlab_mask = unlab_pred.max(1)[1]
+                        # compute loss between unlabeled prediction and pseudolabels
+                        loss = nn.CrossEntropyLoss()(unlab_pred, compute_pseudolabels(unlab_preds).detach())
                         loss.backward()
                         adv_imgs = adversarial_fgsm(unlab_img, epsilon=0.5, data_grad=unlab_img.grad.data).detach()
                     adv_preds.append(segmentator.predict(adv_imgs, logit=False))
@@ -200,11 +216,14 @@ class CoTrainer(Trainer):
                 advloss = advloss_2D.mean()
                 unlab_done += unlab_B
 
+                ## backward and update
+                # zero grad
+                map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
+                loss = lambda_adv * advloss
+                loss.backward()
+                map_(lambda x: x.optimizer.step(), self.segmentators)
 
-
-
-
-            ## record unlabeled data
+            # record unlabeled data
 
             lab_big_slice = slice(0, lab_done)
             unlab_big_slice = slice(0, unlab_done)

@@ -256,7 +256,6 @@ def save_images(segs: Tensor, names: Iterable[str], root: str, mode: str, iter: 
 
             imsave(str(save_path), seg.cpu().numpy())
 
-
 ## dataset
 from torch.utils.data import DataLoader
 
@@ -286,4 +285,36 @@ def ramp_up(epoch, max_epochs, max_val, mult):
 def weight_schedule(epoch, max_epochs, max_val, mult, n_labeled, n_samples):
     max_val = max_val * (float(n_labeled) / n_samples)
     return ramp_up(epoch, max_epochs, max_val, mult)
+
+
+def adjust_multipliers(lambda_cot_max, lambda_diff_max, ramp_up_mult, n_labeled, n_samples, epoch, epoch_max_ramp):
+    # this is the ramp_up function for lambda_cot and lambda_diff weights on the unsupervised terms.
+    lambda_cot = weight_schedule(epoch, epoch_max_ramp, lambda_cot_max, ramp_up_mult, n_labeled, n_samples)
+    lambda_diff = weight_schedule(epoch, epoch_max_ramp, lambda_diff_max, ramp_up_mult, n_labeled, n_samples)
+    return lambda_cot, lambda_diff
+
+
+def adversarial_fgsm(image, data_grad, epsilon=0.001):
+    """
+    FGSM for generating adversarial sample
+    :param image: original clean image
+    :param target: original clean target
+    :param epsilon: the pixel-wise perturbation amount
+    :param data_grad: gradient of the loss w.r.t the input image
+    :return: perturbed image representing adversarial sample
+    """
+    # Collect the element-wise sign of the data gradient
+    sign_data_grad = data_grad.sign()
+    # Create the perturbed image by adjusting each pixel of the input image
+    perturbed_image = image + epsilon * sign_data_grad
+    # Adding clipping to maintain [0,1] range
+    perturbed_image = torch.clamp(perturbed_image, 0, 1)
+    # Return the perturbed image
+    return perturbed_image
+
+
+def compute_pseudolabels(distributions: list):
+    distributions = torch.cat([d.unsqueeze(0) for d in distributions], 0)
+    return torch.mean(distributions, dim=0).max(1)[1]
+
 

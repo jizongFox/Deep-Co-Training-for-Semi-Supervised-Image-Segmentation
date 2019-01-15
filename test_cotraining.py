@@ -12,14 +12,13 @@ import warnings
 with open('config_cotrain.yaml', 'r') as f:
     config = yaml.load(f.read())
 print('->> Config:')
-pprint( config)
+pprint(config)
 
-# dataloders = get_dataloaders(config['Dataset'], config['Dataloader'])
-get_exclusive_dataloaders(config['Dataset'], config['Dataloader'], n_models=2, ratio=0.5,
-                          tr_split_ratio=[0.85, 0.15], shuffle=True)
+dataloders = get_dataloaders(config['Dataset'], config['Dataloader'])
+# dataloders = get_exclusive_dataloaders(config['Dataset'], config['Dataloader'], n_models=2, ratio=0.5)
 
 model = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
-model2 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
+model1 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
 
 
 with warnings.catch_warnings():
@@ -28,11 +27,18 @@ with warnings.catch_warnings():
                   'jsd': get_loss_fn('jsd'),
                   'adv': get_loss_fn('adv')}
 
-# cotrainner = CoTrainer(segmentators=[model,dcopy(model)],
-#                        labeled_dataloaders=[dataloders['train'],dcopy(dataloders['train'])],
-#                        unlabeled_dataloader=dcopy(dataloders['train']),
+cotrainner = CoTrainer(segmentators=[model,dcopy(model)],
+                       labeled_dataloaders=[dataloders['train'],dcopy(dataloders['train'])],
+                       unlabeled_dataloader=dcopy(dataloders['train']),
+                       val_dataloader=dataloders['val'],
+                       criterions=criterions,
+                       **config['Trainer'])
+
+# cotrainner = CoTrainer(segmentators=[model, model1],
+#                        labeled_dataloaders=dataloders['lab'],
+#                        unlabeled_dataloader=dataloders['unlab'],
 #                        val_dataloader=dataloders['val'],
 #                        criterions=criterions,
 #                        **config['Trainer'])
 
-# cotrainner.start_training(**config['StartTraining'])
+cotrainner.start_training(**config['StartTraining'])
