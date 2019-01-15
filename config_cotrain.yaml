@@ -16,7 +16,7 @@ Dataset:
   subfolders: ['img','gt']
   transform: segment_transform((256,256))
   augment: PILaugment
-  pin_memory: True
+  pin_memory: False
 
 Dataloader:
   pin_memory: True
@@ -24,8 +24,8 @@ Dataloader:
   num_workers: 2
   shuffle: True
   drop_last: True
-  batch_sampler: [PatientSampler,
-                  {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
+#  batch_sampler: [PatientSampler,
+#                  {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
 
 Trainer:
   max_epoch: 100
@@ -40,7 +40,7 @@ Loss:
   weight: [0.01, 1, 1, 1]
 
 StartTraining:
-  train_jsd: True
-  train_adv: False
+  train_jsd: False
+  train_adv: True
   save_train: True
   save_val: True

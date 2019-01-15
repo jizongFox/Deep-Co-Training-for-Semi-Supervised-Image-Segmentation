@@ -31,4 +31,12 @@ cotrainner = CoTrainer(segmentators=[model,dcopy(model)],
                        criterions=criterions,
                        **config['Trainer'])
 
+# cotrainner = CoTrainer(segmentators=[model],
+#                        labeled_dataloaders=[dataloders['train']],
+#                        unlabeled_dataloader=dcopy(dataloders['train']),
+#                        val_dataloader=dataloders['val'],
+#                        criterions=criterions,
+#                        **config['Trainer'])
+
+
 cotrainner.start_training(**config['StartTraining'])
