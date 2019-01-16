@@ -20,13 +20,18 @@ class CoTrainer(Trainer):
     def __init__(self, segmentators: List[Segmentator], labeled_dataloaders: List[DataLoader],
                  unlabeled_dataloader: DataLoader, val_dataloader: DataLoader, criterions: Dict[str, nn.Module],
                  max_epoch: int = 100, save_dir: str = 'tmp', device: str = 'cpu',
-                 axises: List[int] = [0, 1, 2], checkpoint: str = None, metricname: str = 'metrics.csv') -> None:
+                 axises: List[int] = [0, 1, 2], checkpoint: str = None, metricname: str = 'metrics.csv',
+                 lambda_cot_max: int = 10, lambda_adv_max: float = 0.5, ramp_up_mult: float = -5., epoch_max_ramp: int = 80) -> None:
 
         self.max_epoch = max_epoch
         self.segmentators = segmentators
         self.labeled_dataloaders = labeled_dataloaders
         self.unlabeled_dataloader = unlabeled_dataloader
         self.val_dataloader = val_dataloader
+        self.lambda_cot_max = lambda_cot_max
+        self.lambda_adv_max = lambda_adv_max
+        self.epoch_max_ramp = epoch_max_ramp
+        self.ramp_up_mult = ramp_up_mult
 
         ## N segmentators should be consist with N+1 dataloders
         # (N for labeled data and N+2 th for unlabeled dataset)
@@ -70,6 +75,9 @@ class CoTrainer(Trainer):
         for epoch in range(self.start_epoch + 1, self.max_epoch):
             self.schedulerStep()
 
+            lambda_cot, lambda_adv = self.adjust_multipliers(self.lambda_cot_max, self.lambda_adv_max, self.ramp_up_mult,
+                                                             epoch, epoch_max_ramp=self.epoch_max_ramp)
+
             train_lab_dice, train_unlab_dice = self._train_loop(labeled_dataloaders=self.labeled_dataloaders,
                                                                 unlabeled_dataloader=self.unlabeled_dataloader,
                                                                 epoch=epoch,
@@ -84,7 +92,6 @@ class CoTrainer(Trainer):
                                                            epoch=epoch,
                                                            mode=ModelMode.EVAL,
                                                            save=save_val)
-
 
     def _train_loop(self, labeled_dataloaders: List[DataLoader], unlabeled_dataloader: DataLoader, epoch: int,
                     mode: ModelMode, save: bool, augment_labeled_data=True, augment_unlabeled_data=False,
@@ -321,6 +328,19 @@ class CoTrainer(Trainer):
     def upload_dict(self, name, dict, epoch):
         self.writer.add_scalars(name, dict, epoch)
 
-    def schedulerStep(self):
+    def schedulerStep(self, epoch,  n_labeled, n_samples):
         for segmentator in self.segmentators:
             segmentator.schedulerStep()
+
+    def adjust_multipliers(self, lambda_cot_max, lambda_diff_max, ramp_up_mult, epoch, epoch_max_ramp):
+        n_labeled = self.labeled_dataloaders[0].__len__()
+        n_samples = n_labeled + self.unlabeled_dataloade.__len__()
+        # this is the ramp_up function for lambda_cot and lambda_diff weights on the unsupervised terms.
+        lambda_cot = weight_schedule(epoch, self.epoch_max_ramp, self.lambda_cot_max, self.ramp_up_mult,
+                                     n_labeled, n_samples)
+        lambda_adv = weight_schedule(epoch, self.epoch_max_ramp, self.lambda_adv_max, self.ramp_up_mult,
+                                     n_labeled, n_samples)
+        # turn it into a usable pytorch object
+        lambda_cot = torch.FloatTensor([lambda_cot]).to(self.device)
+        lambda_adv = torch.FloatTensor([lambda_adv]).to(self.device)
+        return lambda_cot, lambda_adv

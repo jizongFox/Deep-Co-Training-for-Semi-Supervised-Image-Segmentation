@@ -253,9 +253,6 @@ def save_images(segs: Tensor, names: Iterable[str], root: str, mode: str, iter: 
             imsave(str(save_path), seg.cpu().numpy())
 
 
-## dataset
-
-
 class iterator_(object):
     def __init__(self, dataloader: DataLoader) -> None:
         super().__init__()
@@ -388,3 +385,8 @@ def weight_schedule(epoch, max_epochs, max_val, mult, n_labeled, n_samples):
     return ramp_up(epoch, max_epochs, max_val, mult)
 
 
+def adjust_multipliers(lambda_cot_max, lambda_diff_max, ramp_up_mult, n_labeled, n_samples, epoch, epoch_max_ramp):
+    # this is the ramp_up function for lambda_cot and lambda_diff weights on the unsupervised terms.
+    lambda_cot = weight_schedule(epoch, epoch_max_ramp, lambda_cot_max, ramp_up_mult, n_labeled, n_samples)
+    lambda_diff = weight_schedule(epoch, epoch_max_ramp, lambda_diff_max, ramp_up_mult, n_labeled, n_samples)
+    return lambda_cot, lambda_diff
