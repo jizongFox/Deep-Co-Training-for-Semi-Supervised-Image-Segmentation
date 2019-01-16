@@ -93,7 +93,7 @@ class Trainer(Base):
             with torch.no_grad():
                 val_dice, val_batch_dice, val_loss = self._main_loop(val_loader, epoch, mode=ModelMode.EVAL,
                                                                      save=self.save_val)
-            self.segmentator.schedulerStep()
+            self.schedulerStep()
 
             for k in metrics:
                 assert metrics[k][epoch].shape == eval(k).shape, (metrics[k][epoch].shape, eval(k).shape)
@@ -191,3 +191,6 @@ class Trainer(Base):
         oh_mask = class2one_hot(mask.squeeze(1), pred_logit.shape[1])
         assert oh_predmask.shape == oh_mask.shape
         return oh_predmask, oh_mask
+
+    def schedulerStep(self):
+        self.segmentator.schedulerStep()

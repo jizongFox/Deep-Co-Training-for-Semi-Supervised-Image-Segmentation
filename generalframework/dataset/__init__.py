@@ -1,11 +1,10 @@
-import random
+import re
+from typing import List, Dict
+from copy import deepcopy as dcopy
 from torch.utils.data import DataLoader
-from PIL import ImageOps
-from torchvision import transforms
+from generalframework.utils import Colorize
 from .augment import PILaugment
 from .augment import segment_transform
-
-from generalframework.utils import Colorize
 from .medicalDataLoader import MedicalImageDataset, PatientSampler
 
 color_transform = Colorize()
@@ -48,3 +47,16 @@ def get_dataloaders(dataset_dict: dict, dataloader_dict: dict):
         val_loader = DataLoader(val_set, **{**dataloader_dict, **{'shuffle': False, 'batch_size': 1}})
     return {'train': train_loader,
             'val': val_loader}
+
+
+def extract_patients(dataloader: DataLoader, patient_ids: List[str]):
+    assert isinstance(patient_ids, list)
+    bpattern = lambda d: 'patient%.3d' % int(d)
+    patterns = re.compile('|'.join([bpattern(id) for id in patient_ids]))
+    files: Dict[str, List[str]] = dcopy(dataloader.dataset.imgs)
+    files = {k: [s for s in file if re.search(patterns, s)] for k, file in files.items()}
+    for v in files.values():
+        v.sort()
+    new_dataloader = dcopy(dataloader)
+    new_dataloader.dataset.imgs = files
+    return new_dataloader

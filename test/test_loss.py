@@ -126,5 +126,5 @@ def test_kl_loss():
 
 
 if __name__ == '__main__':
-    # test_jsd_loss()
-    test_kl_loss()
+    test_jsd_loss()
+    # test_kl_loss()

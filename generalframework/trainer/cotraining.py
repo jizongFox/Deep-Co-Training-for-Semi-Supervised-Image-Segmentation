@@ -37,8 +37,8 @@ class CoTrainer(Trainer):
         assert set(map_(id, self.labeled_dataloaders)).__len__() == self.segmentators.__len__()
 
         ## labeled_dataloaders should have the same number of images
-        assert set(map_(lambda x: len(x.dataset), self.labeled_dataloaders)).__len__() == 1
-        assert set(map_(lambda x: len(x), self.labeled_dataloaders)).__len__() == 1
+        # assert set(map_(lambda x: len(x.dataset), self.labeled_dataloaders)).__len__() == 1
+        # assert set(map_(lambda x: len(x), self.labeled_dataloaders)).__len__() == 1
 
         self.criterions = criterions
         assert set(self.criterions.keys()) == set(['jsd', 'sup', 'adv'])
@@ -68,6 +68,8 @@ class CoTrainer(Trainer):
         ## prepare for something:
 
         for epoch in range(self.start_epoch + 1, self.max_epoch):
+            self.schedulerStep()
+
             train_lab_dice, train_unlab_dice = self._train_loop(labeled_dataloaders=self.labeled_dataloaders,
                                                                 unlabeled_dataloader=self.unlabeled_dataloader,
                                                                 epoch=epoch,
@@ -83,14 +85,13 @@ class CoTrainer(Trainer):
                                                            mode=ModelMode.EVAL,
                                                            save=save_val)
 
-            print
 
     def _train_loop(self, labeled_dataloaders: List[DataLoader], unlabeled_dataloader: DataLoader, epoch: int,
                     mode: ModelMode, save: bool, augment_labeled_data=True, augment_unlabeled_data=False,
                     train_jsd=False, train_adv=False):
         [segmentator.set_mode(mode) for segmentator in self.segmentators]
         for l_dataloader in labeled_dataloaders:
-            l_dataloader.dataset.set_mode(ModelMode.TRAIN if augment_labeled_data else ModelMode.EVAL)
+            l_dataloader.dataset.set_mode(ModelMode.TRAIN)
         unlabeled_dataloader.dataset.training = ModelMode.TRAIN if augment_unlabeled_data else ModelMode.EVAL
 
         assert self.segmentators[0].training == True
@@ -100,8 +101,8 @@ class CoTrainer(Trainer):
 
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
         # Here the concept of epoch is defined as the epoch
-        n_img = len(self.labeled_dataloaders[0].dataset)
-        n_batch = len(self.labeled_dataloaders[0])
+        n_img = max(map_(lambda x: len(x.dataset), self.labeled_dataloaders))
+        n_batch = max(map_(len, self.labeled_dataloaders))
         S = len(self.segmentators)
         # S labeled dataset + 1 unlabeled dataset
         n_unlab_img = n_batch * unlabeled_dataloader.batch_size
@@ -129,7 +130,7 @@ class CoTrainer(Trainer):
         report_status = 'label'
 
         for batch_num in n_batch_iter:
-            if batch_num % 30 == 0:
+            if batch_num % 30 == 0 and train_jsd:
                 report_status = report_iterator.__next__()
 
             c_dices, sup_losses = [], []
@@ -140,7 +141,7 @@ class CoTrainer(Trainer):
                 lab_B = img.shape[0]
                 ## backward and update when the mode = ModelMode.TRAIN
                 pred, sup_loss = self.segmentators[enu_lab].update(img, gt, criterion=self.criterions.get('sup'),
-                                                                   mode=ModelMode.TRAIN)
+                                                                   mode=ModelMode.TRAIN if enu_lab==0 else ModelMode.EVAL)
                 c_dice = dice_coef(*self.toOneHot(pred, gt))  # shape: B, axises
                 c_dices.append(c_dice)
                 sup_losses.append(sup_loss)
@@ -237,7 +238,7 @@ class CoTrainer(Trainer):
 
             # the general shape of the dict to save upload
 
-            loss_dict = {f'Loss{i}': loss_log[0:batch_num, i].mean().item() for i in range(len(self.segmentators))}
+            loss_dict = {f'L{i}': loss_log[0:batch_num, i].mean().item() for i in range(len(self.segmentators))}
 
             nice_dict = {k: {**v1, **v2} for k, v1 in lab_dsc_dict.items() for _, v2 in
                          lab_mean_dict.items()} if report_status == 'label' else \
@@ -262,18 +263,20 @@ class CoTrainer(Trainer):
                    ):
         [segmentator.set_mode(mode) for segmentator in self.segmentators]
         val_dataloader.dataset.set_mode(ModelMode.EVAL)
+        assert self.segmentators[0].training == False
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
         S = self.segmentators.__len__()
         n_img = len(val_dataloader.dataset)
         n_batch = len(val_dataloader)
         coef_dice = torch.zeros(n_img, S, self.C)
         batch_dice = torch.zeros(n_batch, S, self.C)
+        loss_log = torch.zeros(n_batch, S)
         val_dataloader = tqdm_(val_dataloader)
         done = 0
 
         dsc_dict = {}
 
-        for i, [(img, gt), _, _] in enumerate(val_dataloader):
+        for batch_num, [(img, gt), _, _] in enumerate(val_dataloader):
             img, gt = img.to(self.device), gt.to(self.device)
             B = img.shape[0]
             preds = map_(lambda x: x.predict(img, logit=True), self.segmentators)
@@ -281,7 +284,7 @@ class CoTrainer(Trainer):
             b_dices = map_(lambda x: dice_batch(*self.toOneHot(x, gt)), preds)
             batch_slice = slice(done, done + B)
             coef_dice[batch_slice] = torch.cat([x.unsqueeze(1) for x in c_dices], dim=1)
-            batch_dice[i] = torch.cat([x.unsqueeze(0) for x in b_dices], dim=0)
+            batch_dice[batch_num] = torch.cat([x.unsqueeze(0) for x in b_dices], dim=0)
             done += B
 
             ## todo save predictions
@@ -297,9 +300,13 @@ class CoTrainer(Trainer):
             mean_dict = {f"S{i}": {"DSC": coef_dice[big_slice, i, self.axises].mean().item()} for i in
                          range(len(self.segmentators))}
 
-            nice_dict = {k: {**v1, **v2, **v3} for k, v1 in dsc_dict.items() for _, v2 in mean_dict.items() for _, v3 in
-                         b_dsc_dict.items()}
+            nice_dict = {k: {**v1, **v2} for k, v1 in dsc_dict.items() for _, v2 in mean_dict.items()}
+
+            loss_dict = {f'L{i}': loss_log[0:batch_num, i].mean().item() for i in range(len(self.segmentators))}
+            val_dataloader.set_description('val: ' + ','.join([f'{k}:{v:.3f}' for k, v in loss_dict.items()]))
+
             val_dataloader.set_postfix({f'{k}_{k_}': f'{v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()})
+
         self.upload_dicts('val_dataset', dsc_dict, epoch)
         print(
             f"{desc} " + ', '.join([f'{k}_{k_}: {v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()])
@@ -313,3 +320,7 @@ class CoTrainer(Trainer):
 
     def upload_dict(self, name, dict, epoch):
         self.writer.add_scalars(name, dict, epoch)
+
+    def schedulerStep(self):
+        for segmentator in self.segmentators:
+            segmentator.schedulerStep()
