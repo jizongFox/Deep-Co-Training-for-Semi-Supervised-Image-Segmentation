@@ -1,18 +1,14 @@
-from typing import Dict, List, Union
-from pathlib import Path
-import torch
-from torch import nn as nn
-from torch.utils.data import DataLoader
-from generalframework import ModelMode
-from ..models import Segmentator
-from .trainer import Base, Trainer
-from ..utils.utils import *
-from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
 from copy import deepcopy as dcopy
 from random import random
-from functools import reduce
+from typing import Dict
 
 from tensorboardX import SummaryWriter
+
+from generalframework import ModelMode
+from .trainer import Trainer
+from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
+from ..models import Segmentator
+from ..utils.utils import *
 
 
 class CoTrainer(Trainer):
@@ -66,6 +62,18 @@ class CoTrainer(Trainer):
 
     def start_training(self, train_jsd=False, train_adv=False, save_train=False, save_val=False):
         ## prepare for something:
+        S = len(self.segmentators)
+        n_img = max(map_(lambda x: len(x.dataset), self.labeled_dataloaders))
+        n_batch = max(map_(len, self.labeled_dataloaders))
+        n_unlab_img = n_batch * self.unlabeled_dataloader.batch_size
+
+        val_n_img = len(self.val_dataloader.dataset)
+
+        metrics = {'train_lab_dice': torch.zeros(self.max_epoch, n_img, S, self.C, dtype=torch.float),
+                   'train_unlab_dice': torch.zeros(self.max_epoch, n_unlab_img, S, self.C, dtype=torch.float),
+                   'val_dice': torch.zeros(self.max_epoch, val_n_img, S, self.C, dtype=torch.float),
+                   'val_batch_dice': torch.zeros(self.max_epoch, len(self.val_dataloader), S, self.C,
+                                                 dtype=torch.float)}
 
         for epoch in range(self.start_epoch + 1, self.max_epoch):
             self.schedulerStep()
@@ -85,9 +93,14 @@ class CoTrainer(Trainer):
                                                            mode=ModelMode.EVAL,
                                                            save=save_val)
 
+            for k, v in metrics.items():
+                v[epoch] = eval(k)
+
+            for k, v in metrics.items():
+                np.save(self.save_dir / f'{k}.npy', v.data.numpy())
 
     def _train_loop(self, labeled_dataloaders: List[DataLoader], unlabeled_dataloader: DataLoader, epoch: int,
-                    mode: ModelMode, save: bool, augment_labeled_data=True, augment_unlabeled_data=False,
+                    mode: ModelMode, save: bool, augment_labeled_data=False, augment_unlabeled_data=False,
                     train_jsd=False, train_adv=False):
         [segmentator.set_mode(mode) for segmentator in self.segmentators]
         for l_dataloader in labeled_dataloaders:
@@ -95,8 +108,7 @@ class CoTrainer(Trainer):
         unlabeled_dataloader.dataset.training = ModelMode.TRAIN if augment_unlabeled_data else ModelMode.EVAL
 
         assert self.segmentators[0].training == True
-        assert self.labeled_dataloaders[
-                   0].dataset.training == ModelMode.TRAIN if augment_labeled_data else ModelMode.EVAL
+        assert self.labeled_dataloaders[0].dataset.training == ModelMode.TRAIN if augment_labeled_data else ModelMode.EVAL
         assert self.unlabeled_dataloader.dataset.training == ModelMode.TRAIN if augment_unlabeled_data else ModelMode.EVAL
 
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
@@ -133,28 +145,34 @@ class CoTrainer(Trainer):
             if batch_num % 30 == 0 and train_jsd:
                 report_status = report_iterator.__next__()
 
-            c_dices, sup_losses = [], []
+            preds, c_dices, sup_losses = [], [], []
+
             ## for labeled data update
             for enu_lab in range(len(fake_labeled_iterators)):
-                [[img, gt], _, _] = fake_labeled_iterators[enu_lab].__next__()
+                [[img, gt], _, path] = fake_labeled_iterators[enu_lab].__next__()
                 img, gt = img.to(self.device), gt.to(self.device)
                 lab_B = img.shape[0]
                 ## backward and update when the mode = ModelMode.TRAIN
                 pred, sup_loss = self.segmentators[enu_lab].update(img, gt, criterion=self.criterions.get('sup'),
-                                                                   mode=ModelMode.TRAIN if enu_lab==0 else ModelMode.EVAL)
+                                                                   mode=ModelMode.TRAIN if enu_lab == 0 else ModelMode.EVAL)
                 c_dice = dice_coef(*self.toOneHot(pred, gt))  # shape: B, axises
                 c_dices.append(c_dice)
                 sup_losses.append(sup_loss)
+                preds.append(pred)
+
+                if save:
+                    save_images(pred2class(pred), names=path, root=self.save_dir, mode='train', iter=epoch,
+                                seg_num=str(enu_lab))
 
             batch_slice = slice(lab_done, lab_done + lab_B)
             ## record supervised data
             coef_dice[batch_slice] = torch.cat([x.unsqueeze(1) for x in c_dices], dim=1)
             loss_log[batch_num] = torch.cat([x.unsqueeze(0) for x in sup_losses], dim=0)
             lab_done += lab_B
-            # sup_loss = reduce(lambda x, y: x + y, sup_losses)
+
             if train_jsd:
                 ## for unlabeled data update
-                [[unlab_img, unlab_gt], _, _] = fake_unlabeled_iterator.__next__()
+                [[unlab_img, unlab_gt], _, path] = fake_unlabeled_iterator.__next__()
                 unlab_B = unlab_img.shape[0]
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
                 unlab_preds: List[Tensor] = map_(lambda x: x.predict(unlab_img, logit=False), self.segmentators)
@@ -170,6 +188,10 @@ class CoTrainer(Trainer):
                 assert jsdloss_2D.shape == unlab_img.squeeze(1).shape
                 jsdloss = jsdloss_2D.mean()
                 unlab_done += unlab_B
+
+                if save:
+                    [save_images(probs2class(prob), names=path, root=self.save_dir, mode='unlab',
+                                 iter=epoch, seg_num=str(i)) for i, prob in enumerate(unlab_preds)]
 
                 ## backward and update
                 # zero grad
@@ -187,10 +209,12 @@ class CoTrainer(Trainer):
 
                 ## draw first term from labeled1 or unlabeled
                 img, img_adv = None, None
-                if random() >= 1:
+                if random() > 0.0:
                     [[img, gt], _, _] = fake_labeled_iterators_adv[0].__next__()
                     img, gt = img.to(self.device), gt.to(self.device)
-                    img_adv = fsgm_img_generator(self.segmentators[0].torchnet, eplision=0.05)(dcopy(img), gt,
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        img_adv = fsgm_img_generator(self.segmentators[0].torchnet, eplision=0.05)(dcopy(img), gt,
                                                                                                criterion=CrossEntropyLoss2d())
                 else:
                     [[img, _], _, _] = fake_unlabeled_iterator_adv.__next__()
@@ -275,8 +299,9 @@ class CoTrainer(Trainer):
         done = 0
 
         dsc_dict = {}
+        nice_dict = {}
 
-        for batch_num, [(img, gt), _, _] in enumerate(val_dataloader):
+        for batch_num, [(img, gt), _, path] in enumerate(val_dataloader):
             img, gt = img.to(self.device), gt.to(self.device)
             B = img.shape[0]
             preds = map_(lambda x: x.predict(img, logit=True), self.segmentators)
@@ -286,6 +311,10 @@ class CoTrainer(Trainer):
             coef_dice[batch_slice] = torch.cat([x.unsqueeze(1) for x in c_dices], dim=1)
             batch_dice[batch_num] = torch.cat([x.unsqueeze(0) for x in b_dices], dim=0)
             done += B
+
+            if save:
+                save_images(torch.cat(map_(pred2class, preds), dim=0), names=path, root=self.save_dir, mode='eval',
+                            iter=epoch)
 
             ## todo save predictions
 
@@ -307,7 +336,8 @@ class CoTrainer(Trainer):
 
             val_dataloader.set_postfix({f'{k}_{k_}': f'{v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()})
 
-        self.upload_dicts('val_dataset', dsc_dict, epoch)
+        self.upload_dicts('val_data', dsc_dict, epoch)
+
         print(
             f"{desc} " + ', '.join([f'{k}_{k_}: {v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()])
         )

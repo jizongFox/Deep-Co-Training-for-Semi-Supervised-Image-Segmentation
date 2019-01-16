@@ -242,12 +242,16 @@ def probs2one_hot(probs: Tensor) -> Tensor:
     return res
 
 
-def save_images(segs: Tensor, names: Iterable[str], root: str, mode: str, iter: int) -> None:
+def save_images(segs: Tensor, names: Iterable[str], root: str,   mode: str, iter: int, seg_num=None) -> None:
     b, w, h = segs.shape  # type: Tuple[int, int,int] # Since we have the class numbers, we do not need a C axis
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', category=UserWarning)
         for seg, name in zip(segs, names):
-            save_path = Path(root, f"iter{iter:03d}", mode, name).with_suffix(".png")
+            if seg_num is None:
+                save_path = Path(root, f"iter{iter:03d}", mode, name).with_suffix(".png")
+            else:
+                save_path = Path(root, f"iter{iter:03d}", mode, seg_num,  name).with_suffix(".png")
+
             save_path.parent.mkdir(parents=True, exist_ok=True)
 
             imsave(str(save_path), seg.cpu().numpy())

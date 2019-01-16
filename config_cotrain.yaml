@@ -48,6 +48,6 @@ Loss:
 
 StartTraining:
   train_jsd: True
-  train_adv: False
+  train_adv: True
   save_train: True
   save_val: True

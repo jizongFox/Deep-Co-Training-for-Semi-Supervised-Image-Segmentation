@@ -59,4 +59,5 @@ def extract_patients(dataloader: DataLoader, patient_ids: List[str]):
         v.sort()
     new_dataloader = dcopy(dataloader)
     new_dataloader.dataset.imgs = files
+    new_dataloader.dataset.filenames = files
     return new_dataloader
