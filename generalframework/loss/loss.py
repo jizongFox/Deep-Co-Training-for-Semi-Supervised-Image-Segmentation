@@ -73,3 +73,46 @@ class JSD_2D(nn.Module):
         mean_entropy = sum(list(map(lambda x,: self.entropy(x), input))) / len(input)
         assert f_term.shape == mean_entropy.shape
         return f_term - mean_entropy
+
+
+class KL_Divergence_2D(nn.Module):
+
+    def __init__(self, reduce=False):
+        super().__init__()
+        self.reduce = reduce
+
+    def forward(self, p_prob: torch.Tensor, y_prob: torch.Tensor):
+        '''
+        :param p_probs:
+        :param y_prob: the Y_logit is like that for crossentropy
+        :return: 2D map?
+        '''
+        assert simplex(p_prob, 1)
+        assert simplex(y_prob, 1)
+
+        logp = p_prob.log()
+        logy = y_prob.log()
+
+        ylogy = (y_prob * logy).sum(dim=1)
+        ylogp = (y_prob * logp).sum(dim=1)
+        if self.reduce:
+            return (ylogy - ylogp).mean()
+        else:
+            return ylogy - ylogp
+
+
+class Adv_2D(nn.Module):
+    """Adversarial loss based on https://arxiv.org/abs/1803.05984 adapted for segmentation"""
+
+    def __init__(self):
+        super().__init__()
+        self.entropy = Entropy_2D()
+
+    def forward(self, predictions: List[torch.Tensor], adversarials: List[torch.Tensor]):
+        assert predictions.__len__() == adversarials.__len__()
+        for inprob, inadvs in zip(predictions, adversarials):
+            assert simplex(inprob, 1)
+            assert simplex(inadvs, 1)
+        diff_loss = sum(
+            list(map(lambda xy: self.entropy(xy[0]) + self.entropy(xy[1]), zip(predictions, adversarials))))
+        return diff_loss / len(predictions)
