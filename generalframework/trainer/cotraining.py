@@ -8,6 +8,7 @@ from generalframework import ModelMode
 from .trainer import Trainer
 from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
 from ..models import Segmentator
+from ..scheduler import RampScheduler
 from ..utils.utils import *
 
 
@@ -16,7 +17,9 @@ class CoTrainer(Trainer):
     def __init__(self, segmentators: List[Segmentator], labeled_dataloaders: List[DataLoader],
                  unlabeled_dataloader: DataLoader, val_dataloader: DataLoader, criterions: Dict[str, nn.Module],
                  max_epoch: int = 100, save_dir: str = 'tmp', device: str = 'cpu',
-                 axises: List[int] = [0, 1, 2], checkpoint: str = None, metricname: str = 'metrics.csv') -> None:
+                 axises: List[int] = [1, 2, 3], checkpoint: str = None, metricname: str = 'metrics.csv',
+                 lambda_cot_max: int = 10, lambda_adv_max: float = 0.5, ramp_up_mult: float = -5,
+                 epoch_max_ramp: int = 80) -> None:
 
         self.max_epoch = max_epoch
         self.segmentators = segmentators
@@ -50,6 +53,10 @@ class CoTrainer(Trainer):
         self.start_epoch = 0
         self.metricname = metricname
 
+        ## scheduler
+        self.cot_scheduler = RampScheduler(max_epoch=epoch_max_ramp, max_value=lambda_cot_max, ramp_mult=ramp_up_mult)
+        self.adv_scheduler = RampScheduler(max_epoch=epoch_max_ramp, max_value=lambda_adv_max, ramp_mult=ramp_up_mult)
+
         if checkpoint is not None:
             # todo
             self._load_checkpoint(checkpoint)
@@ -76,7 +83,6 @@ class CoTrainer(Trainer):
                                                  dtype=torch.float)}
 
         for epoch in range(self.start_epoch + 1, self.max_epoch):
-            self.schedulerStep()
 
             train_lab_dice, train_unlab_dice = self._train_loop(labeled_dataloaders=self.labeled_dataloaders,
                                                                 unlabeled_dataloader=self.unlabeled_dataloader,
@@ -93,6 +99,8 @@ class CoTrainer(Trainer):
                                                            mode=ModelMode.EVAL,
                                                            save=save_val)
 
+            self.schedulerStep()
+
             for k, v in metrics.items():
                 v[epoch] = eval(k)
 
@@ -108,7 +116,8 @@ class CoTrainer(Trainer):
         unlabeled_dataloader.dataset.training = ModelMode.TRAIN if augment_unlabeled_data else ModelMode.EVAL
 
         assert self.segmentators[0].training == True
-        assert self.labeled_dataloaders[0].dataset.training == ModelMode.TRAIN if augment_labeled_data else ModelMode.EVAL
+        assert self.labeled_dataloaders[
+                   0].dataset.training == ModelMode.TRAIN if augment_labeled_data else ModelMode.EVAL
         assert self.unlabeled_dataloader.dataset.training == ModelMode.TRAIN if augment_unlabeled_data else ModelMode.EVAL
 
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
@@ -154,7 +163,7 @@ class CoTrainer(Trainer):
                 lab_B = img.shape[0]
                 ## backward and update when the mode = ModelMode.TRAIN
                 pred, sup_loss = self.segmentators[enu_lab].update(img, gt, criterion=self.criterions.get('sup'),
-                                                                   mode=ModelMode.TRAIN if enu_lab == 0 else ModelMode.EVAL)
+                                                                   mode=ModelMode.TRAIN)
                 c_dice = dice_coef(*self.toOneHot(pred, gt))  # shape: B, axises
                 c_dices.append(c_dice)
                 sup_losses.append(sup_loss)
@@ -196,7 +205,7 @@ class CoTrainer(Trainer):
                 ## backward and update
                 # zero grad
                 map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
-                loss = jsdloss
+                loss = jsdloss * self.cot_scheduler.value
                 loss.backward()
                 map_(lambda x: x.optimizer.step(), self.segmentators)
 
@@ -215,7 +224,7 @@ class CoTrainer(Trainer):
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore")
                         img_adv = fsgm_img_generator(self.segmentators[0].torchnet, eplision=0.05)(dcopy(img), gt,
-                                                                                               criterion=CrossEntropyLoss2d())
+                                                                                                   criterion=CrossEntropyLoss2d())
                 else:
                     [[img, _], _, _] = fake_unlabeled_iterator_adv.__next__()
                     img = img.to(self.device)
@@ -242,6 +251,7 @@ class CoTrainer(Trainer):
                 adv_loss = sum(adv_losses) / adv_losses.__len__()
 
                 map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
+                adv_loss *= self.adv_scheduler.value
                 adv_loss.backward()
                 map_(lambda x: x.optimizer.step(), self.segmentators)
 
@@ -354,3 +364,5 @@ class CoTrainer(Trainer):
     def schedulerStep(self):
         for segmentator in self.segmentators:
             segmentator.schedulerStep()
+        self.cot_scheduler.step()
+        self.adv_scheduler.step()

@@ -377,3 +377,4 @@ class VATGenerator(object):
         assert self.net.training == tra_state
 
         return img_adv.detach()
+
