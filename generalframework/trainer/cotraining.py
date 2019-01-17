@@ -75,8 +75,7 @@ class CoTrainer(Trainer):
         for epoch in range(self.start_epoch + 1, self.max_epoch):
             self.schedulerStep()
 
-            lambda_cot, lambda_adv = self.adjust_multipliers(self.lambda_cot_max, self.lambda_adv_max, self.ramp_up_mult,
-                                                             epoch, epoch_max_ramp=self.epoch_max_ramp)
+            lambda_cot, lambda_adv = self.adjust_multipliers(epoch)
 
             train_lab_dice, train_unlab_dice = self._train_loop(labeled_dataloaders=self.labeled_dataloaders,
                                                                 unlabeled_dataloader=self.unlabeled_dataloader,
@@ -332,7 +331,7 @@ class CoTrainer(Trainer):
         for segmentator in self.segmentators:
             segmentator.schedulerStep()
 
-    def adjust_multipliers(self, lambda_cot_max, lambda_diff_max, ramp_up_mult, epoch, epoch_max_ramp):
+    def adjust_multipliers(self, epoch):
         n_labeled = self.labeled_dataloaders[0].__len__()
         n_samples = n_labeled + self.unlabeled_dataloade.__len__()
         # this is the ramp_up function for lambda_cot and lambda_diff weights on the unsupervised terms.

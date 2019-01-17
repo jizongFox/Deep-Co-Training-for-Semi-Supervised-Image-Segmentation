@@ -1,4 +1,7 @@
 import warnings
+import functools
+import yaml
+import os
 from functools import partial
 from pathlib import Path
 from typing import Callable, Iterable, List, Set, Tuple, TypeVar
@@ -390,3 +393,30 @@ def adjust_multipliers(lambda_cot_max, lambda_diff_max, ramp_up_mult, n_labeled,
     lambda_cot = weight_schedule(epoch, epoch_max_ramp, lambda_cot_max, ramp_up_mult, n_labeled, n_samples)
     lambda_diff = weight_schedule(epoch, epoch_max_ramp, lambda_diff_max, ramp_up_mult, n_labeled, n_samples)
     return lambda_cot, lambda_diff
+
+
+def update_yaml():
+    pass
+
+
+def dumps(func):
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        ret = func(self, *args, **kwargs)
+        with open(self.filename, "w") as f:
+            yaml.dump(self, f)
+        return ret
+    return wrapper
+
+
+class YAMLConfig(dict):
+    def __init__(self, filename):
+        self.filename = filename
+        if os.path.isfile(filename):
+            with open(filename) as f:
+                # use super here to avoid unnecessary write
+                super(YAMLConfig, self).update(yaml.load(f) or {})
+
+    __setitem__ = dumps(dict.__setitem__)
+    __delitem__ = dumps(dict.__delitem__)
+    update = dumps(dict.update)
