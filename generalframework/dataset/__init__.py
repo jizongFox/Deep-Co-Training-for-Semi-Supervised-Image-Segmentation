@@ -32,7 +32,7 @@ def get_dataset_root(dataname):
 
 
 def get_dataloaders(dataset_dict: dict, dataloader_dict: dict):
-    dataset_dict = {k: eval(v) if isinstance(v, str) else v for k, v in dataset_dict.items()}
+    dataset_dict = {k: eval(v) if isinstance(v, str) and k != 'root_dir' else v for k, v in dataset_dict.items()}
     dataloader_dict = {k: eval(v) if isinstance(v, str) else v for k, v in dataloader_dict.items()}
     train_set = MedicalImageDataset(mode='train', **dataset_dict)
     val_set = MedicalImageDataset(mode='val', **dataset_dict)
