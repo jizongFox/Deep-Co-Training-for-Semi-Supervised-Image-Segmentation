@@ -1,7 +1,7 @@
 from copy import deepcopy as dcopy
 from random import random
 from typing import Dict
-
+import yaml
 from tensorboardX import SummaryWriter
 
 from generalframework import ModelMode
@@ -19,7 +19,7 @@ class CoTrainer(Trainer):
                  max_epoch: int = 100, save_dir: str = 'tmp', device: str = 'cpu',
                  axises: List[int] = [1, 2, 3], checkpoint: str = None, metricname: str = 'metrics.csv',
                  lambda_cot_max: int = 10, lambda_adv_max: float = 0.5, ramp_up_mult: float = -5,
-                 epoch_max_ramp: int = 80) -> None:
+                 epoch_max_ramp: int = 80, whole_config=None) -> None:
 
         self.max_epoch = max_epoch
         self.segmentators = segmentators
@@ -46,6 +46,11 @@ class CoTrainer(Trainer):
         # assert not (self.save_dir.exists() and checkpoint is None), f'>> save_dir: {self.save_dir} exits.'
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.writer = SummaryWriter(save_dir)
+        ## save the whole new config to the save_dir
+        if whole_config:
+            with open(Path(self.save_dir,'config.yml'), 'w') as outfile:
+                yaml.dump(whole_config, outfile, default_flow_style=True)
+
         self.device = torch.device(device)
         self.C = self.segmentators[0].arch_params['num_classes']
         self.axises = axises

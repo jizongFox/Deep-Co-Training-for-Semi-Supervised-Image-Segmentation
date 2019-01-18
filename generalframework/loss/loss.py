@@ -1,10 +1,12 @@
+import warnings
+from functools import reduce
+from typing import List
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Union, List, Any
+
 from ..utils.utils import simplex
-from functools import reduce
-import warnings
 
 
 class CrossEntropyLoss2d(nn.Module):

@@ -12,7 +12,8 @@ from itertools import repeat
 from functools import partial
 import torch, numpy as np
 from .metainfoGenerator import *
-from .augment import PILaugment,segment_transform
+from .augment import PILaugment, segment_transform
+
 
 class MedicalImageDataset(Dataset):
     dataset_modes = ['train', 'val', 'test']
@@ -20,7 +21,7 @@ class MedicalImageDataset(Dataset):
 
     def __init__(self, root_dir: str, mode: str, subfolders: List[str], transform=None, augment=None,
                  equalize: Union[List[str], str, None] = None,
-                 pin_memory=False, metainfo: str = None):
+                 pin_memory=False, metainfo: str = None, quite=False):
         '''
         :param root_dir: dataset root
         :param mode: train or test or val etc, should be in the cls attribute
@@ -36,17 +37,17 @@ class MedicalImageDataset(Dataset):
         self.subfolders = subfolders
         self.transform = eval(transform) if isinstance(transform, str) else transform
         self.pin_memory = pin_memory
-        print(f'->> Building {self.name}:\t')
-        self.imgs, self.filenames = self.make_dataset(self.root_dir, self.mode, self.subfolders, self.pin_memory)
-        self.augment = eval(augment) if isinstance(augment,str) else augment
+        if not quite:
+            print(f'->> Building {self.name}:\t')
+        self.imgs, self.filenames = self.make_dataset(self.root_dir, self.mode, self.subfolders, self.pin_memory,
+                                                      quite=quite)
+        self.augment = eval(augment) if isinstance(augment, str) else augment
         self.equalize = equalize
         self.training = ModelMode.TRAIN
         self.metainfo_generator = None if metainfo is None else eval(metainfo)[0](**eval(metainfo)[1])
-        print('\n')
 
     def __len__(self):
         return int(len(self.imgs[self.subfolders[0]]))
-
 
     def set_mode(self, mode):
         assert isinstance(mode, (str, ModelMode)), 'the type of mode should be str or ModelMode, given %s' % str(mode)
@@ -86,7 +87,7 @@ class MedicalImageDataset(Dataset):
         return img_T, metainformation, filename
 
     @classmethod
-    def make_dataset(cls, root, mode, subfolders, pin_memory):
+    def make_dataset(cls, root, mode, subfolders, pin_memory, quite=False):
         def allow_extension(path: str, extensions: List[str]) -> bool:
             try:
                 return Path(path).suffixes[0] in extensions
@@ -112,14 +113,17 @@ class MedicalImageDataset(Dataset):
         assert set(map_(len, imgs.values())).__len__() == 1
 
         for subfolder in subfolders:
-            print(f'found {len(imgs[subfolder])} images in {subfolder}\t')
+            if not quite:
+                print(f'found {len(imgs[subfolder])} images in {subfolder}\t')
 
         if pin_memory:
-            print(f'pin_memory in progress....')
+            if not quite:
+                print(f'pin_memory in progress....')
             pin_imgs = {}
             for k, v in imgs.items():
                 pin_imgs[k] = [Image.open(i).convert('L') for i in v]
-            print(f'pin_memory sucessfully..')
+            if not quite:
+                print(f'pin_memory sucessfully..')
             return pin_imgs, imgs
 
         return imgs, imgs
@@ -139,7 +143,7 @@ def map_(fn: Callable[[A], B], iter: Iterable[A]) -> List[B]:
 
 
 class PatientSampler(Sampler):
-    def __init__(self, dataset: MedicalImageDataset, grp_regex, shuffle=False) -> None:
+    def __init__(self, dataset: MedicalImageDataset, grp_regex, shuffle=False, quite=False) -> None:
         filenames: List[str] = dataset.filenames[dataset.subfolders[0]]
         # Might be needed in case of escape sequence fuckups
         # self.grp_regex = bytes(grp_regex, "utf-8").decode('unicode_escape')
@@ -148,8 +152,8 @@ class PatientSampler(Sampler):
         # Configure the shuffling function
         self.shuffle: bool = shuffle
         self.shuffle_fn: Callable = (lambda x: random.sample(x, len(x))) if self.shuffle else id_
-
-        print(f"Grouping using {self.grp_regex} regex")
+        if not quite:
+            print(f"Grouping using {self.grp_regex} regex")
         # assert grp_regex == "(patient\d+_\d+)_\d+"
         # grouping_regex: Pattern = re.compile("grp_regex")
         grouping_regex: Pattern = re.compile(self.grp_regex)
@@ -160,7 +164,8 @@ class PatientSampler(Sampler):
 
         unique_patients: List[str] = list(set(patients))
         assert len(unique_patients) < len(filenames)
-        print(f"Found {len(unique_patients)} unique patients out of {len(filenames)} images")
+        if not quite:
+            print(f"Found {len(unique_patients)} unique patients out of {len(filenames)} images")
 
         self.idx_map: Dict[str, List[int]] = dict(zip(unique_patients, repeat(None)))
         for i, patient in enumerate(patients):
@@ -168,10 +173,9 @@ class PatientSampler(Sampler):
                 self.idx_map[patient] = []
 
             self.idx_map[patient] += [i]
-        # print(self.idx_map)
         assert sum(len(self.idx_map[k]) for k in unique_patients) == len(filenames)
-
-        print("Patient to slices mapping done")
+        if not quite:
+            print("Patient to slices mapping done")
 
     def __len__(self):
         return len(self.idx_map.keys())

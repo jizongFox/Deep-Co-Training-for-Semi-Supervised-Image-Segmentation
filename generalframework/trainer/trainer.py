@@ -1,16 +1,12 @@
-from abc import ABC, abstractmethod
-from generalframework import LOGGER, config_logger
-from generalframework.utils import *
-from torch.utils.data import DataLoader
-import torch, os, shutil, numpy as np, pandas as pd
-import torch.nn as nn
-import torch.nn.functional as F
-from pathlib import Path
-from ..models import Segmentator
-from typing import Dict, Callable, List, Union
-import warnings
-from generalframework import ModelMode
+import os
 import shutil
+from abc import ABC, abstractmethod
+from typing import Dict
+import pandas as pd
+import yaml
+from generalframework import ModelMode
+from ..utils import *
+from ..models import Segmentator
 
 
 class Base(ABC):
@@ -32,8 +28,8 @@ class Trainer(Base):
     def __init__(self, segmentator: Segmentator, dataloaders: Dict[str, DataLoader], criterion: nn.Module,
                  max_epoch: int = 100,
                  save_dir: str = 'tmp', save_train=False, save_val=False,
-                 device: str = 'cpu', axises: List[int] = [0],
-                 checkpoint: str = None, metricname: str = 'metrics.csv') -> None:
+                 device: str = 'cpu', axises: List[int] = [1, 2, 3, 4],
+                 checkpoint: str = None, metricname: str = 'metrics.csv', whole_config=None) -> None:
         super().__init__()
         self.max_epoch = max_epoch
         self.segmentator = segmentator
@@ -42,6 +38,9 @@ class Trainer(Base):
         self.save_dir = Path(save_dir)
         # assert not (self.save_dir.exists() and checkpoint is None), f'>> save_dir: {self.save_dir} exits.'
         self.save_dir.mkdir(parents=True, exist_ok=True)
+        if whole_config:
+            with open(Path(self.save_dir, 'config.yml'), 'w') as outfile:
+                yaml.dump(whole_config, outfile, default_flow_style=True)
         self.save_train = save_train
         self.save_val = save_val
         self.device = torch.device(device)
