@@ -6,6 +6,7 @@ from generalframework.models import Segmentator
 from generalframework.trainer import Trainer
 from generalframework.utils import yaml_parser, dict_merge
 import yaml
+warnings.filterwarnings('ignore')
 
 parser_args = yaml_parser()
 print('->>Input args:')

@@ -39,7 +39,7 @@ Trainer:
   max_epoch: 100
   save_dir: tmp/cotraining
   device: cuda
-  axises: [0,1,2,3]
+  axises: [1,2,3]
   metricname: metrics.csv
   lambda_cot_max: 10
   lambda_adv_max: 0.5
@@ -48,7 +48,7 @@ Trainer:
 
 Loss:
   name: cross_entropy
-  weight: [0.01, 1, 1, 1]
+  weight: [1, 1, 1, 1]
 
 StartTraining:
   train_jsd: True
