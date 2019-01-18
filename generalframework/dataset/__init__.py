@@ -31,11 +31,11 @@ def get_dataset_root(dataname):
         raise ('There is no such dataname, given {}'.format(dataname))
 
 
-def get_dataloaders(dataset_dict: dict, dataloader_dict: dict):
+def get_dataloaders(dataset_dict: dict, dataloader_dict: dict, quite=False):
     dataset_dict = {k: eval(v) if isinstance(v, str) and k != 'root_dir' else v for k, v in dataset_dict.items()}
     dataloader_dict = {k: eval(v) if isinstance(v, str) else v for k, v in dataloader_dict.items()}
-    train_set = MedicalImageDataset(mode='train', **dataset_dict)
-    val_set = MedicalImageDataset(mode='val', **dataset_dict)
+    train_set = MedicalImageDataset(mode='train', **dataset_dict, quite=quite)
+    val_set = MedicalImageDataset(mode='val', **dataset_dict, quite=quite)
     train_loader = DataLoader(train_set, **{**dataloader_dict, **{'batch_sampler': None}})
 
     if dataloader_dict.get('batch_sampler') is not None:
