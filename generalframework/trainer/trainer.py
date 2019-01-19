@@ -78,16 +78,16 @@ class Trainer(Base):
         val_n: int = len(self.dataloaders['val'].dataset)
         val_b: int = len(self.dataloaders['val'])
 
-        metrics = {"val_dice": torch.zeros((self.max_epoch, val_n, n_class), device=self.device).type(torch.float32),
-                   "val_batch_dice": torch.zeros((self.max_epoch, val_b, n_class), device=self.device).type(
+        metrics = {"val_dice": torch.zeros((self.max_epoch, val_n, 1, n_class), device=self.device).type(torch.float32),
+                   "val_batch_dice": torch.zeros((self.max_epoch, val_b, 1, n_class), device=self.device).type(
                        torch.float32),
                    "val_loss": torch.zeros((self.max_epoch, val_b), device=self.device).type(torch.float32),
-                   "train_dice": torch.zeros((self.max_epoch, train_n, n_class), device=self.device).type(
+                   "train_dice": torch.zeros((self.max_epoch, train_n, 1, n_class), device=self.device).type(
                        torch.float32),
                    "train_loss": torch.zeros((self.max_epoch, train_b), device=self.device).type(torch.float32)}
 
         train_loader, val_loader = self.dataloaders['train'], self.dataloaders['val']
-        for epoch in range(self.start_epoch + 1, self.max_epoch):
+        for epoch in range(self.start_epoch, self.max_epoch):
             train_dice, _, train_loss = self._main_loop(train_loader, epoch, mode=ModelMode.TRAIN, save=self.save_train)
             with torch.no_grad():
                 val_dice, val_batch_dice, val_loss = self._main_loop(val_loader, epoch, mode=ModelMode.EVAL,
@@ -102,16 +102,16 @@ class Trainer(Base):
 
             df = pd.DataFrame({"train_loss": metrics["train_loss"].mean(dim=1).detach().cpu().numpy(),
                                "val_loss": metrics["val_loss"].mean(dim=1).cpu().numpy(),
-                               "train_dice": metrics["train_dice"][:, :, -1].mean(dim=1).cpu().numpy(),
+                               "train_dice": metrics["train_dice"][:, :, 0, -1].mean(dim=1).cpu().numpy(),
                                # using the axis = 3
-                               "val_dice": metrics["val_dice"][:, :, -1].mean(dim=1).cpu().numpy(),
+                               "val_dice": metrics["val_dice"][:, :, 0, -1].mean(dim=1).cpu().numpy(),
                                # using the axis = 3
-                               "val_batch_dice": metrics["val_batch_dice"][:, :, -1].mean(dim=1).cpu().numpy()})
+                               "val_batch_dice": metrics["val_batch_dice"][:, :, 0, -1].mean(dim=1).cpu().numpy()})
             ## the saved metrics are with only axis==3, as the foreground dice.
 
             df.to_csv(Path(self.save_dir, self.metricname), float_format="%.4f", index_label="epoch")
 
-            current_metric = val_dice[:, self.axises].mean()
+            current_metric = val_dice[:,0, self.axises].mean()
             self.checkpoint(current_metric, epoch)
 
     def _main_loop(self, dataloader: DataLoader, epoch: int, mode, save: bool):
@@ -122,8 +122,8 @@ class Trainer(Base):
 
         n_img = len(dataloader.dataset)
         n_batch = len(dataloader)
-        coef_dice = torch.zeros(n_img, self.C)
-        batch_dice = torch.zeros(n_batch, self.C)
+        coef_dice = torch.zeros(n_img, 1, self.C)
+        batch_dice = torch.zeros(n_batch, 1, self.C)
         loss_log = torch.zeros(n_batch)
         dataloader = tqdm_(dataloader)
         done = 0
@@ -138,10 +138,10 @@ class Trainer(Base):
             #
             if mode == ModelMode.EVAL:
                 b_dice = dice_batch(*self.toOneHot(preds, imgs[1]))
-                batch_dice[i] = b_dice
+                batch_dice[i, 0] = b_dice
             #
             batch = slice(done, done + B)
-            coef_dice[batch] = c_dice
+            coef_dice[batch, 0] = c_dice
             loss_log[i] = loss
             done += B
             #
@@ -152,12 +152,12 @@ class Trainer(Base):
             ## for visualization
             big_slice = slice(0, done)  # Value for current and previous batches
 
-            dsc_dict = {f"DSC{n}": coef_dice[big_slice, n].mean() for n in self.axises}
+            dsc_dict = {f"DSC{n}": coef_dice[big_slice, 0, n].mean() for n in self.axises}
 
-            bdsc_dict = {f"bDSC{n}": batch_dice[big_slice, n].mean() for n in
+            bdsc_dict = {f"bDSC{n}": batch_dice[big_slice, 0, n].mean() for n in
                          self.axises}
 
-            mean_dict = {"DSC": coef_dice[big_slice, self.axises].mean()}
+            mean_dict = {"DSC": coef_dice[big_slice, 0, self.axises].mean()}
 
             stat_dict = {**dsc_dict, **bdsc_dict, **mean_dict,
                          "loss": loss_log[:i].mean()}
@@ -180,9 +180,9 @@ class Trainer(Base):
             save_path = Path(os.path.join(self.save_dir, filename))
             torch.save(state_dict, save_path)
             if Path(self.save_dir, "iter%.3d" % epoch).exists():
-                if Path(self.save_dir, "best").exists():
-                    shutil.rmtree(Path(self.save_dir, "best"))
-                shutil.copytree(Path(self.save_dir, "iter%.3d" % epoch), Path(self.save_dir, 'best'))
+                if Path(self.save_dir, Path(filename).stem).exists():
+                    shutil.rmtree(Path(self.save_dir, Path(filename).stem))
+                shutil.copytree(Path(self.save_dir, "iter%.3d" % epoch), Path(self.save_dir, Path(filename).stem))
 
     @classmethod
     def toOneHot(cls, pred_logit, mask):

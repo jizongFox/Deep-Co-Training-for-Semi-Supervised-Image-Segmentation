@@ -9,7 +9,7 @@ Optim:
 Scheduler:
   name: MultiStepLR
   milestones: [10,20,30,40,50,60,70,80,90]
-  gamma: 0.9
+  gamma: 0.6
 
 
 Dataset:
@@ -51,7 +51,7 @@ Loss:
   weight: [1, 1, 1, 1]
 
 StartTraining:
-  train_jsd: True
-  train_adv: True
+  train_jsd: False
+  train_adv: False
   save_train: False
   save_val: True

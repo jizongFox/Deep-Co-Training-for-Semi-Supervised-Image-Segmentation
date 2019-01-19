@@ -3,7 +3,7 @@ from random import random
 from typing import Dict
 import yaml
 from tensorboardX import SummaryWriter
-
+import pandas as pd
 from generalframework import ModelMode
 from .trainer import Trainer
 from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
@@ -48,13 +48,13 @@ class CoTrainer(Trainer):
         self.writer = SummaryWriter(save_dir)
         ## save the whole new config to the save_dir
         if whole_config:
-            with open(Path(self.save_dir,'config.yml'), 'w') as outfile:
+            with open(Path(self.save_dir, 'config.yml'), 'w') as outfile:
                 yaml.dump(whole_config, outfile, default_flow_style=True)
 
         self.device = torch.device(device)
         self.C = self.segmentators[0].arch_params['num_classes']
         self.axises = axises
-        self.best_score = -1
+        self.best_scores = np.zeros(self.segmentators.__len__())
         self.start_epoch = 0
         self.metricname = metricname
 
@@ -87,7 +87,7 @@ class CoTrainer(Trainer):
                    'val_batch_dice': torch.zeros(self.max_epoch, len(self.val_dataloader), S, self.C,
                                                  dtype=torch.float)}
 
-        for epoch in range(self.start_epoch + 1, self.max_epoch):
+        for epoch in range(self.start_epoch, self.max_epoch + 1):
 
             train_lab_dice, train_unlab_dice = self._train_loop(labeled_dataloaders=self.labeled_dataloaders,
                                                                 unlabeled_dataloader=self.unlabeled_dataloader,
@@ -111,6 +111,40 @@ class CoTrainer(Trainer):
 
             for k, v in metrics.items():
                 np.save(self.save_dir / f'{k}.npy', v.data.numpy())
+
+
+
+            writer = pd.ExcelWriter(Path(self.save_dir, self.metricname.replace('csv','xlsx')), engine='openpyxl')
+            for s in range(self.segmentators.__len__()):
+                df = pd.DataFrame(
+                    {
+                        **{f"train_lab_dice_{i}": metrics["train_lab_dice"].mean(1)[:, 0, i] for i in self.axises},
+                        **{f"train_unlab_dice_{i}": metrics["train_unlab_dice"].mean(1)[:, 0, i] for i in
+                           self.axises},
+                        **{f"val_dice_{i}": metrics["val_dice"].mean(1)[:, 0, i] for i in self.axises},
+                        # using the axis = 3
+                        **{f"val_batch_dice_{i}": metrics["val_batch_dice"].mean(1)[:, 0, i] for i in self.axises}
+                    })
+                ## the saved metrics are with only axis==3, as the foreground dice.
+
+                df.to_csv(Path(self.save_dir, self.metricname.replace('.csv',f'_{s}.csv')), float_format="%.4f", index_label="epoch")
+                df.to_excel(excel_writer=writer, sheet_name=f'Seg_{s}', encoding="utf-8", index_label='epoch',float_format="%.4f")
+            writer.save()
+            writer.close()
+            current_metric = val_dice[:, :,self.axises].mean([0,2])
+            self.checkpoint(current_metric, epoch)
+
+    def checkpoint(self, metric, epoch, filename='best.pth'):
+        assert isinstance(metric,Tensor)
+        assert metric.__len__() == self.segmentators.__len__()
+        for i, score in enumerate(metric):
+            # slack variable:
+            self.best_score = self.best_scores[i]
+            self.segmentator=self.segmentators[i]
+            super().checkpoint(score,epoch,filename=f'best_{i}.pth')
+            self.best_scores[i]=self.best_score
+
+
 
     def _train_loop(self, labeled_dataloaders: List[DataLoader], unlabeled_dataloader: DataLoader, epoch: int,
                     mode: ModelMode, save: bool, augment_labeled_data=False, augment_unlabeled_data=False,

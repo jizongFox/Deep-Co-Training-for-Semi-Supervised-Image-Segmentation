@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-Network='enet'
-max_peoch=2
+max_peoch=100
 data_aug=None
 logdir=runs
 mkdir -p archives

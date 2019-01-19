@@ -431,6 +431,11 @@ def dict_merge(dct: dict, merge_dct: dict, re=False):
     :return: None
     """
     # dct = dcopy(dct)
+    if merge_dct is None:
+        if re:
+            return dct
+        else:
+            return
     for k, v in merge_dct.items():
         if (k in dct and isinstance(dct[k], dict)
                 and isinstance(merge_dct[k], collections.Mapping)):
