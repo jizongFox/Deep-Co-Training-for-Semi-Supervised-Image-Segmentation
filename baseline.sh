@@ -1,19 +1,24 @@
 #!/usr/bin/env bash
 max_peoch=100
 data_aug=None
-logdir=runs
-mkdir -p archives
+logdir=cardiac/unet_No_agument
+mkdir -p archives/$logdir
 ## Fulldataset baseline
-rm -rf $logdir/FS_fulldataset
-python train.py Trainer.save_dir=$logdir/FS_fulldataset Trainer.max_epoch=$max_peoch \
-Dataset.augment=$data_aug
-rm -rf archives/FS_fulldataset
-mv -f $logdir/FS_fulldataset archives/
+
+currentfoldername=FS_fulldata
+rm -rf $logdir/$currentfoldername
+python train.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
+Dataset.augment=$data_aug Dataloader.batch_sampler="['PatientSampler',{'grp_regex':'(patient\d+_\d+)_\d+','shuffle':False}]"
+rm -rf archives/$logdir/$currentfoldername
+mv -f runs/$logdir/$currentfoldername archives/$logdir
 
 ## Partial dataset baseline
-rm -rf $logdir/FS_partialdataset
-python train_cotraining.py Trainer.save_dir=$logdir/FS_partialdataset Trainer.max_epoch=$max_peoch \
-Dataset.augment=$data_aug StartTraining.train_jsd=False, StartTraining.train_adv=False \
+currentfoldername=FS_partial
+rm -rf $logdir/$currentfoldername
+python train_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
+Dataset.augment=$data_aug StartTraining.train_jsd=False StartTraining.train_adv=False Dataloader.batch_sampler=Dataloader.batch_sampler="['PatientSampler',{'grp_regex':'(patient\d+_\d+)_\d+','shuffle':False}]"
 
-rm -rf archives/FS_partialdataset
-mv -f $logdir/FS_partialdataset archives/
+rm -rf archives/$logdir/$currentfoldername
+mv -f runs/$logdir/$currentfoldername archives/$logdir
+
+python generalframework/postprocessing/plot.py --folders archives/$logdir/FS_fulldata/ archives/$logdir/FS_partial/ --file val_dice.npy --axis 1 2 3 --postfix=test

@@ -81,22 +81,22 @@ class CoTrainer(Trainer):
 
         val_n_img = len(self.val_dataloader.dataset)
 
-        metrics = {'train_lab_dice': torch.zeros(self.max_epoch, n_img, S, self.C, dtype=torch.float),
+        metrics = {'train_dice': torch.zeros(self.max_epoch, n_img, S, self.C, dtype=torch.float),
                    'train_unlab_dice': torch.zeros(self.max_epoch, n_unlab_img, S, self.C, dtype=torch.float),
                    'val_dice': torch.zeros(self.max_epoch, val_n_img, S, self.C, dtype=torch.float),
                    'val_batch_dice': torch.zeros(self.max_epoch, len(self.val_dataloader), S, self.C,
                                                  dtype=torch.float)}
 
-        for epoch in range(self.start_epoch, self.max_epoch + 1):
+        for epoch in range(self.start_epoch, self.max_epoch):
 
-            train_lab_dice, train_unlab_dice = self._train_loop(labeled_dataloaders=self.labeled_dataloaders,
-                                                                unlabeled_dataloader=self.unlabeled_dataloader,
-                                                                epoch=epoch,
-                                                                mode=ModelMode.TRAIN,
-                                                                save=save_train,
-                                                                train_jsd=train_jsd,
-                                                                train_adv=train_adv
-                                                                )
+            train_dice, train_unlab_dice = self._train_loop(labeled_dataloaders=self.labeled_dataloaders,
+                                                            unlabeled_dataloader=self.unlabeled_dataloader,
+                                                            epoch=epoch,
+                                                            mode=ModelMode.TRAIN,
+                                                            save=save_train,
+                                                            train_jsd=train_jsd,
+                                                            train_adv=train_adv
+                                                            )
 
             with torch.no_grad():
                 val_dice, val_batch_dice = self._eval_loop(val_dataloader=self.val_dataloader,
@@ -112,39 +112,27 @@ class CoTrainer(Trainer):
             for k, v in metrics.items():
                 np.save(self.save_dir / f'{k}.npy', v.data.numpy())
 
-
-
-            writer = pd.ExcelWriter(Path(self.save_dir, self.metricname.replace('csv','xlsx')), engine='openpyxl')
+            writer = pd.ExcelWriter(Path(self.save_dir, self.metricname.replace('csv', 'xlsx')), engine='openpyxl')
             for s in range(self.segmentators.__len__()):
                 df = pd.DataFrame(
                     {
-                        **{f"train_lab_dice_{i}": metrics["train_lab_dice"].mean(1)[:, 0, i] for i in self.axises},
-                        **{f"train_unlab_dice_{i}": metrics["train_unlab_dice"].mean(1)[:, 0, i] for i in
+                        **{f"train_dice_{i}": metrics["train_dice"].mean(1)[:, s, i] for i in self.axises},
+                        **{f"train_unlab_dice_{i}": metrics["train_unlab_dice"].mean(1)[:, s, i] for i in
                            self.axises},
-                        **{f"val_dice_{i}": metrics["val_dice"].mean(1)[:, 0, i] for i in self.axises},
+                        **{f"val_dice_{i}": metrics["val_dice"].mean(1)[:, s, i] for i in self.axises},
                         # using the axis = 3
-                        **{f"val_batch_dice_{i}": metrics["val_batch_dice"].mean(1)[:, 0, i] for i in self.axises}
+                        **{f"val_batch_dice_{i}": metrics["val_batch_dice"].mean(1)[:, s, i] for i in self.axises}
                     })
                 ## the saved metrics are with only axis==3, as the foreground dice.
 
-                df.to_csv(Path(self.save_dir, self.metricname.replace('.csv',f'_{s}.csv')), float_format="%.4f", index_label="epoch")
-                df.to_excel(excel_writer=writer, sheet_name=f'Seg_{s}', encoding="utf-8", index_label='epoch',float_format="%.4f")
+                df.to_csv(Path(self.save_dir, self.metricname.replace('.csv', f'_{s}.csv')), float_format="%.4f",
+                          index_label="epoch")
+                df.to_excel(excel_writer=writer, sheet_name=f'Seg_{s}', encoding="utf-8", index_label='epoch',
+                            float_format="%.4f")
             writer.save()
             writer.close()
-            current_metric = val_dice[:, :,self.axises].mean([0,2])
+            current_metric = val_dice[:, :, self.axises].mean([0, 2])
             self.checkpoint(current_metric, epoch)
-
-    def checkpoint(self, metric, epoch, filename='best.pth'):
-        assert isinstance(metric,Tensor)
-        assert metric.__len__() == self.segmentators.__len__()
-        for i, score in enumerate(metric):
-            # slack variable:
-            self.best_score = self.best_scores[i]
-            self.segmentator=self.segmentators[i]
-            super().checkpoint(score,epoch,filename=f'best_{i}.pth')
-            self.best_scores[i]=self.best_score
-
-
 
     def _train_loop(self, labeled_dataloaders: List[DataLoader], unlabeled_dataloader: DataLoader, epoch: int,
                     mode: ModelMode, save: bool, augment_labeled_data=False, augment_unlabeled_data=False,
@@ -405,3 +393,13 @@ class CoTrainer(Trainer):
             segmentator.schedulerStep()
         self.cot_scheduler.step()
         self.adv_scheduler.step()
+
+    def checkpoint(self, metric, epoch, filename='best.pth'):
+        assert isinstance(metric, Tensor)
+        assert metric.__len__() == self.segmentators.__len__()
+        for i, score in enumerate(metric):
+            # slack variable:
+            self.best_score = self.best_scores[i]
+            self.segmentator = self.segmentators[i]
+            super().checkpoint(score, epoch, filename=f'best_{i}.pth')
+            self.best_scores[i] = self.best_score
