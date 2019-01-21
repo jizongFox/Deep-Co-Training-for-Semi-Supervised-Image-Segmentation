@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from typing import Union, List, Any
 from ..utils.utils import simplex
 from functools import reduce
+import warnings
 
 
 class CrossEntropyLoss2d(nn.Module):
@@ -12,7 +13,9 @@ class CrossEntropyLoss2d(nn.Module):
         super(CrossEntropyLoss2d, self).__init__()
         if weight is not None:
             weight = torch.Tensor(weight)
-        self.loss = nn.NLLLoss(weight, reduce=reduce, size_average=size_average)
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore')
+            self.loss = nn.NLLLoss(weight, reduce=reduce, size_average=size_average)
 
     def forward(self, outputs, targets):
         return self.loss(F.log_softmax(outputs, dim=1), targets)

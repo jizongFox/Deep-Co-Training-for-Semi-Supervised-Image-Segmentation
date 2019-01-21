@@ -40,7 +40,11 @@ Trainer:
   device: cpu #cuda
   axises: [0,1,2,3]
   metricname: test.csv
-#  checkpoint: tmp/test/best.pth
+  lambda_cot_max: 10
+  lambda_adv_max: 0.5
+  ramp_up_mult: -5
+  epoch_max_ramp: 80
+  #  checkpoint: tmp/test/best.pth
 
 Loss:
   name: cross_entropy
@@ -48,6 +52,6 @@ Loss:
 
 StartTraining:
   train_jsd: True
-  train_adv: False
+  train_adv: True
   save_train: True
   save_val: True

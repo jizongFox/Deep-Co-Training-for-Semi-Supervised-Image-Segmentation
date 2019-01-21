@@ -242,12 +242,16 @@ def probs2one_hot(probs: Tensor) -> Tensor:
     return res
 
 
-def save_images(segs: Tensor, names: Iterable[str], root: str, mode: str, iter: int) -> None:
+def save_images(segs: Tensor, names: Iterable[str], root: str,   mode: str, iter: int, seg_num=None) -> None:
     b, w, h = segs.shape  # type: Tuple[int, int,int] # Since we have the class numbers, we do not need a C axis
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', category=UserWarning)
         for seg, name in zip(segs, names):
-            save_path = Path(root, f"iter{iter:03d}", mode, name).with_suffix(".png")
+            if seg_num is None:
+                save_path = Path(root, f"iter{iter:03d}", mode, name).with_suffix(".png")
+            else:
+                save_path = Path(root, f"iter{iter:03d}", mode, seg_num,  name).with_suffix(".png")
+
             save_path.parent.mkdir(parents=True, exist_ok=True)
 
             imsave(str(save_path), seg.cpu().numpy())
@@ -373,18 +377,3 @@ class VATGenerator(object):
         assert self.net.training == tra_state
 
         return img_adv.detach()
-
-
-def ramp_up(epoch, max_epochs, max_val, mult):
-    if epoch == 0:
-        return 0.
-    elif epoch >= max_epochs:
-        return max_val
-    return max_val * np.exp(mult * (1. - float(epoch) / max_epochs) ** 2)
-
-
-def weight_schedule(epoch, max_epochs, max_val, mult, n_labeled, n_samples):
-    max_val = max_val * (float(n_labeled) / n_samples)
-    return ramp_up(epoch, max_epochs, max_val, mult)
-
-
