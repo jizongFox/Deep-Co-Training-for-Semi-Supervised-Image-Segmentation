@@ -8,6 +8,7 @@ from generalframework import ModelMode
 from ..utils import *
 from ..models import Segmentator
 from .trainer import Trainer
+from ..scheduler import RampScheduler
 from ..loss import KL_Divergence_2D
 
 
@@ -16,11 +17,13 @@ class VatTrainer(Trainer):
                  max_epoch: int = 100,
                  save_dir: str = 'tmp', save_train=False, save_val=False,
                  device: str = 'cpu', axises: List[int] = [1, 2, 3],
-                 checkpoint: str = None, metricname: str = 'metrics.csv', whole_config=None) -> None:
+                 checkpoint: str = None, metricname: str = 'metrics.csv', whole_config=None,
+                 epoch_max_ramp: int = 80, lambda_adv_max: float = 0.5, ramp_up_mult=-5) -> None:
         super().__init__(segmentator=segmentator, dataloaders=dataloaders, criterion=criterion,
                          max_epoch=max_epoch, save_dir=save_dir, save_train=save_train, save_val=save_val,
                          device=device, axises=axises, checkpoint=checkpoint, metricname=metricname,
                          whole_config=whole_config)
+        self.adv_scheduler = RampScheduler(max_epoch=epoch_max_ramp, max_value=lambda_adv_max, ramp_mult=ramp_up_mult)
 
     def start_training(self, train_adv=False, save_train=False, save_val=False):
         n_class: int = self.C
@@ -138,7 +141,7 @@ class VatTrainer(Trainer):
             lab_done += lab_B
 
             if train_adv:
-                [[unlab_img, unlab_gt], _, _] = fake_unlabeled_iterator.__next__()
+                [[unlab_img, unlab_gt], _, path] = fake_unlabeled_iterator.__next__()
                 unlab_B = unlab_img.shape[0]
                 batch_slice = slice(unlab_done, unlab_done + unlab_B)
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
@@ -152,7 +155,7 @@ class VatTrainer(Trainer):
                 if save:
                     save_images(pred2class(real_pred), names=path, root=self.save_dir, mode='unlab', iter=epoch)
 
-                adv_loss = KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach())
+                adv_loss = KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()) * self.adv_scheduler.value
 
                 self.segmentator.optimizer.zero_grad()
                 adv_loss.backward()
@@ -231,3 +234,7 @@ class VatTrainer(Trainer):
             f"{desc} " + ', '.join([f'{k}:{float(v):.3f}' for k, v in nice_dict.items()])
         )
         return coef_dice, batch_dice
+
+    def schedulerStep(self):
+        super().schedulerStep()
+        self.adv_scheduler.step()
