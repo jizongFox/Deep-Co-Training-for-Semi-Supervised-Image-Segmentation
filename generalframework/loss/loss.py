@@ -82,9 +82,10 @@ class JSD_2D(nn.Module):
 
 class KL_Divergence_2D(nn.Module):
 
-    def __init__(self, reduce=False):
+    def __init__(self, reduce=False,eps=1e-10):
         super().__init__()
         self.reduce = reduce
+        self.eps = eps
 
     def forward(self, p_prob: torch.Tensor, y_prob: torch.Tensor):
         '''
@@ -95,8 +96,8 @@ class KL_Divergence_2D(nn.Module):
         assert simplex(p_prob, 1)
         assert simplex(y_prob, 1)
 
-        logp = p_prob.log()
-        logy = y_prob.log()
+        logp = (p_prob+self.eps).log()
+        logy = (y_prob+self.eps).log()
 
         ylogy = (y_prob * logy).sum(dim=1)
         ylogp = (y_prob * logp).sum(dim=1)

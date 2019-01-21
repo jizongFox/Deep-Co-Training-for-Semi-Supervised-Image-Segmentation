@@ -27,6 +27,7 @@ Lab_Dataloader:
   drop_last: True
   batch_sampler: [PatientSampler,
                   {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
+
 Unlab_Dataloader:
   pin_memory: False
   batch_size: 4
@@ -37,21 +38,19 @@ Unlab_Dataloader:
 
 Trainer:
   max_epoch: 100
-  save_dir: tmp/cotraining
+  save_dir: tmp/vat
   device: cuda
-  axises: [1,2,3]
+  axises: [0, 1,2,3]
   metricname: metrics.csv
-  lambda_cot_max: 1
-  lambda_adv_max: 0.05
-  ramp_up_mult: -5
-  epoch_max_ramp: 80
+#  lambda_adv_max: 0.5
+#  ramp_up_mult: -5
+#  epoch_max_ramp: 80
 
 Loss:
   name: cross_entropy
   weight: [1, 1, 1, 1]
 
 StartTraining:
-  train_jsd: False
   train_adv: False
-  save_train: False
+  save_train: True
   save_val: True

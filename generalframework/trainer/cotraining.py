@@ -245,7 +245,7 @@ class CoTrainer(Trainer):
 
                 ## draw first term from labeled1 or unlabeled
                 img, img_adv = None, None
-                if random() > 0.0:
+                if random() > 0.5:
                     [[img, gt], _, _] = fake_labeled_iterators_adv[0].__next__()
                     img, gt = img.to(self.device), gt.to(self.device)
                     with warnings.catch_warnings():
@@ -301,9 +301,8 @@ class CoTrainer(Trainer):
 
             loss_dict = {f'L{i}': loss_log[0:batch_num, i].mean().item() for i in range(len(self.segmentators))}
 
-            nice_dict = {k: {**v1, **v2} for k, v1 in lab_dsc_dict.items() for _, v2 in
-                         lab_mean_dict.items()} if report_status == 'label' else \
-                {k: {**v1, **v2} for k, v1 in unlab_dsc_dict.items() for _, v2 in unlab_mean_dict.items()}
+            nice_dict = dict_merge(lab_dsc_dict, lab_mean_dict, re=True) if report_status == 'label' else dict_merge(
+                unlab_dsc_dict, unlab_mean_dict, re=True)
 
             n_batch_iter.set_postfix({f'{k}_{k_}': f'{v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()})
             n_batch_iter.set_description(
@@ -352,8 +351,6 @@ class CoTrainer(Trainer):
             if save:
                 save_images(torch.cat(map_(pred2class, preds), dim=0), names=path, root=self.save_dir, mode='eval',
                             iter=epoch)
-
-            ## todo save predictions
 
             big_slice = slice(0, done)
 

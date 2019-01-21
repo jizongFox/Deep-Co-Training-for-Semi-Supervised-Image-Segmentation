@@ -1,7 +1,7 @@
 import warnings
 from functools import partial
 from pathlib import Path
-from typing import Callable, Iterable, List, Set, Tuple, TypeVar, Union
+from typing import Callable, Iterable, List, Set, Tuple, TypeVar, Union, Any
 from pprint import pprint
 import numpy as np
 import torch
@@ -211,8 +211,7 @@ def union(a: Tensor, b: Tensor) -> Tensor:
 
 def probs2class(probs: Tensor) -> Tensor:
     b, _, w, h = probs.shape  # type: Tuple[int, int, int, int]
-    assert simplex(probs)
-
+    assert simplex(probs, 1)
     res = probs.argmax(dim=1)
     assert res.shape == (b, w, h)
 
@@ -235,8 +234,11 @@ def class2one_hot(seg: Tensor, C: int) -> Tensor:
 
 def probs2one_hot(probs: Tensor) -> Tensor:
     _, C, _, _ = probs.shape
-    assert simplex(probs)
-
+    try:
+        assert simplex(probs)
+    except:
+        import ipdb
+        ipdb.set_trace()
     res = class2one_hot(probs2class(probs), C)
     assert res.shape == probs.shape
     assert one_hot(res)
@@ -263,7 +265,7 @@ def save_images(segs: Tensor, names: Iterable[str], root: str, mode: str, iter: 
 
 
 class iterator_(object):
-    def __init__(self, dataloader: DataLoader) -> None:
+    def __init__(self, dataloader: Union[DataLoader, List[Any]]) -> None:
         super().__init__()
         self.dataloader = dataloader
         self.iter_dataloader = iter(dataloader)
