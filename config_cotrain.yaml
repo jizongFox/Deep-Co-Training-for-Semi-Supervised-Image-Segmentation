@@ -1,18 +1,19 @@
 Arch:
-  name: enet
+  name: unet
   num_classes: 4
 
 Optim:
   name: Adam
-  lr: 0.01
+  lr: 0.001
 
 Scheduler:
   name: MultiStepLR
   milestones: [10,20,30,40,50,60,70,80,90]
-  gamma: 0.5
+  gamma: 0.6
+
 
 Dataset:
-  root_dir: "'dataset/ACDC-all'"
+  root_dir: dataset/ACDC-all
   subfolders: ['img','gt']
   transform: segment_transform((256,256))
   augment: PILaugment
@@ -24,8 +25,8 @@ Lab_Dataloader:
   num_workers: 2
   shuffle: True
   drop_last: True
-#  batch_sampler: [PatientSampler,
-#                  {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
+  batch_sampler: [PatientSampler,
+                  {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
 Unlab_Dataloader:
   pin_memory: False
   batch_size: 4
@@ -38,20 +39,19 @@ Trainer:
   max_epoch: 100
   save_dir: tmp/cotraining
   device: cpu #cuda
-  axises: [0,1,2,3]
-  metricname: test.csv
-  lambda_cot_max: 10
-  lambda_adv_max: 0.5
+  axises: [1,2,3]
+  metricname: metrics.csv
+  lambda_cot_max: 1
+  lambda_adv_max: 0.05
   ramp_up_mult: -5
   epoch_max_ramp: 80
-  #  checkpoint: tmp/test/best.pth
 
 Loss:
   name: cross_entropy
-  weight: [0.01, 1, 1, 1]
+  weight: [1, 1, 1, 1]
 
 StartTraining:
-  train_jsd: True
-  train_adv: True
-  save_train: True
+  train_jsd: False
+  train_adv: False
+  save_train: False
   save_val: True

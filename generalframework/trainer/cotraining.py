@@ -1,9 +1,9 @@
 from copy import deepcopy as dcopy
 from random import random
 from typing import Dict
-
+import yaml
 from tensorboardX import SummaryWriter
-
+import pandas as pd
 from generalframework import ModelMode
 from .trainer import Trainer
 from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
@@ -19,7 +19,7 @@ class CoTrainer(Trainer):
                  max_epoch: int = 100, save_dir: str = 'tmp', device: str = 'cpu',
                  axises: List[int] = [1, 2, 3], checkpoint: str = None, metricname: str = 'metrics.csv',
                  lambda_cot_max: int = 10, lambda_adv_max: float = 0.5, ramp_up_mult: float = -5,
-                 epoch_max_ramp: int = 80) -> None:
+                 epoch_max_ramp: int = 80, whole_config=None) -> None:
 
         self.max_epoch = max_epoch
         self.segmentators = segmentators
@@ -46,10 +46,15 @@ class CoTrainer(Trainer):
         # assert not (self.save_dir.exists() and checkpoint is None), f'>> save_dir: {self.save_dir} exits.'
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.writer = SummaryWriter(save_dir)
+        ## save the whole new config to the save_dir
+        if whole_config:
+            with open(Path(self.save_dir, 'config.yml'), 'w') as outfile:
+                yaml.dump(whole_config, outfile, default_flow_style=True)
+
         self.device = torch.device(device)
         self.C = self.segmentators[0].arch_params['num_classes']
         self.axises = axises
-        self.best_score = -1
+        self.best_scores = np.zeros(self.segmentators.__len__())
         self.start_epoch = 0
         self.metricname = metricname
 
@@ -76,22 +81,22 @@ class CoTrainer(Trainer):
 
         val_n_img = len(self.val_dataloader.dataset)
 
-        metrics = {'train_lab_dice': torch.zeros(self.max_epoch, n_img, S, self.C, dtype=torch.float),
+        metrics = {'train_dice': torch.zeros(self.max_epoch, n_img, S, self.C, dtype=torch.float),
                    'train_unlab_dice': torch.zeros(self.max_epoch, n_unlab_img, S, self.C, dtype=torch.float),
                    'val_dice': torch.zeros(self.max_epoch, val_n_img, S, self.C, dtype=torch.float),
                    'val_batch_dice': torch.zeros(self.max_epoch, len(self.val_dataloader), S, self.C,
                                                  dtype=torch.float)}
 
-        for epoch in range(self.start_epoch + 1, self.max_epoch):
+        for epoch in range(self.start_epoch, self.max_epoch):
 
-            train_lab_dice, train_unlab_dice = self._train_loop(labeled_dataloaders=self.labeled_dataloaders,
-                                                                unlabeled_dataloader=self.unlabeled_dataloader,
-                                                                epoch=epoch,
-                                                                mode=ModelMode.TRAIN,
-                                                                save=save_train,
-                                                                train_jsd=train_jsd,
-                                                                train_adv=train_adv
-                                                                )
+            train_dice, train_unlab_dice = self._train_loop(labeled_dataloaders=self.labeled_dataloaders,
+                                                            unlabeled_dataloader=self.unlabeled_dataloader,
+                                                            epoch=epoch,
+                                                            mode=ModelMode.TRAIN,
+                                                            save=save_train,
+                                                            train_jsd=train_jsd,
+                                                            train_adv=train_adv
+                                                            )
 
             with torch.no_grad():
                 val_dice, val_batch_dice = self._eval_loop(val_dataloader=self.val_dataloader,
@@ -106,6 +111,28 @@ class CoTrainer(Trainer):
 
             for k, v in metrics.items():
                 np.save(self.save_dir / f'{k}.npy', v.data.numpy())
+
+            writer = pd.ExcelWriter(Path(self.save_dir, self.metricname.replace('csv', 'xlsx')), engine='openpyxl')
+            for s in range(self.segmentators.__len__()):
+                df = pd.DataFrame(
+                    {
+                        **{f"train_dice_{i}": metrics["train_dice"].mean(1)[:, s, i] for i in self.axises},
+                        **{f"train_unlab_dice_{i}": metrics["train_unlab_dice"].mean(1)[:, s, i] for i in
+                           self.axises},
+                        **{f"val_dice_{i}": metrics["val_dice"].mean(1)[:, s, i] for i in self.axises},
+                        # using the axis = 3
+                        **{f"val_batch_dice_{i}": metrics["val_batch_dice"].mean(1)[:, s, i] for i in self.axises}
+                    })
+                ## the saved metrics are with only axis==3, as the foreground dice.
+
+                df.to_csv(Path(self.save_dir, self.metricname.replace('.csv', f'_{s}.csv')), float_format="%.4f",
+                          index_label="epoch")
+                df.to_excel(excel_writer=writer, sheet_name=f'Seg_{s}', encoding="utf-8", index_label='epoch',
+                            float_format="%.4f")
+            writer.save()
+            writer.close()
+            current_metric = val_dice[:, :, self.axises].mean([0, 2])
+            self.checkpoint(current_metric, epoch)
 
     def _train_loop(self, labeled_dataloaders: List[DataLoader], unlabeled_dataloader: DataLoader, epoch: int,
                     mode: ModelMode, save: bool, augment_labeled_data=False, augment_unlabeled_data=False,
@@ -210,7 +237,6 @@ class CoTrainer(Trainer):
                 map_(lambda x: x.optimizer.step(), self.segmentators)
 
             ## adversarial loss:
-
             if train_adv:
                 assert self.segmentators.__len__() == 2, 'only implemented for 2 segmentators'
                 ### TODO for more than 2 segmentators
@@ -218,7 +244,7 @@ class CoTrainer(Trainer):
 
                 ## draw first term from labeled1 or unlabeled
                 img, img_adv = None, None
-                if random() > 0.0:
+                if random() > 0.5:
                     [[img, gt], _, _] = fake_labeled_iterators_adv[0].__next__()
                     img, gt = img.to(self.device), gt.to(self.device)
                     with warnings.catch_warnings():
@@ -274,9 +300,8 @@ class CoTrainer(Trainer):
 
             loss_dict = {f'L{i}': loss_log[0:batch_num, i].mean().item() for i in range(len(self.segmentators))}
 
-            nice_dict = {k: {**v1, **v2} for k, v1 in lab_dsc_dict.items() for _, v2 in
-                         lab_mean_dict.items()} if report_status == 'label' else \
-                {k: {**v1, **v2} for k, v1 in unlab_dsc_dict.items() for _, v2 in unlab_mean_dict.items()}
+            nice_dict = dict_merge(lab_dsc_dict, lab_mean_dict, re=True) if report_status == 'label' else dict_merge(
+                unlab_dsc_dict, unlab_mean_dict, re=True)
 
             n_batch_iter.set_postfix({f'{k}_{k_}': f'{v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()})
             n_batch_iter.set_description(
@@ -326,8 +351,6 @@ class CoTrainer(Trainer):
                 save_images(torch.cat(map_(pred2class, preds), dim=0), names=path, root=self.save_dir, mode='eval',
                             iter=epoch)
 
-            ## todo save predictions
-
             big_slice = slice(0, done)
 
             dsc_dict = {f"S{i}": {f"DSC{n}": coef_dice[big_slice, i, n].mean().item() for n in self.axises} \
@@ -366,3 +389,13 @@ class CoTrainer(Trainer):
             segmentator.schedulerStep()
         self.cot_scheduler.step()
         self.adv_scheduler.step()
+
+    def checkpoint(self, metric, epoch, filename='best.pth'):
+        assert isinstance(metric, Tensor)
+        assert metric.__len__() == self.segmentators.__len__()
+        for i, score in enumerate(metric):
+            # slack variable:
+            self.best_score = self.best_scores[i]
+            self.segmentator = self.segmentators[i]
+            super().checkpoint(score, epoch, filename=f'best_{i}.pth')
+            self.best_scores[i] = self.best_score

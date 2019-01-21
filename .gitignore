@@ -11,3 +11,4 @@ runs/
 envs
 tmp/
 tmp/*
+archives/*

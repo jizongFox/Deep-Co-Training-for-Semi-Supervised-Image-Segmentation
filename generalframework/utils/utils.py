@@ -1,8 +1,8 @@
 import warnings
 from functools import partial
 from pathlib import Path
-from typing import Callable, Iterable, List, Set, Tuple, TypeVar
-
+from typing import Callable, Iterable, List, Set, Tuple, TypeVar, Union, Any
+from pprint import pprint
 import numpy as np
 import torch
 from torch import nn
@@ -12,6 +12,8 @@ from torch import Tensor, einsum
 from torch.utils.data import DataLoader
 from torchnet.meter import AverageValueMeter
 from tqdm import tqdm
+import argparse
+import collections
 
 A = TypeVar("A")
 B = TypeVar("B")
@@ -209,8 +211,7 @@ def union(a: Tensor, b: Tensor) -> Tensor:
 
 def probs2class(probs: Tensor) -> Tensor:
     b, _, w, h = probs.shape  # type: Tuple[int, int, int, int]
-    assert simplex(probs)
-
+    assert simplex(probs, 1)
     res = probs.argmax(dim=1)
     assert res.shape == (b, w, h)
 
@@ -233,8 +234,11 @@ def class2one_hot(seg: Tensor, C: int) -> Tensor:
 
 def probs2one_hot(probs: Tensor) -> Tensor:
     _, C, _, _ = probs.shape
-    assert simplex(probs)
-
+    try:
+        assert simplex(probs)
+    except:
+        import ipdb
+        ipdb.set_trace()
     res = class2one_hot(probs2class(probs), C)
     assert res.shape == probs.shape
     assert one_hot(res)
@@ -242,7 +246,7 @@ def probs2one_hot(probs: Tensor) -> Tensor:
     return res
 
 
-def save_images(segs: Tensor, names: Iterable[str], root: str,   mode: str, iter: int, seg_num=None) -> None:
+def save_images(segs: Tensor, names: Iterable[str], root: str, mode: str, iter: int, seg_num=None) -> None:
     b, w, h = segs.shape  # type: Tuple[int, int,int] # Since we have the class numbers, we do not need a C axis
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', category=UserWarning)
@@ -250,7 +254,7 @@ def save_images(segs: Tensor, names: Iterable[str], root: str,   mode: str, iter
             if seg_num is None:
                 save_path = Path(root, f"iter{iter:03d}", mode, name).with_suffix(".png")
             else:
-                save_path = Path(root, f"iter{iter:03d}", mode, seg_num,  name).with_suffix(".png")
+                save_path = Path(root, f"iter{iter:03d}", mode, seg_num, name).with_suffix(".png")
 
             save_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -261,7 +265,7 @@ def save_images(segs: Tensor, names: Iterable[str], root: str,   mode: str, iter
 
 
 class iterator_(object):
-    def __init__(self, dataloader: DataLoader) -> None:
+    def __init__(self, dataloader: Union[DataLoader, List[Any]]) -> None:
         super().__init__()
         self.dataloader = dataloader
         self.iter_dataloader = iter(dataloader)
@@ -274,6 +278,7 @@ class iterator_(object):
             return self.iter_dataloader.__next__()
 
 
+## adversarial generation
 def adversarial_fgsm(image: Tensor, data_grad: Tensor, epsilon: float = 0.001):
     """
     FGSM for generating adversarial sample
@@ -377,3 +382,71 @@ class VATGenerator(object):
         assert self.net.training == tra_state
 
         return img_adv.detach()
+
+
+## argparser
+
+def yaml_parser() -> dict:
+    parser = argparse.ArgumentParser('Augment parser for yaml config')
+    parser.add_argument('strings', nargs='*', type=str, default=[''])
+
+    args: argparse.Namespace = parser.parse_args()
+    args: dict = _parser(args.strings)
+    # pprint(args)
+    return args
+
+
+from copy import deepcopy as dcopy
+from functools import reduce
+
+
+def _parser(strings: List[str]) -> List[dict]:
+    assert isinstance(strings, list)
+    ## no doubled augments
+    assert set(map_(lambda x: x.split('=')[0], strings)).__len__() == strings.__len__(), 'Augment doubly input.'
+    args: List[dict] = [_parser_(s) for s in strings]
+    args = reduce(lambda x, y: dict_merge(x, y, True), args)
+    return args
+
+
+def _parser_(input_string: str) -> Union[dict, None]:
+    if input_string.__len__() == 0:
+        return None
+    assert input_string.find('=') > 0, f"Input args should include '=' to include the value"
+    keys, value = input_string.split('=')[:-1][0].replace(' ', ''), input_string.split('=')[1].replace(' ', '')
+    keys = keys.split('.')
+    keys.reverse()
+    for k in keys:
+        d = {}
+        d[k] = value
+        value = dcopy(d)
+    return dict(value)
+
+
+def dict_merge(dct: dict, merge_dct: dict, re=False):
+    """ Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
+    updating only top-level keys, dict_merge recurses down into dicts nested
+    to an arbitrary depth, updating keys. The ``merge_dct`` is merged into
+    ``dct``.
+    :param dct: dict onto which the merge is executed
+    :param merge_dct: dct merged into dct
+    :return: None
+    """
+    # dct = dcopy(dct)
+    if merge_dct is None:
+        if re:
+            return dct
+        else:
+            return
+    for k, v in merge_dct.items():
+        if (k in dct and isinstance(dct[k], dict)
+                and isinstance(merge_dct[k], collections.Mapping)):
+            dict_merge(dct[k], merge_dct[k])
+        else:
+            try:
+                dct[k] = type(dct[k])(eval(merge_dct[k])) if type(dct[k]) in (bool, list) else type(dct[k])(
+                    merge_dct[k])
+            except:
+                dct[k] = merge_dct[k]
+    if re:
+        return dcopy(dct)
