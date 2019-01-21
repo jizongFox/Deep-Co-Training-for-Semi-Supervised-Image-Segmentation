@@ -15,7 +15,7 @@ class VatTrainer(Trainer):
     def __init__(self, segmentator: Segmentator, dataloaders: Dict[str, DataLoader], criterion: nn.Module,
                  max_epoch: int = 100,
                  save_dir: str = 'tmp', save_train=False, save_val=False,
-                 device: str = 'cpu', axises: List[int] = [1, 2, 3, 4],
+                 device: str = 'cpu', axises: List[int] = [1, 2, 3],
                  checkpoint: str = None, metricname: str = 'metrics.csv', whole_config=None) -> None:
         super().__init__(segmentator=segmentator, dataloaders=dataloaders, criterion=criterion,
                          max_epoch=max_epoch, save_dir=save_dir, save_train=save_train, save_val=save_val,
@@ -24,8 +24,8 @@ class VatTrainer(Trainer):
 
     def start_training(self, train_adv=False, save_train=False, save_val=False):
         n_class: int = self.C
-        train_n: int = len(self.dataloaders['lab'].dataset)  # Number of images in dataset
         train_b: int = len(self.dataloaders['lab'])  # Number of iteration per epoch: different if batch_size > 1
+        train_n = train_b * self.dataloaders['lab'].batch_size  # when the droplast has been enabled.
         n_unlab_img = train_b * self.dataloaders['unlab'].batch_size
         val_n: int = len(self.dataloaders['val'].dataset)
         val_b: int = len(self.dataloaders['val'])
@@ -37,7 +37,7 @@ class VatTrainer(Trainer):
                        torch.float32),
                    "train_unlab_dice": torch.zeros((self.max_epoch, n_unlab_img, 1, n_class), device=self.device).type(
                        torch.float32),
-                   "train_loss": torch.zeros((self.max_epoch, train_b,1), device=self.device).type(torch.float32)}
+                   "train_loss": torch.zeros((self.max_epoch, train_b, 1), device=self.device).type(torch.float32)}
 
         for epoch in range(self.start_epoch, self.max_epoch):
             train_dice, train_unlab_dice, train_loss = self._train_loop(labeled_dataloader=self.dataloaders['lab'],
@@ -87,13 +87,14 @@ class VatTrainer(Trainer):
         assert self.segmentator.training == True
         assert labeled_dataloader.dataset.training == ModelMode.TRAIN if mode == ModelMode.TRAIN and augment_labeled_data \
             else ModelMode.EVAL
-        assert unlabeled_dataloader.dataset.training == ModelMode.TRAIN if augment_unlabeled_data else ModelMode.EVAL
+        assert unlabeled_dataloader.dataset.training == ModelMode.TRAIN if mode == ModelMode.TRAIN and augment_unlabeled_data \
+            else ModelMode.EVAL
 
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
 
         # Here the concept of epoch is defined as the epoch
-        n_img = labeled_dataloader.dataset.__len__()
         n_batch = labeled_dataloader.__len__()
+        n_img = n_batch * labeled_dataloader.batch_size  # we drop last
         # S labeled dataset + 1 unlabeled dataset
         n_unlab_img = n_batch * unlabeled_dataloader.batch_size
 
@@ -116,7 +117,7 @@ class VatTrainer(Trainer):
         report_status = 'label'
 
         for batch_num in n_batch_iter:
-            if batch_num % 30 == 0:
+            if batch_num % 30 == 0 and train_adv:
                 report_status = report_iterator.__next__()
 
             [[img, gt], _, path] = fake_labeled_iterator.__next__()
@@ -168,14 +169,14 @@ class VatTrainer(Trainer):
 
             unlab_mean_dict = {"DSC": unlabel_coef_dice[unlab_big_slice, 0, self.axises].mean()}
 
-            stat_dict = {**lab_dsc_dict, **lab_mean_dict} if not train_adv \
+            stat_dict = {**lab_dsc_dict, **lab_mean_dict} if report_status == 'label' \
                 else {**lab_dsc_dict, **lab_mean_dict, **unlab_dsc_dict, **unlab_mean_dict}
 
             # to delete null dicts
             nice_dict = {k: f"{v:.3f}" for (k, v) in stat_dict.items() if v != 0}
 
             n_batch_iter.set_postfix(nice_dict)
-            n_batch_iter.set_description(f'loss:{loss_log[:batch_num].mean().item():.3f}')
+            n_batch_iter.set_description(f'{report_status}->> loss:{loss_log[:batch_num].mean().item():.3f}')
 
         print(
             f"{desc} " + ', '.join([f'{k}:{float(v):.3f}' for k, v in nice_dict.items()])
@@ -204,8 +205,8 @@ class VatTrainer(Trainer):
             c_dices: Tensor = dice_coef(*self.toOneHot(preds, gt))  # shape: B, axises
             b_dices: Tensor = dice_batch(*self.toOneHot(preds, gt))
             batch_slice = slice(done, done + B)
-            coef_dice[batch_slice] = c_dices
-            batch_dice[batch_num] = b_dices
+            coef_dice[batch_slice] = c_dices.unsqueeze(1)
+            batch_dice[batch_num] = b_dices.unsqueeze(0)
             done += B
 
             if save:

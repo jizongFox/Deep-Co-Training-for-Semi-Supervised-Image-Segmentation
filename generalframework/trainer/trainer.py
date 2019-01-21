@@ -62,7 +62,7 @@ class Trainer(Base):
         self.segmentator.load_state_dict(state_dict['segmentator'])
         self.best_score = state_dict['best_score']
         self.start_epoch = state_dict['best_epoch']
-        print(f'>>>  {checkpoint} has been loaded successfully. Best score {self.best_score} @ {self.start_epoch}.')
+        print(f'>>>  {checkpoint} has been loaded successfully. Best score {self.best_score:.3f} @ {self.start_epoch}.')
         self.segmentator.train()
 
     def to(self, device: torch.device):
@@ -111,7 +111,7 @@ class Trainer(Base):
 
             df.to_csv(Path(self.save_dir, self.metricname), float_format="%.4f", index_label="epoch")
 
-            current_metric = val_dice[:,0, self.axises].mean()
+            current_metric = val_dice[:, 0, self.axises].mean()
             self.checkpoint(current_metric, epoch)
 
     def _main_loop(self, dataloader: DataLoader, epoch: int, mode, save: bool):
