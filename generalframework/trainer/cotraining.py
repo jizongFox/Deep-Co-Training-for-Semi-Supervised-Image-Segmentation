@@ -1,5 +1,6 @@
 from copy import deepcopy as dcopy
 from random import random
+from itertools import permutations as perm
 from typing import Dict
 import yaml
 from tensorboardX import SummaryWriter
@@ -238,42 +239,18 @@ class CoTrainer(Trainer):
 
             ## adversarial loss:
             if train_adv:
-                assert self.segmentators.__len__() == 2, 'only implemented for 2 segmentators'
+                n_segnets = self.segmentators.__len__()
+                assert n_segnets == 2, 'only implemented for 2 segmentators'
                 ### TODO for more than 2 segmentators
                 adv_losses = []
-
-                ## draw first term from labeled1 or unlabeled
-                img, img_adv = None, None
-                if random() > 0.5:
-                    [[img, gt], _, _] = fake_labeled_iterators_adv[0].__next__()
-                    img, gt = img.to(self.device), gt.to(self.device)
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore")
-                        img_adv = fsgm_img_generator(self.segmentators[0].torchnet, eplision=0.05)(dcopy(img), gt,
-                                                                                                   criterion=CrossEntropyLoss2d())
-                else:
-                    [[img, _], _, _] = fake_unlabeled_iterator_adv.__next__()
-                    img = img.to(self.device)
-                    img_adv = VATGenerator(self.segmentators[0].torchnet, eplision=0.05)(dcopy(img))
-                assert img.shape == img_adv.shape
-                adv_pred = self.segmentators[1].predict(img_adv, logit=False)
-                real_pred = self.segmentators[0].predict(img, logit=False)
-                adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred))
-
-                if random() > 0.5:
-                    [[img, gt], _, _] = fake_labeled_iterators_adv[1].__next__()
-                    img, gt = img.to(self.device), gt.to(self.device)
-                    img_adv = fsgm_img_generator(self.segmentators[1].torchnet, eplision=0.05)(img, gt,
-                                                                                               criterion=CrossEntropyLoss2d())
-                else:
-                    [[img, _], _, _] = fake_unlabeled_iterator_adv.__next__()
-                    img = img.to(self.device)
-                    img_adv = VATGenerator(self.segmentators[1].torchnet, eplision=0.05)(img)
-
-                adv_pred = self.segmentators[0].predict(img_adv, logit=False)
-                real_pred = self.segmentators[1].predict(img, logit=False)
-                adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred))
-
+                # for future extension to multiple segmentators
+                # generate permutations of length 2 between the available segmentators
+                perms_lst = perm(range(n_segnets), 2)
+                for pair in perms_lst:
+                    ## draw first term from labeled1 or unlabeled
+                    adv_loss_tmp = self.compute_adv_loss(pair, fake_labeled_iterators_adv, fake_unlabeled_iterator_adv,
+                                                         prob=0.5, epsilon=0.05)
+                    adv_losses.append(adv_loss_tmp)
                 adv_loss = sum(adv_losses) / adv_losses.__len__()
 
                 map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
@@ -399,3 +376,21 @@ class CoTrainer(Trainer):
             self.segmentator = self.segmentators[i]
             super().checkpoint(score, epoch, filename=f'best_{i}.pth')
             self.best_scores[i] = self.best_score
+
+    def compute_adv_loss(self, pair: Tuple, fake_labeled_iterators_adv: List, fake_unlabeled_iterator_adv,
+                         prob=0.5, epsilon=0.05):
+        if random() > prob:
+            [[img, gt], _, _] = fake_labeled_iterators_adv[pair[0]].__next__()
+            img, gt = img.to(self.device), gt.to(self.device)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                img_adv = fsgm_img_generator(self.segmentators[pair[0]].torchnet, eplision=epsilon)(dcopy(img), gt,
+                                                                               criterion=CrossEntropyLoss2d())
+        else:
+            [[img, _], _, _] = fake_unlabeled_iterator_adv.__next__()
+            img = img.to(self.device)
+            img_adv = VATGenerator(self.segmentators[pair[0]].torchnet, eplision=0.05)(dcopy(img))
+        assert img.shape == img_adv.shape
+        adv_pred = self.segmentators[pair[1]].predict(img_adv, logit=False)
+        real_pred = self.segmentators[pair[0]].predict(img, logit=False)
+        return KL_Divergence_2D(reduce=True)(adv_pred, real_pred)
