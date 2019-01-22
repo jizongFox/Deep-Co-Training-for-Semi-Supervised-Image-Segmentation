@@ -145,7 +145,7 @@ class VatTrainer(Trainer):
                 unlab_B = unlab_img.shape[0]
                 batch_slice = slice(unlab_done, unlab_done + unlab_B)
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
-                unlab_img_adv = VATGenerator(self.segmentator.torchnet, eplision=0.5)(dcopy(unlab_img))
+                unlab_img_adv = VATGenerator(self.segmentator.torchnet, eplision=10)(dcopy(unlab_img))
                 assert unlab_img.shape == unlab_img_adv.shape
                 adv_pred = self.segmentator.predict(unlab_img_adv, logit=False)
                 real_pred = self.segmentator.predict(unlab_img, logit=False)

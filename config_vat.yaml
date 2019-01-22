@@ -45,12 +45,13 @@ Trainer:
   lambda_adv_max: 0.5
   ramp_up_mult: -5
   epoch_max_ramp: 80
+#  checkpoint: archives/cardiac/unet_No_agument/FS_fulldata/best.pth
 
 Loss:
   name: cross_entropy
   weight: [1, 1, 1, 1]
 
 StartTraining:
-  train_adv: False
+  train_adv: True
   save_train: True
   save_val: True
