@@ -27,9 +27,12 @@ class Base(ABC):
 class Trainer(Base):
     def __init__(self, segmentator: Segmentator, dataloaders: Dict[str, DataLoader], criterion: nn.Module,
                  max_epoch: int = 100,
-                 save_dir: str = 'tmp', save_train=False, save_val=False,
-                 device: str = 'cpu', axises: List[int] = [1, 2, 3, 4],
-                 checkpoint: str = None, metricname: str = 'metrics.csv', whole_config=None) -> None:
+                 save_dir: str = 'tmp',
+                 device: str = 'cpu',
+                 axises: List[int] = [1, 2, 3, 4],
+                 checkpoint: str = None,
+                 metricname: str = 'metrics.csv',
+                 whole_config=None) -> None:
         super().__init__()
         self.max_epoch = max_epoch
         self.segmentator = segmentator
@@ -41,8 +44,6 @@ class Trainer(Base):
         if whole_config:
             with open(Path(self.save_dir, 'config.yml'), 'w') as outfile:
                 yaml.dump(whole_config, outfile, default_flow_style=True)
-        self.save_train = save_train
-        self.save_val = save_val
         self.device = torch.device(device)
         self.C = segmentator.arch_params['num_classes']
         self.axises = axises
@@ -69,14 +70,19 @@ class Trainer(Base):
         self.segmentator.to(device)
         self.criterion.to(device)
 
-    def start_training(self):
+    def start_training(self, save_train=False, save_val=False):
         ## prepare for something:
 
         n_class: int = self.C
-        train_n: int = len(self.dataloaders['train'].dataset)  # Number of images in dataset
         train_b: int = len(self.dataloaders['train'])  # Number of iteration per epoch: different if batch_size > 1
-        val_n: int = len(self.dataloaders['val'].dataset)
+        train_n: int = train_b * self.dataloaders['train'].batch_size \
+            if self.dataloaders['train'].drop_last == True \
+            else len(self.dataloaders['train'].dataset)
+        # Number of images in dataset
+
         val_b: int = len(self.dataloaders['val'])
+        val_n: int = val_b * self.dataloaders['val'].batch_size if self.dataloaders['val'].drop_last == True \
+            else len(self.dataloaders['val'].dataset)
 
         metrics = {"val_dice": torch.zeros((self.max_epoch, val_n, 1, n_class), device=self.device).type(torch.float32),
                    "val_batch_dice": torch.zeros((self.max_epoch, val_b, 1, n_class), device=self.device).type(
@@ -88,10 +94,10 @@ class Trainer(Base):
 
         train_loader, val_loader = self.dataloaders['train'], self.dataloaders['val']
         for epoch in range(self.start_epoch, self.max_epoch):
-            train_dice, _, train_loss = self._main_loop(train_loader, epoch, mode=ModelMode.TRAIN, save=self.save_train)
+            train_dice, _, train_loss = self._main_loop(train_loader, epoch, mode=ModelMode.TRAIN, save=save_train)
             with torch.no_grad():
                 val_dice, val_batch_dice, val_loss = self._main_loop(val_loader, epoch, mode=ModelMode.EVAL,
-                                                                     save=self.save_val)
+                                                                     save=save_val)
             self.schedulerStep()
 
             for k in metrics:
@@ -100,14 +106,12 @@ class Trainer(Base):
             for k, e in metrics.items():
                 np.save(Path(self.save_dir, f"{k}.npy"), e.detach().cpu().numpy())
 
-            df = pd.DataFrame({"train_loss": metrics["train_loss"].mean(dim=1).detach().cpu().numpy(),
-                               "val_loss": metrics["val_loss"].mean(dim=1).cpu().numpy(),
-                               "train_dice": metrics["train_dice"][:, :, 0, -1].mean(dim=1).cpu().numpy(),
-                               # using the axis = 3
-                               "val_dice": metrics["val_dice"][:, :, 0, -1].mean(dim=1).cpu().numpy(),
-                               # using the axis = 3
-                               "val_batch_dice": metrics["val_batch_dice"][:, :, 0, -1].mean(dim=1).cpu().numpy()})
-            ## the saved metrics are with only axis==3, as the foreground dice.
+            df = pd.DataFrame(
+                {
+                    **{f"train_dice_{i}": metrics["train_dice"].mean(1)[:, 0, i].cpu() for i in self.axises},
+                    **{f"val_dice_{i}": metrics["val_dice"].mean(1)[:, 0, i].cpu() for i in self.axises},
+                    **{f"val_batch_dice_{i}": metrics["val_batch_dice"].mean(1)[:, 0, i].cpu() for i in self.axises}
+                })
 
             df.to_csv(Path(self.save_dir, self.metricname), float_format="%.4f", index_label="epoch")
 
@@ -120,8 +124,11 @@ class Trainer(Base):
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
         assert dataloader.dataset.training == mode
 
-        n_img = len(dataloader.dataset)
         n_batch = len(dataloader)
+
+        ## for dataloader with batch_sampler, there is no dataloader.batch_size
+        n_img = n_batch * dataloader.batch_size if dataloader.drop_last == True else len(dataloader.dataset)
+
         coef_dice = torch.zeros(n_img, 1, self.C)
         batch_dice = torch.zeros(n_batch, 1, self.C)
         loss_log = torch.zeros(n_batch)

@@ -171,8 +171,8 @@ class CoTrainer(Trainer):
 
         n_batch_iter = tqdm_(range(n_batch))
 
-        nice_dict = {}
         lab_dsc_dict = {}
+        lab_mean_dict={}
         unlab_dsc_dict = {}
         report_iterator = iterator_(['label', 'unlab'])
         report_status = 'label'
@@ -311,6 +311,8 @@ class CoTrainer(Trainer):
         self.upload_dicts('labeled dataset', lab_dsc_dict, epoch)
         self.upload_dicts('unlabeled dataset', unlab_dsc_dict, epoch)
 
+        ## make sure that the nice dict is for labeled dataset
+        nice_dict = dict_merge(lab_dsc_dict, lab_mean_dict, re=True)
         print(
             f"{desc} " + ', '.join([f'{k}_{k_}: {v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()])
         )
@@ -349,8 +351,6 @@ class CoTrainer(Trainer):
             done += B
 
             if save:
-                # save_images(torch.cat(map_(pred2class, preds), dim=0), names=path, root=self.save_dir, mode='eval',
-                #             iter=epoch)
                 [save_images(pred2class(pred), names=path, root=self.save_dir, mode='eval', seg_num=str(i), iter=epoch)
                  for i, pred in enumerate(preds)]
 

@@ -6,20 +6,20 @@ logdir=cardiac/unet_VAT
 mkdir -p archives/$logdir
 ## Fulldataset baseline
 
-#currentfoldername=FS_fulldata
-#rm -rf runs/$logdir/$currentfoldername
-#python train.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
-#Dataset.augment=$data_aug
-#rm -rf archives/$logdir/$currentfoldername
-#mv -f runs/$logdir/$currentfoldername archives/$logdir
-#
+currentfoldername=FS_fulldata
+rm -rf runs/$logdir/$currentfoldername
+python train.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
+Dataset.augment=$data_aug
+rm -rf archives/$logdir/$currentfoldername
+mv -f runs/$logdir/$currentfoldername archives/$logdir
+
 ### Partial dataset baseline
-#currentfoldername=FS_partial
-#rm -rf runs/$logdir/$currentfoldername
-#python train_vat.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
-#Dataset.augment=$data_aug  StartTraining.train_adv=False
-#rm -rf archives/$logdir/$currentfoldername
-#mv -f runs/$logdir/$currentfoldername archives/$logdir
+currentfoldername=FS_partial
+rm -rf runs/$logdir/$currentfoldername
+python train_vat.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
+Dataset.augment=$data_aug  StartTraining.train_adv=False
+rm -rf archives/$logdir/$currentfoldername
+mv -f runs/$logdir/$currentfoldername archives/$logdir
 
 
 currentfoldername=adv

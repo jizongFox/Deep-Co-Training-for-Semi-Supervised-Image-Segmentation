@@ -115,7 +115,6 @@ class VatTrainer(Trainer):
 
         n_batch_iter = tqdm_(range(n_batch))
 
-        nice_dict = {}
         report_iterator = iterator_(['label', 'unlab'])
         report_status = 'label'
 
@@ -181,6 +180,10 @@ class VatTrainer(Trainer):
             n_batch_iter.set_postfix(nice_dict)
             n_batch_iter.set_description(f'{report_status}->> loss:{loss_log[:batch_num].mean().item():.3f}')
 
+        ## make sure that the dicts are for the labeled dataset
+
+        stat_dict = {**lab_dsc_dict, **lab_mean_dict}
+        nice_dict = {k: f"{v:.3f}" for (k, v) in stat_dict.items() if v != 0}
         print(
             f"{desc} " + ', '.join([f'{k}:{float(v):.3f}' for k, v in nice_dict.items()])
         )

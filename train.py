@@ -26,4 +26,4 @@ with warnings.catch_warnings():
     criterion = get_loss_fn(config['Loss'].get('name'), **{k: v for k, v in config['Loss'].items() if k != 'name'})
 
 trainer = Trainer(model, dataloaders=dataloders, criterion=criterion, **config['Trainer'], whole_config=config)
-trainer.start_training()
+trainer.start_training(**config['StartTraining'])
