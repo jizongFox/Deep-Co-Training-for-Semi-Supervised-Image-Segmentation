@@ -36,9 +36,9 @@ Unlab_Dataloader:
 
 
 Trainer:
-  max_epoch: 100
+  max_epoch: 3
   save_dir: tmp/cotraining
-  device: cpu #cuda
+  device: cuda
   axises: [1,2,3]
   metricname: metrics.csv
   lambda_cot_max: 1
@@ -51,7 +51,7 @@ Loss:
   weight: [1, 1, 1, 1]
 
 StartTraining:
-  train_jsd: True  # False
-  train_adv: True  # False
-  save_train: False
+  train_jsd: True
+  train_adv: True
+  save_train: True
   save_val: True

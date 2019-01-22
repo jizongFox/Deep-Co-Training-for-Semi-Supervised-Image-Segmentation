@@ -325,8 +325,10 @@ class CoTrainer(Trainer):
             done += B
 
             if save:
-                save_images(torch.cat(map_(pred2class, preds), dim=0), names=path, root=self.save_dir, mode='eval',
-                            iter=epoch)
+                # save_images(torch.cat(map_(pred2class, preds), dim=0), names=path, root=self.save_dir, mode='eval',
+                #             iter=epoch)
+                [save_images(pred2class(pred), names=path, root=self.save_dir, mode='eval', seg_num=str(i), iter=epoch)
+                 for i, pred in enumerate(preds)]
 
             big_slice = slice(0, done)
 

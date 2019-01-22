@@ -6,6 +6,9 @@ from scipy.interpolate import spline
 from pathlib import Path
 import os, sys
 import argparse
+import matplotlib
+
+matplotlib.use('agg')
 
 
 def main(args: argparse.Namespace) -> None:
