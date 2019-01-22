@@ -24,8 +24,8 @@ mkdir -p archives/$logdir
 
 currentfoldername=adv
 rm -rf runs/$logdir/$currentfoldername
-python train_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
-Dataset.augment=$data_aug StartTraining.train_adv=True \
+python train_vat.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
+Dataset.augment=$data_aug StartTraining.train_adv=True
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 
