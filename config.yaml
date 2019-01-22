@@ -9,7 +9,7 @@ Optim:
 Scheduler:
   name: MultiStepLR
   milestones: [10,20,30,40,50,60,70,80,90]
-  gamma: 0.6
+  gamma: 0.7
 
 Dataset:
   root_dir: dataset/ACDC-all
@@ -23,17 +23,20 @@ Dataloader:
   batch_size: 4
   num_workers: 4
   shuffle: True
+  drop_last: True
   batch_sampler: [PatientSampler,
                   {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
 
 Trainer:
   max_epoch: 100
   save_dir: tmp/classification
-  save_train: False
-  save_val: True
   device: cuda
   axises: [1,2,3]
   metricname: metrics.csv
+
+StartTraining:
+  save_train: False
+  save_val: False
 
 Loss:
   name: cross_entropy

@@ -20,7 +20,7 @@ class VatTrainer(Trainer):
                  checkpoint: str = None, metricname: str = 'metrics.csv', whole_config=None,
                  epoch_max_ramp: int = 80, lambda_adv_max: float = 0.5, ramp_up_mult=-5) -> None:
         super().__init__(segmentator=segmentator, dataloaders=dataloaders, criterion=criterion,
-                         max_epoch=max_epoch, save_dir=save_dir, save_train=save_train, save_val=save_val,
+                         max_epoch=max_epoch, save_dir=save_dir,
                          device=device, axises=axises, checkpoint=checkpoint, metricname=metricname,
                          whole_config=whole_config)
         self.adv_scheduler = RampScheduler(max_epoch=epoch_max_ramp, max_value=lambda_adv_max, ramp_mult=ramp_up_mult)
@@ -28,10 +28,13 @@ class VatTrainer(Trainer):
     def start_training(self, train_adv=False, save_train=False, save_val=False):
         n_class: int = self.C
         train_b: int = len(self.dataloaders['lab'])  # Number of iteration per epoch: different if batch_size > 1
-        train_n = train_b * self.dataloaders['lab'].batch_size  # when the droplast has been enabled.
-        n_unlab_img = train_b * self.dataloaders['unlab'].batch_size
-        val_n: int = len(self.dataloaders['val'].dataset)
+        train_n = train_b * self.dataloaders['lab'].batch_size if self.dataloaders['lab'].drop_last else len(
+            self.dataloaders['lab'].dataset)  # when the droplast has been enabled.
+        n_unlab_img = train_b * self.dataloaders['unlab'].batch_size if self.dataloaders['unlab'].drop_last else len(
+            self.dataloaders['unlab'].dataset)
         val_b: int = len(self.dataloaders['val'])
+        val_n: int = val_b * self.dataloaders['val'].batch_size if self.dataloaders['val'].drop_last == True \
+            else len(self.dataloaders['val'].dataset)
 
         metrics = {"val_dice": torch.zeros((self.max_epoch, val_n, 1, n_class), device=self.device).type(torch.float32),
                    "val_batch_dice": torch.zeros((self.max_epoch, val_b, 1, n_class), device=self.device).type(
@@ -54,7 +57,7 @@ class VatTrainer(Trainer):
             with torch.no_grad():
                 val_dice, val_batch_dice = self._evaluate_loop(val_dataloader=self.dataloaders['val'],
                                                                epoch=epoch, mode=ModelMode.EVAL,
-                                                               save=self.save_val)
+                                                               save=save_val)
             self.schedulerStep()
 
             for k in metrics:
@@ -97,9 +100,11 @@ class VatTrainer(Trainer):
 
         # Here the concept of epoch is defined as the epoch
         n_batch = labeled_dataloader.__len__()
-        n_img = n_batch * labeled_dataloader.batch_size  # we drop last
+        n_img = n_batch * labeled_dataloader.batch_size if labeled_dataloader.drop_last else len(
+            labeled_dataloader.dataset)
         # S labeled dataset + 1 unlabeled dataset
-        n_unlab_img = n_batch * unlabeled_dataloader.batch_size
+        n_unlab_img = n_batch * unlabeled_dataloader.batch_size if unlabeled_dataloader.drop_last else len(
+            unlabeled_dataloader.dataset)
 
         coef_dice = torch.zeros(n_img, 1, self.C)
         unlabel_coef_dice = torch.zeros(n_unlab_img, 1, self.C)
@@ -115,7 +120,6 @@ class VatTrainer(Trainer):
 
         n_batch_iter = tqdm_(range(n_batch))
 
-        nice_dict = {}
         report_iterator = iterator_(['label', 'unlab'])
         report_status = 'label'
 
@@ -181,6 +185,10 @@ class VatTrainer(Trainer):
             n_batch_iter.set_postfix(nice_dict)
             n_batch_iter.set_description(f'{report_status}->> loss:{loss_log[:batch_num].mean().item():.3f}')
 
+        ## make sure that the dicts are for the labeled dataset
+
+        stat_dict = {**lab_dsc_dict, **lab_mean_dict}
+        nice_dict = {k: f"{v:.3f}" for (k, v) in stat_dict.items() if v != 0}
         print(
             f"{desc} " + ', '.join([f'{k}:{float(v):.3f}' for k, v in nice_dict.items()])
         )
