@@ -52,6 +52,6 @@ Loss:
   weight: [1, 1, 1, 1]
 
 StartTraining:
-  train_adv: True
+  train_adv: False
   save_train: False
   save_val: False

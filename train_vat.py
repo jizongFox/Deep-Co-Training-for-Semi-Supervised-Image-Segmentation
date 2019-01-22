@@ -5,6 +5,7 @@ from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
 from generalframework.trainer import VatTrainer
 from generalframework.utils import yaml_parser, dict_merge
+from copy import deepcopy as dcopy
 import yaml
 
 warnings.filterwarnings('ignore')
@@ -19,11 +20,11 @@ config = dict_merge(config, parser_args, True)
 pprint(config)
 
 dataloders = get_dataloaders(config['Dataset'], config['Lab_Dataloader'])
-lab_dataloader = extract_patients(dataloders['train'], [str(x) for x in range(1, 50)])
-unlab_dataloader = get_dataloaders(config['Dataset'], config['Unlab_Dataloader'], quite=True)['train']
-unlab_dataloader = extract_patients(unlab_dataloader, [str(x) for x in range(50, 100)])
-dataloders = {'lab': lab_dataloader,
-              'unlab': unlab_dataloader,
+# lab_dataloader = extract_patients(dataloders['train'], [str(x) for x in range(1, 50)])
+# unlab_dataloader = get_dataloaders(config['Dataset'], config['Unlab_Dataloader'], quite=True)['train']
+# unlab_dataloader = extract_patients(unlab_dataloader, [str(x) for x in range(50, 100)])
+dataloders = {'lab': dataloders['train'],
+              'unlab': dcopy(dataloders['train']),
               'val': dataloders['val']}
 
 model = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
