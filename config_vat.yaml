@@ -53,5 +53,5 @@ Loss:
 
 StartTraining:
   train_adv: True
-  save_train: True
-  save_val: True
+  save_train: False
+  save_val: False
