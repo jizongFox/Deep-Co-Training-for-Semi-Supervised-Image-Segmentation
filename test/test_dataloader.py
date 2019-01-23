@@ -1,4 +1,6 @@
 from generalframework.dataset import MedicalImageDataset, segment_transform, augment
+from generalframework.dataset import CityscapesDataset
+from generalframework.dataset.augmentations import *
 from torch.utils.data import DataLoader
 from torchvision.transforms import ToPILImage
 import matplotlib
@@ -101,5 +103,28 @@ def test_prostate_dataloader():
     assert train_dataset.__len__() == train_dataset.imgs.__len__()
 
 
+def test_cityscapes_dataloader():
+    augmentations = Compose([Scale(2048), RandomRotate(10)])
+
+    local_path = '../dataset/CITYSCAPES'
+    dst = CityscapesDataset(local_path, is_transform=True, augmentation=augmentations)
+    bs = 4
+    trainloader = DataLoader(dst, batch_size=bs, num_workers=0)
+    for i, data_samples in enumerate(trainloader):
+        imgs, labels = data_samples
+        # import pdb
+        #
+        # pdb.set_trace()
+        imgs = imgs.numpy()[:, ::-1, :, :]
+        imgs = np.transpose(imgs, [0, 2, 3, 1])
+        f, axarr = plt.subplots(bs, 2)
+        for j in range(bs):
+            axarr[j][0].imshow(imgs[j])
+            axarr[j][1].imshow(dst.decode_segmap(labels.numpy()[j]))
+        plt.show()
+        print()
+
+
 if __name__ == '__main__':
-    test_dataloader()
+    # test_dataloader()
+    test_cityscapes_dataloader()

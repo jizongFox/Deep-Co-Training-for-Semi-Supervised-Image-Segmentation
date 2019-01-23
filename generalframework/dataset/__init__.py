@@ -6,6 +6,7 @@ from generalframework.utils import Colorize
 from .augment import PILaugment
 from .augment import segment_transform
 from .medicalDataLoader import MedicalImageDataset, PatientSampler
+from .citiyscapesDataloader import CityscapesDataset
 
 color_transform = Colorize()
 
@@ -22,6 +23,7 @@ def _registre_data_root(name, root, alis=None):
 
 _registre_data_root('ACDC_2D', 'generalframework/dataset/ACDC-2D-All', 'cardiac')
 _registre_data_root('PROSTATE', 'generalframework/dataset/PROSTATE', 'prostate')
+_registre_data_root('CITYSCAPES', 'generalframework/dataset/CITYSCAPES', 'cityscapes')
 
 
 def get_dataset_root(dataname):
@@ -29,6 +31,11 @@ def get_dataset_root(dataname):
         return dataset_root[dataname]
     else:
         raise ('There is no such dataname, given {}'.format(dataname))
+
+
+# TODO: Implement the get_dataloaders for Cityscapes dataset in a similar way as MedicalImageDataset
+def get_cityscapes_dataloaders():
+    pass
 
 
 def get_dataloaders(dataset_dict: dict, dataloader_dict: dict, quite=False):
