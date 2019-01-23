@@ -120,7 +120,6 @@ class CoTrainer(Trainer):
                         **{f"train_unlab_dice_{i}": metrics["train_unlab_dice"].mean(1)[:, s, i] for i in
                            self.axises},
                         **{f"val_dice_{i}": metrics["val_dice"].mean(1)[:, s, i] for i in self.axises},
-                        # using the axis = 3
                         **{f"val_batch_dice_{i}": metrics["val_batch_dice"].mean(1)[:, s, i] for i in self.axises}
                     })
                 ## the saved metrics are with only axis==3, as the foreground dice.

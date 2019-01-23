@@ -32,7 +32,6 @@ class Segmentator(ABC):
         optimizer: optim.adam.Adam = getattr(optim, self.optim_name)(torchnet.parameters(), **self.optim_params)
         scheduler: lr_scheduler._LRScheduler = getattr(lr_scheduler, self.scheduler_name)(optimizer,
                                                                                           **self.scheduler_params)
-
         return torchnet, optimizer, scheduler
 
     def predict(self, img: Tensor, logit=True) -> Tensor:
