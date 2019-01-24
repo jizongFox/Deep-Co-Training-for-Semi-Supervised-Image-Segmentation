@@ -6,11 +6,13 @@ from generalframework.models import Segmentator
 from generalframework.trainer import CoTrainer
 from generalframework.utils import yaml_parser, dict_merge
 from copy import deepcopy as dcopy
-import yaml, numpy as np, torch,os
-torch.random.manual_seed(1)
-torch.cuda.manual_seed(1)
-np.random.seed(1)
-os.environ['PYTHONHASHSEED'] = str('1')
+import yaml, numpy as np, torch,os,random
+seed=1234
+random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+np.random.seed(seed)
+os.environ['PYTHONHASHSEED'] = str(seed)
 torch.backends.cudnn.deterministic = True
 
 warnings.filterwarnings('ignore')
@@ -37,6 +39,8 @@ val_dataloader = dataloders['val']
 
 model1 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
 model2 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
+# model2.load_state_dict(model1.state_dict)
+
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)

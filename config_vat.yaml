@@ -4,7 +4,7 @@ Arch:
 
 Optim:
   name: Adam
-  lr: 0.001
+  lr: 0.0005
 
 Scheduler:
   name: MultiStepLR
@@ -32,7 +32,7 @@ Unlab_Dataloader:
   pin_memory: False
   batch_size: 4
   num_workers: 4
-  shuffle: True
+  shuffle: False
   drop_last: True
 
 Trainer:
