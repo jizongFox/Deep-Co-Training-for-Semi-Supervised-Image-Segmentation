@@ -3,7 +3,7 @@ from typing import List, Dict
 from copy import deepcopy as dcopy
 from torch.utils.data import DataLoader
 from generalframework.utils import Colorize
-from .augment import PILaugment
+from .augment import PILaugment, get_composed_augmentations
 from .augment import segment_transform
 from .medicalDataLoader import MedicalImageDataset, PatientSampler
 from .citiyscapesDataloader import CityscapesDataset
@@ -34,8 +34,36 @@ def get_dataset_root(dataname):
 
 
 # TODO: Implement the get_dataloaders for Cityscapes dataset in a similar way as MedicalImageDataset
-def get_cityscapes_dataloaders():
-    pass
+def get_cityscapes_dataloaders(dataset_dict: dict, dataloader_dict: dict):
+    # Setup Augmentations
+    augmentations = dataset_dict.get("augmentations", None)
+    data_aug = get_composed_augmentations(augmentations)
+
+    # Setup Dataloader
+    data_path = dataset_dict["root_dir"]
+    dst = CityscapesDataset(data_path, is_transform=True, augmentation=data_aug)
+
+    train_set = CityscapesDataset(
+        data_path,
+        is_transform=True,
+        split='train',
+        img_size=(dataset_dict["img_rows"], dataset_dict["img_cols"]),
+        augmentation=data_aug,
+    )
+
+    val_set = CityscapesDataset(
+        data_path,
+        is_transform=True,
+        split='val',
+        img_size=(dataset_dict["img_rows"], dataset_dict["img_cols"]),
+    )
+
+    n_classes = train_set.n_classes
+    train_loader = DataLoader( train_set, **dataloader_dict)
+
+    val_loader = DataLoader(val_set, **{**dataloader_dict, **{'shuffle': False, 'batch_size': 1}})
+    return {'train': train_loader,
+            'val': val_loader}
 
 
 def get_dataloaders(dataset_dict: dict, dataloader_dict: dict, quite=False):

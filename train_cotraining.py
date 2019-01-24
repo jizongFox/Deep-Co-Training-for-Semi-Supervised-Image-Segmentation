@@ -1,6 +1,6 @@
 import warnings
 from pprint import pprint
-from generalframework.dataset import get_dataloaders, extract_patients
+from generalframework.dataset import get_dataloaders, extract_patients, get_cityscapes_dataloaders
 from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
 from generalframework.trainer import CoTrainer
@@ -12,11 +12,15 @@ warnings.filterwarnings('ignore')
 parser_args = yaml_parser()
 print('->>Input args:')
 pprint(parser_args)
-with open('config_cotrain.yaml', 'r') as f:
+conf_file = 'config_cotrain_nat_img.yaml'
+# conf_file = 'config_cotrain.yaml'
+with open(conf_file, 'r') as f:
     config = yaml.load(f.read())
 print('->> Merged Config:')
 config = dict_merge(config, parser_args, True)
 pprint(config)
+
+dataloders = get_cityscapes_dataloaders(config['Dataset'], config['Lab_Dataloader'])
 
 dataloders = get_dataloaders(config['Dataset'], config['Lab_Dataloader'])
 lab_dataloader1 = extract_patients(dataloders['train'], [str(x) for x in range(1, 26)])

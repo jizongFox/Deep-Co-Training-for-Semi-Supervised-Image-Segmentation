@@ -1,10 +1,11 @@
 import os
 import torch
 import scipy.misc as m
+import numpy as np
 
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from ..utils.utils import recursive_glob
-from .augmentations import *
+# from .augmentations import *
 
 
 class CityscapesDataset(Dataset):
@@ -15,12 +16,12 @@ class CityscapesDataset(Dataset):
     Many Thanks to @fvisin for the loader repo:
     https://github.com/fvisin/dataset_loaders/blob/master/dataset_loaders/images/cityscapes.py
 
-
     Dataloader for Cityscapes dataset (https://www.cityscapes-dataset.com).
     The data_utils packages gtFine_trainvaltest and leftImg8bit_trainvaltest can be downloaded from:
     https://www.cityscapes-dataset.com/downloads/
 
-
+    Thanks a lot to @meetshah1995 for the loader repo:
+   https://github.com/meetshah1995/pytorch-semseg/tree/master/ptsemseg/loader/cityscapes_loader.py
     """
 
     colors = [  # [  0,   0,   0],
@@ -233,30 +234,3 @@ class CityscapesDataset(Dataset):
             mask[mask == _validc] = self.class_map[_validc]
         return mask
 
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-
-    augmentations = Compose([Scale(2048), RandomRotate(10)])
-
-    local_path = "../data/Cityspaces"
-    dst = CityscapesDataset(local_path, is_transform=True, augmentation=augmentations)
-    bs = 4
-    trainloader = DataLoader(dst, batch_size=bs, num_workers=0)
-    for i, data_samples in enumerate(trainloader):
-        imgs, labels = data_samples
-        # import pdb
-        #
-        # pdb.set_trace()
-        imgs = imgs.numpy()[:, ::-1, :, :]
-        imgs = np.transpose(imgs, [0, 2, 3, 1])
-        f, axarr = plt.subplots(bs, 2)
-        for j in range(bs):
-            axarr[j][0].imshow(imgs[j])
-            axarr[j][1].imshow(dst.decode_segmap(labels.numpy()[j]))
-        plt.show()
-        a = input()
-        if a == "ex":
-            break
-        else:
-            plt.close()
