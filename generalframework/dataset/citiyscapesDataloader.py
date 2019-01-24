@@ -5,7 +5,7 @@ import numpy as np
 
 from torch.utils.data import Dataset
 from ..utils.utils import recursive_glob
-# from .augmentations import *
+from generalframework import ModelMode
 
 
 class CityscapesDataset(Dataset):
@@ -56,7 +56,7 @@ class CityscapesDataset(Dataset):
     def __init__(
         self,
         root_path,
-        split="train",
+        mode="train",
         is_transform=False,
         img_size=(512, 1024),
         augmentation=None,
@@ -65,16 +65,17 @@ class CityscapesDataset(Dataset):
     ):
         """__init__
         :param root_path:
-        :param split:
+        :param mode:
         :param is_transform:
         :param img_size:
         :param augmentations
         """
         self.root = root_path
-        self.split = split
+        self.mode = mode
         self.is_transform = is_transform
         self.augmentations = augmentation
         self.img_norm = img_norm
+        self.training = ModelMode.TRAIN
         self.n_classes = 19
         self.img_size = (
             img_size if isinstance(img_size, tuple) else (img_size, img_size)
@@ -82,15 +83,15 @@ class CityscapesDataset(Dataset):
         self.mean = np.array(self.mean_rgb[version])
         self.files = {}
 
-        assert split in ('train', 'test',
-                         'val'), 'dataset name should be restricted in "label", "unlabeled" and "val", given %s' % split
+        assert mode in ('train', 'test',
+                         'val'), 'dataset name should be restricted in "label", "unlabeled" and "val", given %s' % mode
 
-        self.images_base = os.path.join(self.root, "leftImg8bit", self.split)
+        self.images_base = os.path.join(self.root, "leftImg8bit", self.mode)
         self.annotations_base = os.path.join(
-            self.root, "gtFine", self.split
+            self.root, "gtFine", self.mode
         )
 
-        self.files[split] = recursive_glob(rootdir=self.images_base, suffix=".png")
+        self.files[mode] = recursive_glob(rootdir=self.images_base, suffix=".png")
 
         self.void_classes = [0, 1, 2, 3, 4, 5, 6, 9, 10, 14, 15, 16, 18, 29, 30, -1]
         self.valid_classes = [
@@ -140,22 +141,30 @@ class CityscapesDataset(Dataset):
         self.ignore_index = 250
         self.class_map = dict(zip(self.valid_classes, range(19)))
 
-        if not self.files[split]:
+        if not self.files[mode]:
             raise Exception(
-                "No files for split=[%s] found in %s" % (split, self.images_base)
+                "No files for split=[%s] found in %s" % (mode, self.images_base)
             )
 
-        print("Found %d %s images" % (len(self.files[split]), split))
+        print("Found %d %s images" % (len(self.files[mode]), mode))
 
     def __len__(self):
         """__len__"""
-        return len(self.files[self.split])
+        return len(self.files[self.mode])
+
+    def set_mode(self, mode):
+        assert isinstance(mode, (str, ModelMode)), 'the type of mode should be str or ModelMode, given %s' % str(mode)
+
+        if isinstance(mode, str):
+            self.training = ModelMode.from_str(mode)
+        else:
+            self.training = mode
 
     def __getitem__(self, index):
         """__getitem__
         :param index:
         """
-        img_path = self.files[self.split][index].rstrip()
+        img_path = self.files[self.mode][index].rstrip()
         lbl_path = os.path.join(
             self.annotations_base,
             img_path.split(os.sep)[-2],
@@ -174,7 +183,9 @@ class CityscapesDataset(Dataset):
         if self.is_transform:
             img, lbl = self.transform(img, lbl)
 
-        return img, lbl
+        lbl = lbl.unsqueeze(0)
+
+        return [img, lbl], img_path, lbl_path
 
     def transform(self, img, lbl):
         """transform

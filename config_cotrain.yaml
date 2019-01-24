@@ -38,7 +38,7 @@ Unlab_Dataloader:
 Trainer:
   max_epoch: 3
   save_dir: tmp/cotraining
-  device: cuda
+  device: cpu  # cuda
   axises: [1,2,3]
   metricname: metrics.csv
   lambda_cot_max: 1
