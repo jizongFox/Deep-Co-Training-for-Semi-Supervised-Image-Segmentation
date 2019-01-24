@@ -1,4 +1,6 @@
 import re
+import numpy as np
+from copy import deepcopy as dcopy
 from typing import List, Dict
 from copy import deepcopy as dcopy
 from torch.utils.data import DataLoader
@@ -34,16 +36,15 @@ def get_dataset_root(dataname):
 
 
 # TODO: Implement the get_dataloaders for Cityscapes dataset in a similar way as MedicalImageDataset
-def get_cityscapes_dataloaders(dataset_dict: dict, dataloader_dict: dict):
+def get_cityscapes_dataloaders(dataset_dict: dict, dataloader_dict: dict, n_models=2, ratio=0.5):
     # Setup Augmentations
     augmentations = dataset_dict.get("augmentations", None)
     data_aug = get_composed_augmentations(augmentations)
 
     # Setup Dataloader
     data_path = dataset_dict["root_dir"]
-    dst = CityscapesDataset(data_path, is_transform=True, augmentation=data_aug)
 
-    train_set = CityscapesDataset(
+    lab_set = CityscapesDataset(
         data_path,
         is_transform=True,
         split='train',
@@ -51,19 +52,35 @@ def get_cityscapes_dataloaders(dataset_dict: dict, dataloader_dict: dict):
         augmentation=data_aug,
     )
 
+    unlab_set = dcopy(lab_set)
+    lab_datasets = [dcopy(lab_set) for _ in range(n_models)]
+    lab_set_len = len(lab_set.files['train'])
+
+    np.random.seed(1)
+    idx = np.random.choice(lab_set_len, int(ratio * lab_set_len), replace=False)
+    unlab_data = [lab_set.files['train'][i] for i in range(lab_set_len) if i not in idx]
+    unlab_set.files['train'] = unlab_data
+
+    n_labimgs_per_set = int((lab_set_len - unlab_data.__len__()) / n_models)
+    lab_data = [lab_set.files['train'][i] for i in range(lab_set_len) if i in idx]
+
+    for i in range(n_models):
+        lab_datasets[i].files['train'] = lab_data[i*n_labimgs_per_set:(i+1)*n_labimgs_per_set]
+
+    lab_loaders = [DataLoader(x, **dataloader_dict) for x in lab_datasets]
+    unlab_loader = DataLoader(unlab_set,  **dataloader_dict)
+
     val_set = CityscapesDataset(
         data_path,
         is_transform=True,
         split='val',
         img_size=(dataset_dict["img_rows"], dataset_dict["img_cols"]),
     )
-
-    n_classes = train_set.n_classes
-    train_loader = DataLoader( train_set, **dataloader_dict)
-
     val_loader = DataLoader(val_set, **{**dataloader_dict, **{'shuffle': False, 'batch_size': 1}})
-    return {'train': train_loader,
-            'val': val_loader}
+    return {
+        'lab': lab_loaders,
+        'unlab': unlab_loader,
+        'val': val_loader}
 
 
 def get_dataloaders(dataset_dict: dict, dataloader_dict: dict, quite=False):
