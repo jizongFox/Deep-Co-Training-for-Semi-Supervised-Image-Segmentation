@@ -11,7 +11,6 @@ def segment_transform(size):
     ])
     mask_transform = transforms.Compose([
         transforms.Resize(size),
-        # transforms.ToTensor()
         ToLabel()
     ])
     return {'img': img_transform,

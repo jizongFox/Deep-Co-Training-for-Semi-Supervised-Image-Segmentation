@@ -73,8 +73,10 @@ class MedicalImageDataset(Dataset):
             img_list = [ImageOps.equalize(img) if (b == self.equalize) or (b in self.equalize) else img for b, img in
                         zip(self.subfolders, img_list)]
 
+
         if self.augment is not None and self.training == ModelMode.TRAIN:
             img_list = self.augment(img_list)
+            print('dataaugmentatioon done')
 
         img_T = [self.transform['img'](img) if b == 'img' else self.transform['gt'](img) for b, img in
                  zip(self.subfolders, img_list)]
