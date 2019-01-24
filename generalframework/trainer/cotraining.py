@@ -171,7 +171,7 @@ class CoTrainer(Trainer):
         n_batch_iter = tqdm_(range(n_batch))
 
         lab_dsc_dict = {}
-        lab_mean_dict={}
+        lab_mean_dict = {}
         unlab_dsc_dict = {}
         report_iterator = iterator_(['label', 'unlab'])
         report_status = 'label'
@@ -364,7 +364,7 @@ class CoTrainer(Trainer):
             mean_dict = {f"S{i}": {"DSC": coef_dice[big_slice, i, self.axises].mean().item()} for i in
                          range(len(self.segmentators))}
 
-            nice_dict = {k: {**v1, **v2} for k, v1 in dsc_dict.items() for _, v2 in mean_dict.items()}
+            nice_dict = dict_merge(dsc_dict, mean_dict, re=True)
 
             loss_dict = {f'L{i}': loss_log[0:batch_num, i].mean().item() for i in range(len(self.segmentators))}
             val_dataloader.set_description('val: ' + ','.join([f'{k}:{v:.3f}' for k, v in loss_dict.items()]))
