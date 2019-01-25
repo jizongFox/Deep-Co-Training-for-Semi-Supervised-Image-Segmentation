@@ -12,6 +12,7 @@ from torch import Tensor, einsum
 from torch.utils.data import DataLoader
 from torchnet.meter import AverageValueMeter
 from tqdm import tqdm
+import os
 import argparse
 import collections
 
@@ -450,3 +451,14 @@ def dict_merge(dct: dict, merge_dct: dict, re=False):
                 dct[k] = merge_dct[k]
     if re:
         return dcopy(dct)
+
+
+def recursive_glob(rootdir=".", suffix=""):
+    """Performs recursive glob with given suffix and rootdir
+        :param rootdir is the root directory
+        :param suffix is the suffix to be searched
+    """
+    return [os.path.join(looproot, filename)
+            for looproot, _, filenames in os.walk(rootdir)
+            for filename in filenames
+            if filename.endswith(suffix)]

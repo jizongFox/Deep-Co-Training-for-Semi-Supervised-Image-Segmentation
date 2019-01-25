@@ -11,13 +11,13 @@ from ..utils.utils import simplex
 
 class CrossEntropyLoss2d(nn.Module):
 
-    def __init__(self, weight=None, reduce=True, size_average=True):
+    def __init__(self, weight=None, reduce=True, size_average=True, ignore_index=-1):
         super(CrossEntropyLoss2d, self).__init__()
         if weight is not None:
             weight = torch.Tensor(weight)
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore')
-            self.loss = nn.NLLLoss(weight, reduce=reduce, size_average=size_average)
+            self.loss = nn.NLLLoss(weight, reduce=reduce, size_average=size_average, ignore_index=ignore_index)
 
     def forward(self, outputs, targets):
         return self.loss(F.log_softmax(outputs, dim=1), targets)
@@ -82,7 +82,7 @@ class JSD_2D(nn.Module):
 
 class KL_Divergence_2D(nn.Module):
 
-    def __init__(self, reduce=False,eps=1e-10):
+    def __init__(self, reduce=False, eps=1e-10):
         super().__init__()
         self.reduce = reduce
         self.eps = eps
@@ -96,8 +96,8 @@ class KL_Divergence_2D(nn.Module):
         assert simplex(p_prob, 1)
         assert simplex(y_prob, 1)
 
-        logp = (p_prob+self.eps).log()
-        logy = (y_prob+self.eps).log()
+        logp = (p_prob + self.eps).log()
+        logy = (y_prob + self.eps).log()
 
         ylogy = (y_prob * logy).sum(dim=1)
         ylogp = (y_prob * logp).sum(dim=1)
