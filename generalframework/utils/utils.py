@@ -340,7 +340,7 @@ class VATGenerator(object):
         # d /= (np.sqrt(np.sum(d ** 2, axis=(1, 2, 3))).reshape((-1, 1, 1, 1)) + 1e-16)
         # return torch.from_numpy(d)
         d_reshaped = d.view(d.shape[0], -1, *(1 for _ in range(d.dim() - 2)))
-        d /= torch.norm(d_reshaped, dim=1, keepdim=True) + 1e-8
+        d /= torch.norm(d_reshaped, dim=1, keepdim=True) + 1e-10
         return d
 
     @staticmethod
@@ -349,12 +349,25 @@ class VATGenerator(object):
         logq = F.log_softmax(q_logit, dim=1)
         logp = F.log_softmax(p_logit, dim=1)
 
-        qlogq = (q * logq).sum(dim=1).mean(dim=0)
-        qlogp = (q * logp).sum(dim=1).mean(dim=0)
-
+        qlogq = (q * logq).sum(dim=1)
+        qlogp = (q * logp).sum(dim=1)
         return qlogq - qlogp
 
-    def __call__(self, img):
+    @staticmethod
+    def L2_loss2D(q_logit, p_logit):
+        q_prob = F.softmax(q_logit, 1)
+        p_prob = F.softmax(p_logit, 1)
+        loss = ((q_prob - p_prob) * (q_prob - p_prob)).sum(dim=1)
+        return loss
+
+    @staticmethod
+    def L1_loss2D(q_logit, p_logit):
+        q_prob = F.softmax(q_logit, 1)
+        p_prob = F.softmax(p_logit, 1)
+        loss = torch.abs((q_prob - p_prob)).sum(dim=1)
+        return loss
+
+    def __call__(self, img, loss_name='kl'):
         tra_state = self.net.training
         self.net.eval()
         with torch.no_grad():
@@ -368,7 +381,14 @@ class VATGenerator(object):
             d = self.xi * self._l2_normalize(d).to(img.device)
             d.requires_grad = True
             y_hat = self.net(img + d)
-            delta_kl = self.kl_div_with_logit(pred.detach(), y_hat).mean()
+            if loss_name == 'kl':
+                delta_kl = self.kl_div_with_logit(pred.detach(), y_hat).mean() # B/H/W
+            elif loss_name == 'l2':
+                delta_kl = self.L2_loss2D(pred.detach(), y_hat).mean() # B/H/W
+            elif loss_name=='l1':
+                delta_kl = self.L1_loss2D(pred.detach(), y_hat).mean() # B/H/W
+            else:
+                NotImplementedError
             delta_kl.backward()
 
             d = d.grad.data.clone().cpu()
@@ -382,7 +402,7 @@ class VATGenerator(object):
             self.net.train()
         assert self.net.training == tra_state
         img_adv = torch.clamp(img_adv, 0, 1)
-        return img_adv.detach()
+        return img_adv.detach(),r_adv.detach()
 
 
 ## argparser

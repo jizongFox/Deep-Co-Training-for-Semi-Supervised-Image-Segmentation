@@ -151,7 +151,7 @@ class VatTrainer(Trainer):
                 unlab_B = unlab_img.shape[0]
                 batch_slice = slice(unlab_done, unlab_done + unlab_B)
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
-                unlab_img_adv = VATGenerator(self.segmentator.torchnet, eplision=0.05)(dcopy(unlab_img))
+                unlab_img_adv,noise = VATGenerator(self.segmentator.torchnet, eplision=5)(dcopy(unlab_img),'kl')
                 assert unlab_img.shape == unlab_img_adv.shape
                 adv_pred = self.segmentator.predict(unlab_img_adv, logit=False)
                 real_pred = self.segmentator.predict(unlab_img, logit=False)
@@ -159,9 +159,9 @@ class VatTrainer(Trainer):
                 unlabel_coef_dice[batch_slice] = unlab_dice.unsqueeze(1)
 
                 ### plot scripts
-
+                #
                 # import matplotlib.pyplot as plt
-                # # plt.figure(figsize=(4,11))
+                # plt.figure(1)
                 # plt.subplot(321)
                 # plt.imshow(unlab_img[0].data.cpu().numpy().squeeze(),cmap='gray')
                 # plt.subplot(322)
@@ -177,6 +177,31 @@ class VatTrainer(Trainer):
                 # plt.subplot(326)
                 #
                 # plt.imshow(np.abs((adv_pred.max(1)[1][0]-real_pred.max(1)[1][0]).data.cpu().numpy().squeeze()))
+                # plt.show(block=False)
+                #
+                # unlab_img_adv,noise = VATGenerator(self.segmentator.torchnet, eplision=5)(dcopy(unlab_img), 'l1')
+                # assert unlab_img.shape == unlab_img_adv.shape
+                # adv_pred = self.segmentator.predict(unlab_img_adv, logit=False)
+                # real_pred = self.segmentator.predict(unlab_img, logit=False)
+                #
+                # ### plot scripts
+                #
+                # plt.figure(2)
+                # plt.subplot(321)
+                # plt.imshow(unlab_img[0].data.cpu().numpy().squeeze(), cmap='gray')
+                # plt.subplot(322)
+                # plt.imshow(real_pred.max(1)[1][0].data.cpu().numpy().squeeze())
+                # # plt.contourf(unlab_gt[0].data.cpu().numpy().squeeze())
+                # plt.subplot(323)
+                # plt.imshow(unlab_img_adv[0].data.cpu().numpy().squeeze(), cmap='gray')
+                # plt.subplot(324)
+                # plt.imshow(adv_pred.max(1)[1][0].data.cpu().numpy().squeeze())
+                #
+                # plt.subplot(325)
+                # plt.imshow(np.abs((unlab_img_adv - unlab_img)[0].data.cpu().numpy().squeeze()))
+                # plt.subplot(326)
+                #
+                # plt.imshow(np.abs((adv_pred.max(1)[1][0] - real_pred.max(1)[1][0]).data.cpu().numpy().squeeze()))
                 # plt.show()
 
                 unlab_done += unlab_B
