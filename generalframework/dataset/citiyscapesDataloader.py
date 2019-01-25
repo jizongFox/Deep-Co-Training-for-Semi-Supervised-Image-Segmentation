@@ -183,7 +183,7 @@ class CityscapesDataset(Dataset):
         if self.is_transform:
             img, lbl = self.transform(img, lbl)
 
-        lbl = lbl.unsqueeze(0)
+        # lbl = lbl.unsqueeze(0)
 
         return [img, lbl], img_path, lbl_path
 

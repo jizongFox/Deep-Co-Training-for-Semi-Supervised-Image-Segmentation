@@ -111,7 +111,7 @@ def test_cityscapes_dataloader():
     bs = 4
     trainloader = DataLoader(dst, batch_size=bs, num_workers=0)
     for i, data_samples in enumerate(trainloader):
-        imgs, labels = data_samples
+        [[imgs, labels], _, _] = data_samples
         # import pdb
         #
         # pdb.set_trace()
