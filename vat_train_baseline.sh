@@ -2,7 +2,8 @@
 set -e
 max_peoch=100
 data_aug=None
-logdir=cardiac/unet_VAT_FS_2
+
+logdir=cardiac/unet_VAT_FS_tmp
 mkdir -p archives/$logdir
 ## Fulldataset baseline
 

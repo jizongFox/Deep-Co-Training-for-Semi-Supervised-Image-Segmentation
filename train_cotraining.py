@@ -55,12 +55,6 @@ cotrainner = CoTrainer(segmentators=[model1, model2],
                        criterions=criterions,
                        **config['Trainer'],
                        whole_config=config)
-# cotrainner = CoTrainer(segmentators=[model1],
-#                        labeled_dataloaders=[lab_dataloader1],
-#                        unlabeled_dataloader=unlab_dataloader,
-#                        val_dataloader=val_dataloader,
-#                        criterions=criterions,
-#                        **config['Trainer'],
-#                        whole_config=config)
+
 
 cotrainner.start_training(**config['StartTraining'])

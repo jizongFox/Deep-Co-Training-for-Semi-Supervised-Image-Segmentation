@@ -154,10 +154,10 @@ class UNetDec(nn.Module): # 从图片到representation
 
 class UNet(nn.Module):
 
-    def __init__(self, num_classes):
+    def __init__(self, in_channels=1, num_classes=2):
         super(UNet,self).__init__()
 
-        self.dec1 = UNetDec(1, 64)
+        self.dec1 = UNetDec(in_channels, 64)
         self.dec2 = UNetDec(64, 128)
         self.dec3 = UNetDec(128, 256)
         self.dec4 = UNetDec(256, 512, dropout=True)

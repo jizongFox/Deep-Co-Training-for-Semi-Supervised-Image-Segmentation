@@ -3,9 +3,10 @@ from typing import List, Dict
 from copy import deepcopy as dcopy
 from torch.utils.data import DataLoader
 from generalframework.utils import Colorize
-from .augment import PILaugment
+from .augment import PILaugment, get_composed_augmentations
 from .augment import segment_transform
 from .medicalDataLoader import MedicalImageDataset, PatientSampler
+from .citiyscapesDataloader import CityscapesDataset
 
 color_transform = Colorize()
 
@@ -20,8 +21,8 @@ def _registre_data_root(name, root, alis=None):
         dataset_root[alis] = root
 
 
-_registre_data_root('ACDC_2D', 'generalframework/dataset/ACDC-2D-All', 'cardiac')
-_registre_data_root('PROSTATE', 'generalframework/dataset/PROSTATE', 'prostate')
+_registre_data_root('ACDC_2D', './generalframework/dataset/ACDC-2D-All', 'cardiac')
+_registre_data_root('PROSTATE', './generalframework/dataset/PROSTATE', 'prostate')
 
 
 def get_dataset_root(dataname):
@@ -45,8 +46,21 @@ def get_dataloaders(dataset_dict: dict, dataloader_dict: dict, quite=False):
         val_loader = DataLoader(val_set, batch_sampler=val_sampler, batch_size=1)
     else:
         val_loader = DataLoader(val_set, **{**dataloader_dict, **{'shuffle': False, 'batch_size': 1}})
-    return {'train': train_loader,
-            'val': val_loader}
+    return {'train': train_loader, 'val': val_loader}
+
+
+# TODO: Implement the get_dataloaders for Cityscapes dataset in a similar way as MedicalImageDataset
+def get_cityscapes_dataloaders(dataset_dict: dict, dataloader_dict: dict):
+    # Setup Augmentations
+    augmentations = dataset_dict.get("augmentations", None)
+    data_aug = get_composed_augmentations(augmentations)
+    data_path = dataset_dict["root_dir"]
+    lab_set = CityscapesDataset(data_path, is_transform=True, mode='train', image_size=(dataset_dict["image_size"]),
+                                augmentation=data_aug)
+    lab_loader = DataLoader(lab_set, **dataloader_dict)
+    val_set = CityscapesDataset(data_path, is_transform=True, mode='val', image_size=dataset_dict["image_size"])
+    val_loader = DataLoader(val_set, **{**dataloader_dict, **{'shuffle': False, 'batch_size': 1}})
+    return {'train': lab_loader, 'val': val_loader}
 
 
 def extract_patients(dataloader: DataLoader, patient_ids: List[str]):

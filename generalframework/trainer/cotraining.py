@@ -120,7 +120,6 @@ class CoTrainer(Trainer):
                         **{f"train_unlab_dice_{i}": metrics["train_unlab_dice"].mean(1)[:, s, i] for i in
                            self.axises},
                         **{f"val_dice_{i}": metrics["val_dice"].mean(1)[:, s, i] for i in self.axises},
-                        # using the axis = 3
                         **{f"val_batch_dice_{i}": metrics["val_batch_dice"].mean(1)[:, s, i] for i in self.axises}
                     })
                 ## the saved metrics are with only axis==3, as the foreground dice.
@@ -172,7 +171,7 @@ class CoTrainer(Trainer):
         n_batch_iter = tqdm_(range(n_batch))
 
         lab_dsc_dict = {}
-        lab_mean_dict={}
+        lab_mean_dict = {}
         unlab_dsc_dict = {}
         report_iterator = iterator_(['label', 'unlab'])
         report_status = 'label'
@@ -365,7 +364,9 @@ class CoTrainer(Trainer):
             mean_dict = {f"S{i}": {"DSC": coef_dice[big_slice, i, self.axises].mean().item()} for i in
                          range(len(self.segmentators))}
 
+
             nice_dict = dict_merge(dsc_dict,mean_dict,True)
+
 
             loss_dict = {f'L{i}': loss_log[0:batch_num, i].mean().item() for i in range(len(self.segmentators))}
             val_dataloader.set_description('val: ' + ','.join([f'{k}:{v:.3f}' for k, v in loss_dict.items()]))
