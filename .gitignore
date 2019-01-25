@@ -12,4 +12,4 @@ envs
 tmp/
 tmp/*
 archives/*
-test/data
+test/data/

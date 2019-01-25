@@ -23,20 +23,20 @@ Lab_Dataloader:
   pin_memory: False
   batch_size: 2
   num_workers: 2
-  shuffle: True
+  shuffle: False
   drop_last: True
   batch_sampler: [PatientSampler,
                   {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
+
 Unlab_Dataloader:
   pin_memory: False
   batch_size: 4
   num_workers: 4
-  shuffle: True
+  shuffle: False
   drop_last: True
 
-
 Trainer:
-  max_epoch: 3
+  max_epoch: 100
   save_dir: tmp/cotraining
   device: cuda
   axises: [1,2,3]
@@ -51,7 +51,7 @@ Loss:
   weight: [1, 1, 1, 1]
 
 StartTraining:
-  train_jsd: True
-  train_adv: True
+  train_jsd: False
+  train_adv: False
   save_train: True
   save_val: True

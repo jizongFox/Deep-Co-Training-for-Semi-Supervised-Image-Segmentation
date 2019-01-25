@@ -402,6 +402,7 @@ class VATGenerator(object):
             self.net.train()
         assert self.net.training == tra_state
         img_adv = torch.clamp(img_adv, 0, 1)
+
         return img_adv.detach(),r_adv.detach()
 
 

@@ -148,7 +148,7 @@ class CoTrainer(Trainer):
 
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
         # Here the concept of epoch is defined as the epoch
-        n_img = max(map_(lambda x: len(x.dataset), self.labeled_dataloaders))
+        n_img = max(map_(lambda x: len(x.dataset), labeled_dataloaders))
         n_batch = max(map_(len, self.labeled_dataloaders))
         S = len(self.segmentators)
         # S labeled dataset + 1 unlabeled dataset
@@ -364,7 +364,9 @@ class CoTrainer(Trainer):
             mean_dict = {f"S{i}": {"DSC": coef_dice[big_slice, i, self.axises].mean().item()} for i in
                          range(len(self.segmentators))}
 
-            nice_dict = dict_merge(dsc_dict, mean_dict, re=True)
+
+            nice_dict = dict_merge(dsc_dict,mean_dict,True)
+
 
             loss_dict = {f'L{i}': loss_log[0:batch_num, i].mean().item() for i in range(len(self.segmentators))}
             val_dataloader.set_description('val: ' + ','.join([f'{k}:{v:.3f}' for k, v in loss_dict.items()]))

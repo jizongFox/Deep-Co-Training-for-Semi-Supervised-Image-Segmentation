@@ -2,7 +2,8 @@
 set -e
 max_peoch=100
 data_aug=None
-logdir=cardiac/unet_VAT_SEMI
+
+logdir=cardiac/unet_VAT_FS_tmp
 mkdir -p archives/$logdir
 ## Fulldataset baseline
 
@@ -28,14 +29,14 @@ mv -f runs/$logdir/$currentfoldername archives/$logdir
 adv(){
 currentfoldername=adv
 rm -rf runs/$logdir/$currentfoldername
-CUDA_VISIBLE_DEVICES=2 python train_vat.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
+CUDA_VISIBLE_DEVICES=3 python train_vat.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
 Dataset.augment=$data_aug StartTraining.train_adv=True
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
 
-fs & partial & adv
+partial & adv & fs
 
 python generalframework/postprocessing/plot.py --folders archives/$logdir/FS_fulldata/ archives/$logdir/FS_partial/ archives/$logdir/adv/  --file val_dice.npy --axis 1 2 3 --postfix=test
 python generalframework/postprocessing/plot.py --folders archives/$logdir/FS_fulldata/ archives/$logdir/FS_partial/ archives/$logdir/adv/  --file val_batch_dice.npy --axis 1 2 3 --postfix=test
