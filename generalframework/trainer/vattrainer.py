@@ -8,7 +8,7 @@ from generalframework import ModelMode
 from ..utils import *
 from ..models import Segmentator
 from .trainer import Trainer
-from ..scheduler import RampScheduler
+from ..scheduler import *
 from ..loss import KL_Divergence_2D
 
 
@@ -18,12 +18,14 @@ class VatTrainer(Trainer):
                  save_dir: str = 'tmp', save_train=False, save_val=False,
                  device: str = 'cpu', axises: List[int] = [1, 2, 3],
                  checkpoint: str = None, metricname: str = 'metrics.csv', whole_config=None,
-                 epoch_max_ramp: int = 80, lambda_adv_max: float = 0.5, ramp_up_mult=-5) -> None:
+                 adv_scheduler: list = None) -> None:
         super().__init__(segmentator=segmentator, dataloaders=dataloaders, criterion=criterion,
                          max_epoch=max_epoch, save_dir=save_dir,
                          device=device, axises=axises, checkpoint=checkpoint, metricname=metricname,
                          whole_config=whole_config)
-        self.adv_scheduler = RampScheduler(max_epoch=epoch_max_ramp, max_value=lambda_adv_max, ramp_mult=ramp_up_mult)
+        # self.adv_scheduler = RampScheduler(max_epoch=epoch_max_ramp, max_value=lambda_adv_max, ramp_mult=ramp_up_mult)
+        if adv_scheduler:
+            self.adv_scheduler = eval(adv_scheduler[0])(**adv_scheduler[1])
 
     def start_training(self, train_adv=False, save_train=False, save_val=False):
         n_class: int = self.C
@@ -83,7 +85,7 @@ class VatTrainer(Trainer):
 
     def _train_loop(self, labeled_dataloader: DataLoader, unlabeled_dataloader: DataLoader, epoch: int,
                     mode: ModelMode, save: bool, augment_labeled_data=False, augment_unlabeled_data=False,
-                    train_adv=False):
+                    train_adv=False, vat_lossname: str = 'kl'):
         self.segmentator.set_mode(mode)
 
         labeled_dataloader.dataset.set_mode(
@@ -152,91 +154,130 @@ class VatTrainer(Trainer):
                 batch_slice = slice(unlab_done, unlab_done + unlab_B)
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
 
-                unlab_img_adv,noise = VATGenerator(self.segmentator.torchnet, eplision=5)(dcopy(unlab_img),'kl')
+                unlab_img_adv, noise_1 = VATGenerator(self.segmentator.torchnet, ip=1, eplision=0.5, axises=[1]) \
+                    (dcopy(unlab_img), loss_name='l1')
 
                 assert unlab_img.shape == unlab_img_adv.shape
-                adv_pred = self.segmentator.predict(unlab_img_adv, logit=False)
                 real_pred = self.segmentator.predict(unlab_img, logit=False)
+                adv_pred = self.segmentator.predict(unlab_img_adv, logit=False)
                 unlab_dice = dice_coef(*self.toOneHot(real_pred, unlab_gt))
                 unlabel_coef_dice[batch_slice] = unlab_dice.unsqueeze(1)
+                unlab_done += unlab_B
+
+                if save:
+                    save_images(pred2class(real_pred), names=path, root=self.save_dir, mode='unlab', iter=epoch)
 
                 ### plot scripts
                 #
-                # import matplotlib.pyplot as plt
-                # plt.figure(1)
+                import matplotlib.pyplot as plt
+                plt.figure(1)
+                plt.subplot(321)
+                plt.imshow(unlab_img[0].data.cpu().numpy().squeeze(), cmap='gray')
+                plt.subplot(322)
+                plt.imshow(real_pred.max(1)[1][0].data.cpu().numpy().squeeze())
+                plt.subplot(323)
+                plt.imshow(unlab_img_adv[0].data.cpu().numpy().squeeze(), cmap='gray')
+                plt.subplot(324)
+                plt.imshow(adv_pred.max(1)[1][0].data.cpu().numpy().squeeze())
+                plt.subplot(325)
+                plt.imshow(np.abs((unlab_img_adv - unlab_img)[0].data.cpu().numpy().squeeze()))
+                plt.subplot(326)
+
+                plt.imshow(np.abs((adv_pred.max(1)[1][0] - real_pred.max(1)[1][0]).data.cpu().numpy().squeeze()))
+                plt.show(block=False)
+
+                adv_loss = KL_Divergence_2D(reduce=False)(p_prob=adv_pred,
+                                                          y_prob=real_pred.detach())  # * self.adv_scheduler.value
+                # plt.figure(2)
+                # plt.clf()
+                # plt.imshow(adv_loss[0].data.cpu().numpy().__abs__())
+                # plt.colorbar()
+                # plt.show(block=False)
+                plt.figure(3)
+                plt.clf()
+                plt.imshow(( adv_pred-real_pred)[:,1][0].data.cpu().numpy())
+                plt.colorbar()
+                plt.show(block=False)
+                plt.pause(1)
+                plt.figure(100);
+                plt.imshow(real_pred[0][1].data.cpu().detach().numpy());
+                plt.colorbar();
+                plt.show()
+
+                # unlab_img_adv, noise_2 = VATGenerator(self.segmentator.torchnet, eplision=0.05)(dcopy(unlab_img), 'kl')
+                # assert unlab_img.shape == unlab_img_adv.shape
+                # adv_pred = self.segmentator.predict(unlab_img_adv, logit=False)
+                # real_pred = self.segmentator.predict(unlab_img, logit=False)
+                #
+                # adv_loss = KL_Divergence_2D(reduce=False)(p_prob=adv_pred,
+                #                                           y_prob=real_pred.detach())  # * self.adv_scheduler.value
+                #
+                # ### plot scripts
+                #
+                # plt.figure(4)
                 # plt.subplot(321)
-                # plt.imshow(unlab_img[0].data.cpu().numpy().squeeze(),cmap='gray')
+                # plt.imshow(unlab_img[0].data.cpu().numpy().squeeze(), cmap='gray')
                 # plt.subplot(322)
                 # plt.imshow(real_pred.max(1)[1][0].data.cpu().numpy().squeeze())
-                # # plt.contourf(unlab_gt[0].data.cpu().numpy().squeeze())
                 # plt.subplot(323)
-                # plt.imshow(unlab_img_adv[0].data.cpu().numpy().squeeze(),cmap='gray')
+                # plt.imshow(unlab_img_adv[0].data.cpu().numpy().squeeze(), cmap='gray')
                 # plt.subplot(324)
                 # plt.imshow(adv_pred.max(1)[1][0].data.cpu().numpy().squeeze())
-                #
                 # plt.subplot(325)
-                # plt.imshow(np.abs((unlab_img_adv-unlab_img)[0].data.cpu().numpy().squeeze()))
+                # plt.imshow(np.abs((unlab_img_adv - unlab_img)[0].data.cpu().numpy().squeeze()))
                 # plt.subplot(326)
-                #
-                # plt.imshow(np.abs((adv_pred.max(1)[1][0]-real_pred.max(1)[1][0]).data.cpu().numpy().squeeze()))
+                # plt.imshow(np.abs((adv_pred.max(1)[1][0] - real_pred.max(1)[1][0]).data.cpu().numpy().squeeze()))
                 # plt.show(block=False)
                 #
-                # unlab_img_adv,noise = VATGenerator(self.segmentator.torchnet, eplision=5)(dcopy(unlab_img), 'l1')
+                # adv_loss = KL_Divergence_2D(reduce=False)(p_prob=adv_pred,
+                #                                           y_prob=real_pred.detach())  # * self.adv_scheduler.value
+                # plt.figure(5)
+                # plt.imshow(adv_loss[0].data.cpu().numpy().__abs__())
+                # plt.colorbar()
+                # plt.show(block=False)
+                # plt.pause(0.005)
+                # plt.figure(6)
+                # plt.imshow(torch.abs(real_pred-adv_pred)[0].sum(0).data.cpu().numpy())
+                # plt.colorbar()
+                # plt.show(block=False)
+                #
+                # unlab_img_adv, noise_2 = VATGenerator(self.segmentator.torchnet, eplision=0.05)(dcopy(unlab_img), 'l1')
                 # assert unlab_img.shape == unlab_img_adv.shape
                 # adv_pred = self.segmentator.predict(unlab_img_adv, logit=False)
                 # real_pred = self.segmentator.predict(unlab_img, logit=False)
                 #
                 # ### plot scripts
                 #
-                # plt.figure(2)
+                # plt.figure(7)
                 # plt.subplot(321)
                 # plt.imshow(unlab_img[0].data.cpu().numpy().squeeze(), cmap='gray')
                 # plt.subplot(322)
                 # plt.imshow(real_pred.max(1)[1][0].data.cpu().numpy().squeeze())
-                # # plt.contourf(unlab_gt[0].data.cpu().numpy().squeeze())
                 # plt.subplot(323)
                 # plt.imshow(unlab_img_adv[0].data.cpu().numpy().squeeze(), cmap='gray')
                 # plt.subplot(324)
                 # plt.imshow(adv_pred.max(1)[1][0].data.cpu().numpy().squeeze())
-                #
                 # plt.subplot(325)
                 # plt.imshow(np.abs((unlab_img_adv - unlab_img)[0].data.cpu().numpy().squeeze()))
                 # plt.subplot(326)
-                #
                 # plt.imshow(np.abs((adv_pred.max(1)[1][0] - real_pred.max(1)[1][0]).data.cpu().numpy().squeeze()))
-                # plt.show()
-
-                unlab_done += unlab_B
-
-                ### plot scripts
-
-                 # import matplotlib.pyplot as plt
-                # # plt.figure(figsize=(4,11))
-                # plt.subplot(321)
-                # plt.imshow(unlab_img[0].data.cpu().numpy().squeeze(),cmap='gray')
-                # plt.subplot(322)
-                # plt.imshow(real_pred.max(1)[1][0].data.cpu().numpy().squeeze())
-                # # plt.contourf(unlab_gt[0].data.cpu().numpy().squeeze())
-                # plt.subplot(323)
-                # plt.imshow(unlab_img_adv[0].data.cpu().numpy().squeeze(),cmap='gray')
-                # plt.subplot(324)
-                # plt.imshow(adv_pred.max(1)[1][0].data.cpu().numpy().squeeze())
+                # plt.show(block=False)
                 #
-                # plt.subplot(325)
-                # plt.imshow(np.abs((unlab_img_adv-unlab_img)[0].data.cpu().numpy().squeeze()))
-                # plt.subplot(326)
-                #
-                # plt.imshow(np.abs((adv_pred.max(1)[1][0]-real_pred.max(1)[1][0]).data.cpu().numpy().squeeze()))
-                # plt.show()
-
-                if save:
-                    save_images(pred2class(real_pred), names=path, root=self.save_dir, mode='unlab', iter=epoch)
-
-                adv_loss = KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()) * self.adv_scheduler.value
+                # adv_loss = KL_Divergence_2D(reduce=False)(p_prob=adv_pred,
+                #                                           y_prob=real_pred.detach())  # * self.adv_scheduler.value
+                # plt.figure(8)
+                # plt.imshow(adv_loss[0].data.cpu().numpy().__abs__())
+                # plt.colorbar()
+                # plt.show(block=False)
+                # plt.pause(0.005)
+                # plt.figure(9)
+                # plt.imshow(torch.abs(real_pred - adv_pred)[0].sum(0).data.cpu().numpy())
+                # plt.colorbar()
+                # plt.show(block=False)
 
                 self.segmentator.optimizer.zero_grad()
-                adv_loss.backward()
-                self.segmentator.optimizer.step()
+                # adv_loss.mean().backward()
+                # self.segmentator.optimizer.step()
 
             lab_big_slice = slice(0, lab_done)
             unlab_big_slice = slice(0, unlab_done)
@@ -317,4 +358,5 @@ class VatTrainer(Trainer):
 
     def schedulerStep(self):
         super().schedulerStep()
-        self.adv_scheduler.step()
+        if getattr(self, "adv_scheduler"):
+            self.adv_scheduler.step()

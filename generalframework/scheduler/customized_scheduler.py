@@ -27,11 +27,11 @@ class RampScheduler(Scheduler):
         self.epoch = 0
 
     def step(self):
-        self.epoch +=1
+        self.epoch += 1
 
     @property
     def value(self):
-        return self.ramp_up(self.epoch,self.max_epoch,self.max_value,self.mult)
+        return self.ramp_up(self.epoch, self.max_epoch, self.max_value, self.mult)
 
     @staticmethod
     def ramp_up(epoch, max_epochs, max_val, mult):
@@ -41,6 +41,20 @@ class RampScheduler(Scheduler):
             return max_val
         return max_val * np.exp(mult * (1. - float(epoch) / max_epochs) ** 2)
 
+
+class ConstantScheduler(Scheduler):
+
+    def __init__(self, max_value=1.0, last_epoch=-1):
+        super().__init__(last_epoch)
+        self.max_value = max_value
+        self.epoch = 0
+
+    def step(self):
+        self.epoch += 1
+
+    @property
+    def value(self):
+        return self.max_value
 
 # def weight_schedule(epoch, max_epochs, max_val, mult, n_labeled, n_samples):
 #     max_val = max_val * (float(n_labeled) / n_samples)

@@ -322,7 +322,7 @@ class fsgm_img_generator(object):
 
 
 class VATGenerator(object):
-    def __init__(self, net: nn.Module, xi=1e-6, eplision=10, ip=1):
+    def __init__(self, net: nn.Module, xi=1e-6, eplision=10, ip=1, axises=[ 1, 2, 3]):
         """VAT generator based on https://arxiv.org/abs/1704.03976
         :param xi: hyperparameter of VAT (default: 10.0)
         :param eps: hyperparameter of VAT (default: 1.0)
@@ -333,6 +333,7 @@ class VATGenerator(object):
         self.eps = eplision
         self.ip = ip
         self.net = net
+        self.axises = axises
 
     @staticmethod
     def _l2_normalize(d):
@@ -340,31 +341,39 @@ class VATGenerator(object):
         # d /= (np.sqrt(np.sum(d ** 2, axis=(1, 2, 3))).reshape((-1, 1, 1, 1)) + 1e-16)
         # return torch.from_numpy(d)
         d_reshaped = d.view(d.shape[0], -1, *(1 for _ in range(d.dim() - 2)))
-        d /= torch.norm(d_reshaped, dim=1, keepdim=True) + 1e-10
+        d /= torch.norm(d_reshaped, dim=1, keepdim=True) + 1e-16
+
+        assert torch.allclose(d.view(d.shape[0], -1).norm(dim=1), torch.ones(d.shape[0]).to(d.device))
+
         return d
 
     @staticmethod
-    def kl_div_with_logit(q_logit, p_logit):
+    def kl_div_with_logit(q_logit, p_logit, axises):
+        '''
+        :param q_logit:it is like the y in the ce loss
+        :param p_logit: it is the logit to be proched to q_logit
+        :return:
+        '''
         q = F.softmax(q_logit, dim=1)
         logq = F.log_softmax(q_logit, dim=1)
         logp = F.log_softmax(p_logit, dim=1)
 
-        qlogq = (q * logq).sum(dim=1)
-        qlogp = (q * logp).sum(dim=1)
+        qlogq = (q * logq)[:, axises].sum(dim=1)
+        qlogp = (q * logp)[:, axises].sum(dim=1)
         return qlogq - qlogp
 
     @staticmethod
-    def L2_loss2D(q_logit, p_logit):
+    def L2_loss2D(q_logit, p_logit, axises):
         q_prob = F.softmax(q_logit, 1)
         p_prob = F.softmax(p_logit, 1)
-        loss = ((q_prob - p_prob) * (q_prob - p_prob)).sum(dim=1)
+        loss = (q_prob - p_prob).pow(2)[:, axises].sum(dim=1)
         return loss
 
     @staticmethod
-    def L1_loss2D(q_logit, p_logit):
+    def L1_loss2D(q_logit, p_logit, axises):
         q_prob = F.softmax(q_logit, 1)
         p_prob = F.softmax(p_logit, 1)
-        loss = torch.abs((q_prob - p_prob)).sum(dim=1)
+        loss = torch.abs((q_prob - p_prob))[:, axises].sum(dim=1)
         return loss
 
     def __call__(self, img, loss_name='kl'):
@@ -376,17 +385,20 @@ class VATGenerator(object):
         # prepare random unit tensor
         d = torch.Tensor(img.size()).normal_()  # 所有元素的std =1, average = 0
         d = self._l2_normalize(d).to(img.device)
+        assert torch.allclose(d.view(d.shape[0], -1).norm(dim=1),
+                              torch.ones(d.shape[0]).to(img.device)), 'The L2 normalization fails'
         self.net.zero_grad()
         for _ in range(self.ip):
             d = self.xi * self._l2_normalize(d).to(img.device)
             d.requires_grad = True
             y_hat = self.net(img + d)
+            delta_kl: torch.Tensor
             if loss_name == 'kl':
-                delta_kl = self.kl_div_with_logit(pred.detach(), y_hat).mean() # B/H/W
+                delta_kl = self.kl_div_with_logit(pred.detach(), y_hat, self.axises).mean()  # B/H/W
             elif loss_name == 'l2':
-                delta_kl = self.L2_loss2D(pred.detach(), y_hat).mean() # B/H/W
-            elif loss_name=='l1':
-                delta_kl = self.L1_loss2D(pred.detach(), y_hat).mean() # B/H/W
+                delta_kl = self.L2_loss2D(pred.detach(), y_hat, self.axises).mean()  # B/H/W
+            elif loss_name == 'l1':
+                delta_kl = self.L1_loss2D(pred.detach(), y_hat, self.axises).mean()  # B/H/W
             else:
                 NotImplementedError
             delta_kl.backward()
@@ -403,7 +415,7 @@ class VATGenerator(object):
         assert self.net.training == tra_state
         img_adv = torch.clamp(img_adv, 0, 1)
 
-        return img_adv.detach(),r_adv.detach()
+        return img_adv.detach(), r_adv.detach()
 
 
 ## argparser
