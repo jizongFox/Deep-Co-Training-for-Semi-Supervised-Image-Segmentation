@@ -57,7 +57,7 @@ class Entropy_2D(nn.Module):
         assert input.shape.__len__() == 4
         b, _, h, w = input.shape
         assert simplex(input)
-        e = input * (input + 1e-10).log()
+        e = input * (input + 1e-16).log()
         e = -1.0 * e.sum(1)
         assert e.shape == torch.Size([b, h, w])
         return e

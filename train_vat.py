@@ -1,12 +1,17 @@
 import warnings
 from pprint import pprint
+
+import numpy as np
+import os
+import random
+import torch
+import yaml
+
 from generalframework.dataset import get_dataloaders, extract_patients
 from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
 from generalframework.trainer import VatTrainer
 from generalframework.utils import yaml_parser, dict_merge
-from copy import deepcopy as dcopy
-import yaml, numpy as np, torch, os, random
 
 seed = 1234
 random.seed(seed)

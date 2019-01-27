@@ -1,4 +1,4 @@
-from .loss import CrossEntropyLoss2d, MSE_2D,PartialCrossEntropyLoss2d,JSD_2D,KL_Divergence_2D
+from .loss import CrossEntropyLoss2d, MSE_2D,PartialCrossEntropyLoss2d,JSD_2D,KL_Divergence_2D,Entropy_2D
 
 LOSS = {'cross_entropy': CrossEntropyLoss2d,
         'mse_2d': MSE_2D,
