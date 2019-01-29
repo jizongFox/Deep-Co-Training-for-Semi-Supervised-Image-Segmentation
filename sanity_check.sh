@@ -34,4 +34,5 @@ rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
-fs & vat
+fs
+vat

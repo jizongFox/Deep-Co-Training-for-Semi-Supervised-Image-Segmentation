@@ -53,3 +53,8 @@ StartTraining:
   train_adv: False
   save_train: False
   save_val: False
+  adv_config:
+    vat_axises:  [1, 2, 3]
+    vat_lossname:  kl
+    eplision: 0.05
+    ip: 1

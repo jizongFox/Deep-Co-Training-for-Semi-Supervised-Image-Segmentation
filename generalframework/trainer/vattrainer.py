@@ -25,7 +25,7 @@ class VatTrainer(Trainer):
         if adv_scheduler:
             self.adv_scheduler = eval(adv_scheduler[0])(**adv_scheduler[1])
 
-    def start_training(self, train_adv=False, save_train=False, save_val=False):
+    def start_training(self, train_adv=False, adv_config: dict = {}, save_train=False, save_val=False):
         n_class: int = self.C
         train_b: int = len(self.dataloaders['lab'])  # Number of iteration per epoch: different if batch_size > 1
         train_n = train_b * self.dataloaders['lab'].batch_size if self.dataloaders['lab'].drop_last else len(
@@ -52,7 +52,8 @@ class VatTrainer(Trainer):
                                                                         save=save_train,
                                                                         augment_labeled_data=False,
                                                                         augment_unlabeled_data=False,
-                                                                        train_adv=train_adv)
+                                                                        train_adv=train_adv,
+                                                                        **adv_config)
 
             with torch.no_grad():
                 val_dice, val_batch_dice = self._evaluate_loop(val_dataloader=self.dataloaders['val'],
@@ -82,7 +83,7 @@ class VatTrainer(Trainer):
 
     def _train_loop(self, labeled_dataloader: DataLoader, unlabeled_dataloader: DataLoader, epoch: int,
                     mode: ModelMode, save: bool, augment_labeled_data=False, augment_unlabeled_data=False,
-                    train_adv=False, vat_axises: List[int] = [1, 2, 3], vat_lossname: str = 'kl'):
+                    train_adv=False, vat_axises: List[int] = [1, 2, 3], vat_lossname: str = 'kl', eplision=0.05, ip=1):
         # set segmentor status to be train()
         self.segmentator.set_mode(mode)
         # set dataloader status to be based on augment option
@@ -156,7 +157,8 @@ class VatTrainer(Trainer):
                 unlab_b = unlab_img.shape[0]
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
 
-                unlab_img_adv, noise = VATGenerator(self.segmentator.torchnet, ip=1, eplision=0.5, axises=vat_axises) \
+                unlab_img_adv, noise = VATGenerator(self.segmentator.torchnet, ip=ip, eplision=eplision,
+                                                    axises=vat_axises) \
                     (dcopy(unlab_img), loss_name=vat_lossname)
 
                 assert unlab_img.shape == unlab_img_adv.shape

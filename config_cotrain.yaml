@@ -53,5 +53,5 @@ Loss:
 StartTraining:
   train_jsd: False
   train_adv: False
-  save_train: True
+  save_train: False
   save_val: True

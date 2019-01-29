@@ -70,18 +70,18 @@ class Trainer(Base):
         self.segmentator.to(device)
         self.criterion.to(device)
 
-    def start_training(self, save_train=False, save_val=False):
-        ## prepare for something:
+    def start_training(self, save_train=False, save_val=False, augment_labeled_data=False):
+        # prepare for something:
 
         n_class: int = self.C
         train_b: int = len(self.dataloaders['train'])  # Number of iteration per epoch: different if batch_size > 1
         train_n: int = train_b * self.dataloaders['train'].batch_size \
-            if self.dataloaders['train'].drop_last == True \
+            if self.dataloaders['train'].drop_last \
             else len(self.dataloaders['train'].dataset)
         # Number of images in dataset
 
         val_b: int = len(self.dataloaders['val'])
-        val_n: int = val_b * self.dataloaders['val'].batch_size if self.dataloaders['val'].drop_last == True \
+        val_n: int = val_b * self.dataloaders['val'].batch_size if self.dataloaders['val'].drop_last \
             else len(self.dataloaders['val'].dataset)
 
         metrics = {"val_dice": torch.zeros((self.max_epoch, val_n, 1, n_class), device=self.device).type(torch.float32),
@@ -94,7 +94,8 @@ class Trainer(Base):
 
         train_loader, val_loader = self.dataloaders['train'], self.dataloaders['val']
         for epoch in range(self.start_epoch, self.max_epoch):
-            train_dice, _, train_loss = self._main_loop(train_loader, epoch, mode=ModelMode.TRAIN, save=save_train)
+            train_dice, _, train_loss = self._main_loop(train_loader, epoch, mode=ModelMode.TRAIN,
+                                                        augment_data=augment_labeled_data, save=save_train)
             with torch.no_grad():
                 val_dice, val_batch_dice, val_loss = self._main_loop(val_loader, epoch, mode=ModelMode.EVAL,
                                                                      save=save_val)
@@ -118,16 +119,18 @@ class Trainer(Base):
             current_metric = val_dice[:, 0, self.axises].mean()
             self.checkpoint(current_metric, epoch)
 
-    def _main_loop(self, dataloader: DataLoader, epoch: int, mode, save: bool):
+    def _main_loop(self, dataloader: DataLoader, epoch: int, mode, augment_data: bool = False, save: bool = False):
         self.segmentator.set_mode(mode)
         dataloader.dataset.set_mode(mode)
+        if augment_data is False and mode == ModelMode.TRAIN:
+            dataloader.dataset.set_mode(ModelMode.EVAL)
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
-        assert dataloader.dataset.training == mode
+        assert dataloader.dataset.training == mode if augment_data else ModelMode.EVAL
 
         n_batch = len(dataloader)
 
-        ## for dataloader with batch_sampler, there is no dataloader.batch_size
-        n_img = n_batch * dataloader.batch_size if dataloader.drop_last == True else len(dataloader.dataset)
+        # for dataloader with batch_sampler, there is no dataloader.batch_size
+        n_img = n_batch * dataloader.batch_size if dataloader.drop_last else len(dataloader.dataset)
 
         coef_dice = torch.zeros(n_img, 1, self.C)
         batch_dice = torch.zeros(n_batch, 1, self.C)
@@ -139,7 +142,6 @@ class Trainer(Base):
             imgs = [img.to(self.device) for img in imgs]
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=UserWarning)
-
                 preds, loss = self.segmentator.update(imgs[0], imgs[1], self.criterion, mode=mode)
             c_dice = dice_coef(*self.toOneHot(preds, imgs[1]))
             #
@@ -156,7 +158,7 @@ class Trainer(Base):
                 save_images(segs=preds.max(1)[1], names=filenames, root=self.save_dir, mode=mode.value.lower(),
                             iter=epoch)
 
-            ## for visualization
+            # for visualization
             big_slice = slice(0, done)  # Value for current and previous batches
 
             dsc_dict = {f"DSC{n}": coef_dice[big_slice, 0, n].mean() for n in self.axises}
@@ -167,13 +169,14 @@ class Trainer(Base):
             mean_dict = {"DSC": coef_dice[big_slice, 0, self.axises].mean()}
 
             stat_dict = {**dsc_dict, **bdsc_dict, **mean_dict,
-                         "loss": loss_log[:i].mean()}
+                         "loss": loss_log[:i].mean()} if mode == ModelMode.EVAL else {**dsc_dict, **mean_dict,
+                                                                                      "loss": loss_log[:i].mean()}
             # to delete null dicts
             nice_dict = {k: f"{v:.3f}" for (k, v) in stat_dict.items() if v != 0}
 
-            dataloader.set_postfix(nice_dict)  ## using average value of the dict
+            dataloader.set_postfix(nice_dict)  # using average value of the dict
 
-        print(f"{desc} " + ', '.join(f"{k}={v}" for (k, v) in nice_dict.items()))
+        print(f"{desc} " + ', '.join(f"{k}:{v}" for (k, v) in nice_dict.items()))
 
         return coef_dice, batch_dice, loss_log
 
