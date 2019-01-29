@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
-max_peoch=200
+max_peoch=2
 data_aug=None
 logdir=cardiac/unet_FS_sanity_check
 mkdir -p archives/$logdir
@@ -9,7 +9,7 @@ mkdir -p archives/$logdir
 fs(){
 currentfoldername=train
 rm -rf runs/$logdir/$currentfoldername
-CUDA_VISIBLE_DEVICES=1 python train.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
+CUDA_VISIBLE_DEVICES=0 python train.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
 Dataset.augment=$data_aug
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -19,7 +19,7 @@ vat(){
 ### Partial dataset baseline
 currentfoldername=vat
 rm -rf runs/$logdir/$currentfoldername
-CUDA_VISIBLE_DEVICES=2 python train_vat.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
+CUDA_VISIBLE_DEVICES=0 python train_vat.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
 Dataset.augment=$data_aug  StartTraining.train_adv=False
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -34,4 +34,4 @@ rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
-fs & vat & co_train
+fs & vat

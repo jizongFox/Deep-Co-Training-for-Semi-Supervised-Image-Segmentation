@@ -1,5 +1,5 @@
 Arch:
-  name: unet
+  name: enet
   num_classes: 4
 
 Optim:
@@ -23,7 +23,7 @@ Lab_Dataloader:
   pin_memory: False
   batch_size: 2
   num_workers: 2
-  shuffle: False
+  shuffle: True
   drop_last: True
   batch_sampler: [PatientSampler,
                   {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]

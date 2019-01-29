@@ -1,12 +1,19 @@
 import warnings
 from pprint import pprint
+
+import numpy as np
+import os
+import random
+import torch
+import yaml
+
 from generalframework.dataset import get_dataloaders
 from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
 from generalframework.trainer import Trainer
 from generalframework.utils import yaml_parser, dict_merge
-import yaml, numpy as np, torch,os,random
-seed=1234
+
+seed = 1234
 random.seed(seed)
 torch.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)

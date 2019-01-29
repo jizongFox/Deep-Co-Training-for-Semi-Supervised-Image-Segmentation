@@ -50,10 +50,8 @@ class Segmentator(ABC):
         assert gt.shape.__len__() == 4
         if mode == ModelMode.TRAIN:
             self.train()
-            assert self.training == True
         else:
             self.eval()
-            assert self.training == False
 
         if mode == ModelMode.TRAIN:
             self.optimizer.zero_grad()

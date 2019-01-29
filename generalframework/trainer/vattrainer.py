@@ -21,6 +21,7 @@ class VatTrainer(Trainer):
                          max_epoch=max_epoch, save_dir=save_dir,
                          device=device, axises=axises, checkpoint=checkpoint, metricname=metricname,
                          whole_config=whole_config)
+        self.adv_scheduler = ConstantScheduler()
         if adv_scheduler:
             self.adv_scheduler = eval(adv_scheduler[0])(**adv_scheduler[1])
 
@@ -32,7 +33,7 @@ class VatTrainer(Trainer):
         n_unlab_img = train_b * self.dataloaders['unlab'].batch_size if self.dataloaders['unlab'].drop_last else len(
             self.dataloaders['unlab'].dataset)
         val_b: int = len(self.dataloaders['val'])
-        val_n: int = val_b * self.dataloaders['val'].batch_size if self.dataloaders['val'].drop_last == True \
+        val_n: int = val_b * self.dataloaders['val'].batch_size if self.dataloaders['val'].drop_last \
             else len(self.dataloaders['val'].dataset)
 
         metrics = {"val_dice": torch.zeros((self.max_epoch, val_n, 1, n_class), device=self.device).type(torch.float32),
@@ -81,42 +82,47 @@ class VatTrainer(Trainer):
 
     def _train_loop(self, labeled_dataloader: DataLoader, unlabeled_dataloader: DataLoader, epoch: int,
                     mode: ModelMode, save: bool, augment_labeled_data=False, augment_unlabeled_data=False,
-                    train_adv=False, vat_lossname: str = 'kl'):
+                    train_adv=False, vat_axises: List[int] = [1, 2, 3], vat_lossname: str = 'kl'):
+        # set segmentor status to be train()
         self.segmentator.set_mode(mode)
+        # set dataloader status to be based on augment option
+        labeled_dataloader.dataset.set_mode( \
+            ModelMode.TRAIN if mode == ModelMode.TRAIN and augment_labeled_data else \
+                ModelMode.EVAL)
+        unlabeled_dataloader.dataset.training = \
+            ModelMode.TRAIN if augment_unlabeled_data else \
+                ModelMode.EVAL
 
-        labeled_dataloader.dataset.set_mode(
-            ModelMode.TRAIN if mode == ModelMode.TRAIN and augment_labeled_data else ModelMode.EVAL)
-        unlabeled_dataloader.dataset.training = ModelMode.TRAIN if augment_unlabeled_data else ModelMode.EVAL
-
-        assert self.segmentator.training
+        assert self.segmentator.training  # if segmentator is train()
         assert labeled_dataloader.dataset.training == ModelMode.TRAIN \
-            if mode == ModelMode.TRAIN and augment_labeled_data else ModelMode.EVAL
+            if mode == ModelMode.TRAIN and augment_labeled_data else \
+            ModelMode.EVAL
         assert unlabeled_dataloader.dataset.training == ModelMode.TRAIN \
-            if mode == ModelMode.TRAIN and augment_unlabeled_data else ModelMode.EVAL
+            if mode == ModelMode.TRAIN and augment_unlabeled_data else \
+            ModelMode.EVAL
 
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
 
         # Here the concept of epoch is defined as the epoch
         n_batch = labeled_dataloader.__len__()
-        n_img = n_batch * labeled_dataloader.batch_size if labeled_dataloader.drop_last else len(
-            labeled_dataloader.dataset)
-        # S labeled dataset + 1 unlabeled dataset
-        n_unlab_img = n_batch * unlabeled_dataloader.batch_size if unlabeled_dataloader.drop_last else len(
-            unlabeled_dataloader.dataset)
+        n_img = n_batch * labeled_dataloader.batch_size if labeled_dataloader.drop_last else \
+            len(labeled_dataloader.dataset)
+        n_unlab_img = n_batch * unlabeled_dataloader.batch_size if unlabeled_dataloader.drop_last else \
+            len(unlabeled_dataloader.dataset)
 
+        # save metrics
         coef_dice = torch.zeros(n_img, 1, self.C)
         unlabel_coef_dice = torch.zeros(n_unlab_img, 1, self.C)
         loss_log = torch.zeros(n_batch, 1)
+        adv_loss_log = torch.zeros(n_batch, 1)
 
         lab_done = 0
         unlab_done = 0
+        n_batch_iter = tqdm_(range(n_batch))
 
         # build fake_iterator
         fake_labeled_iterator = iterator_(dcopy(labeled_dataloader))
-
         fake_unlabeled_iterator = iterator_(dcopy(unlabeled_dataloader))
-
-        n_batch_iter = tqdm_(range(n_batch))
 
         report_iterator = iterator_(['label', 'unlab'])
         report_status = 'label'
@@ -124,12 +130,13 @@ class VatTrainer(Trainer):
         lab_mean_dict: dict
 
         for batch_num in n_batch_iter:
+            # change index for labeled and unlabeled dataset
             if batch_num % 30 == 0 and train_adv:
                 report_status = report_iterator.__next__()
 
             [[img, gt], _, path] = fake_labeled_iterator.__next__()
             img, gt = img.to(self.device), gt.to(self.device)
-            lab_B = img.shape[0]
+            lab_b = img.shape[0]
             # backward and update when the mode = ModelMode.TRAIN
             pred, sup_loss = self.segmentator.update(img, gt, criterion=self.criterion,
                                                      mode=ModelMode.TRAIN)
@@ -138,27 +145,27 @@ class VatTrainer(Trainer):
             if save:
                 save_images(pred2class(pred), names=path, root=self.save_dir, mode='train', iter=epoch)
 
-            batch_slice = slice(lab_done, lab_done + lab_B)
+            batch_slice = slice(lab_done, lab_done + lab_b)
             # record supervised data
             coef_dice[batch_slice] = c_dice.unsqueeze(1)
             loss_log[batch_num] = sup_loss
-            lab_done += lab_B
+            lab_done += lab_b
 
             if train_adv:
                 [[unlab_img, unlab_gt], _, path] = fake_unlabeled_iterator.__next__()
-                unlab_B = unlab_img.shape[0]
-                batch_slice = slice(unlab_done, unlab_done + unlab_B)
+                unlab_b = unlab_img.shape[0]
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
 
-                unlab_img_adv, noise_1 = VATGenerator(self.segmentator.torchnet, ip=1, eplision=0.5, axises=[1]) \
-                    (dcopy(unlab_img), loss_name='l1')
+                unlab_img_adv, noise = VATGenerator(self.segmentator.torchnet, ip=1, eplision=0.5, axises=vat_axises) \
+                    (dcopy(unlab_img), loss_name=vat_lossname)
 
                 assert unlab_img.shape == unlab_img_adv.shape
                 real_pred = self.segmentator.predict(unlab_img, logit=False)
                 adv_pred = self.segmentator.predict(unlab_img_adv, logit=False)
+                batch_slice = slice(unlab_done, unlab_done + unlab_b)
+
                 unlab_dice = dice_coef(*self.toOneHot(real_pred, unlab_gt))
                 unlabel_coef_dice[batch_slice] = unlab_dice.unsqueeze(1)
-                unlab_done += unlab_B
 
                 if save:
                     save_images(pred2class(real_pred), names=path, root=self.save_dir, mode='unlab', iter=epoch)
@@ -166,8 +173,11 @@ class VatTrainer(Trainer):
                 adv_loss = KL_Divergence_2D(reduce=False)(p_prob=adv_pred,
                                                           y_prob=real_pred.detach())  # * self.adv_scheduler.value
                 self.segmentator.optimizer.zero_grad()
-                adv_loss.mean().backward()
+                (self.adv_scheduler.value * adv_loss.mean()).backward()
                 self.segmentator.optimizer.step()
+                adv_loss_log[batch_num] = adv_loss.mean().detach()
+                unlab_done += unlab_b
+
                 #
                 # # plot scripts
                 #
@@ -279,13 +289,13 @@ class VatTrainer(Trainer):
             lab_big_slice = slice(0, lab_done)
             unlab_big_slice = slice(0, unlab_done)
 
-            lab_dsc_dict = {f"DSC{n}": coef_dice[lab_big_slice, 0, n].mean() for n in self.axises}
+            lab_dsc_dict = {f"DSC{n}": coef_dice[lab_big_slice, 0, n].mean().item() for n in self.axises}
 
-            lab_mean_dict = {"DSC": coef_dice[lab_big_slice, 0, self.axises].mean()}
+            lab_mean_dict = {"DSC": coef_dice[lab_big_slice, 0, self.axises].mean().item()}
 
-            unlab_dsc_dict = {f"DSC{n}": unlabel_coef_dice[unlab_big_slice, 0, n].mean() for n in self.axises}
+            unlab_dsc_dict = {f"DSC{n}": unlabel_coef_dice[unlab_big_slice, 0, n].mean().item() for n in self.axises}
 
-            unlab_mean_dict = {"DSC": unlabel_coef_dice[unlab_big_slice, 0, self.axises].mean()}
+            unlab_mean_dict = {"DSC": unlabel_coef_dice[unlab_big_slice, 0, self.axises].mean().item()}
 
             stat_dict = {**lab_dsc_dict, **lab_mean_dict} if report_status == 'label' \
                 else {**lab_dsc_dict, **lab_mean_dict, **unlab_dsc_dict, **unlab_mean_dict}
@@ -294,7 +304,7 @@ class VatTrainer(Trainer):
             nice_dict = {k: f"{v:.3f}" for (k, v) in stat_dict.items() if v != 0}
 
             n_batch_iter.set_postfix(nice_dict)
-            n_batch_iter.set_description(f'{report_status}->> loss:{loss_log[:batch_num].mean().item():.3f}')
+            n_batch_iter.set_description(f'{report_status}->> loss:{loss_log[:batch_num + 1].mean().item():.3f}')
 
         # make sure that the dicts are for the labeled dataset
 
@@ -309,10 +319,12 @@ class VatTrainer(Trainer):
                        save: bool = True):
         self.segmentator.set_mode(mode)
         val_dataloader.dataset.set_mode(ModelMode.EVAL)
-        assert self.segmentator.training == False
+        assert self.segmentator.training is False
+        assert val_dataloader.dataset.training == ModelMode.EVAL
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
         n_batch = len(val_dataloader)
-        n_img = val_dataloader.batch_size * n_batch if val_dataloader.drop_last == True else len(val_dataloader.dataset)
+        n_img = val_dataloader.batch_size * n_batch if val_dataloader.drop_last else \
+            len(val_dataloader.dataset)
         coef_dice = torch.zeros(n_img, 1, self.C)
         batch_dice = torch.zeros(n_batch, 1, self.C)
         val_dataloader = tqdm_(val_dataloader)
@@ -322,14 +334,14 @@ class VatTrainer(Trainer):
 
         for batch_num, [(img, gt), _, path] in enumerate(val_dataloader):
             img, gt = img.to(self.device), gt.to(self.device)
-            B = img.shape[0]
+            b = img.shape[0]
             preds = self.segmentator.predict(img, logit=True)
             c_dices: Tensor = dice_coef(*self.toOneHot(preds, gt))  # shape: B, axises
             b_dices: Tensor = dice_batch(*self.toOneHot(preds, gt))
-            batch_slice = slice(done, done + B)
+            batch_slice = slice(done, done + b)
             coef_dice[batch_slice] = c_dices.unsqueeze(1)
             batch_dice[batch_num] = b_dices.unsqueeze(0)
-            done += B
+            done += b
 
             if save:
                 save_images(pred2class(preds), names=path, root=self.save_dir, mode='eval',
@@ -337,10 +349,10 @@ class VatTrainer(Trainer):
 
             big_slice = slice(0, done)
 
-            dsc_dict = {f"DSC{n}": coef_dice[big_slice, 0, n].mean() for n in self.axises}
-            mean_dict = {"DSC": coef_dice[big_slice, 0, self.axises].mean()}
+            dsc_dict = {f"DSC{n}": coef_dice[big_slice, 0, n].mean().item() for n in self.axises}
+            mean_dict = {"DSC": coef_dice[big_slice, 0, self.axises].mean().item()}
 
-            bdsc_dict = {f"bDSC{n}": batch_dice[:batch_num + 1, 0, n].mean() for n in self.axises}
+            bdsc_dict = {f"bDSC{n}": batch_dice[:batch_num + 1, 0, n].mean().item() for n in self.axises}
 
             stat_dict = {**dsc_dict, **mean_dict, **bdsc_dict}
 
