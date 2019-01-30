@@ -7,6 +7,17 @@ logdir=cardiac/$net"_VAT"
 mkdir -p archives/$logdir
 ## Fulldataset baseline
 
+pretrain()
+{
+### Partial dataset baseline
+currentfoldername=Partail_pretrain
+rm -rf runs/$logdir/$currentfoldername
+CUDA_VISIBLE_DEVICES=1 python train_vat.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=15 \
+Dataset.augment=$data_aug  StartTraining.train_adv=False  Arch.name=$net
+rm -rf archives/$logdir/$currentfoldername
+mv -f runs/$logdir/$currentfoldername archives/$logdir
+}
+
 fs(){
 currentfoldername=FS_fulldata
 rm -rf runs/$logdir/$currentfoldername
@@ -36,7 +47,7 @@ mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
 
-partial & fs & adv
+partial & fs & adv & pretrain
 
 python generalframework/postprocessing/plot.py --folders archives/$logdir/FS_fulldata/ archives/$logdir/FS_partial/ archives/$logdir/adv/  --file val_dice.npy --axis 1 2 3 --postfix=test
 python generalframework/postprocessing/plot.py --folders archives/$logdir/FS_fulldata/ archives/$logdir/FS_partial/ archives/$logdir/adv/  --file val_batch_dice.npy --axis 1 2 3 --postfix=test
