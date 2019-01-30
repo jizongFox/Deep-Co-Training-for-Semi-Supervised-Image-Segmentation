@@ -43,17 +43,19 @@ class VatTrainer(Trainer):
                        torch.float32),
                    "train_unlab_dice": torch.zeros((self.max_epoch, n_unlab_img, 1, n_class), device=self.device).type(
                        torch.float32),
-                   "train_loss": torch.zeros((self.max_epoch, train_b, 1), device=self.device).type(torch.float32)}
+                   "train_loss": torch.zeros((self.max_epoch, train_b, 1), device=self.device).type(torch.float32),
+                   "adv_loss": torch.zeros((self.max_epoch, train_b, 1), device=self.device).type(torch.float32)}
 
         for epoch in range(self.start_epoch, self.max_epoch):
-            train_dice, train_unlab_dice, train_loss = self._train_loop(labeled_dataloader=self.dataloaders['lab'],
-                                                                        unlabeled_dataloader=self.dataloaders['unlab'],
-                                                                        epoch=epoch, mode=ModelMode.TRAIN,
-                                                                        save=save_train,
-                                                                        augment_labeled_data=False,
-                                                                        augment_unlabeled_data=False,
-                                                                        train_adv=train_adv,
-                                                                        **adv_config)
+            train_dice, train_unlab_dice, train_loss, adv_loss = self._train_loop(
+                labeled_dataloader=self.dataloaders['lab'],
+                unlabeled_dataloader=self.dataloaders['unlab'],
+                epoch=epoch, mode=ModelMode.TRAIN,
+                save=save_train,
+                augment_labeled_data=False,
+                augment_unlabeled_data=False,
+                train_adv=train_adv,
+                **adv_config)
 
             with torch.no_grad():
                 val_dice, val_batch_dice = self._evaluate_loop(val_dataloader=self.dataloaders['val'],
@@ -315,7 +317,7 @@ class VatTrainer(Trainer):
         print(
             f"{desc} " + ', '.join([f'{k}:{float(v):.3f}' for k, v in nice_dict.items()])
         )
-        return coef_dice, unlabel_coef_dice, loss_log
+        return coef_dice, unlabel_coef_dice, loss_log, adv_loss_log
 
     def _evaluate_loop(self, val_dataloader: DataLoader, epoch: int, mode: ModelMode = ModelMode.EVAL,
                        save: bool = True):
