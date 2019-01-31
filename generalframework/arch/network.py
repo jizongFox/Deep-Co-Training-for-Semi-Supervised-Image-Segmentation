@@ -231,7 +231,7 @@ class SegNet(nn.Module):
     def __init__(self, num_classes):
         super(SegNet,self).__init__()
 
-        # should be vgg16bn but at the moment we have no pretrained bn models
+        # should be vgg16bn but at the moment we have no pretrained bn deeplab
         decoders = list(models.vgg16(pretrained=True).features.children())
 
         self.dec1 = nn.Sequential(*decoders[:5])

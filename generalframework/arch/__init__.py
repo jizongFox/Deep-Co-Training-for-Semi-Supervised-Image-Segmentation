@@ -3,6 +3,7 @@
 from .network import FCN8, FCN16, FCN32, UNet, SegNet, PSPNet
 from .enet import Enet
 from .deeplab_multi import DeeplabMulti
+from .deeplab import DeepLabV2_ResNet101_MSC
 from .joseent import ENet as JEnet
 from .joseent import CorstemNet as CNet
 from torch import nn
@@ -41,7 +42,8 @@ _register_arch('segnet', SegNet)
 _register_arch('enet', Enet)
 _register_arch('jenet', JEnet)
 _register_arch('cnet', CNet)
-_register_arch('deeplab', DeeplabMulti)
+_register_arch('deeplabv2', DeepLabV2_ResNet101_MSC)
+_register_arch('deeplabv2multi', DeeplabMulti)
 
 """
 Public interface

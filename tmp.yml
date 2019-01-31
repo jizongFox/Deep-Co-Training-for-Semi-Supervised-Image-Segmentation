@@ -1,5 +1,5 @@
 Arch:
-  name: deeplab
+  name: deeplabv2multi
   num_classes: 19
 
 Optim:
@@ -14,7 +14,7 @@ Scheduler:
 
 Dataset:
   root_dir: dataset/CITYSCAPES
-  image_size: ( 512, 1024 )
+  image_size: ( 256, 512 )
   augmentations:
 #    rcrop: [200, 200]                                #[crop of size (h,w)]
 #    rotate: 10                                    #[rotate -d to d degrees]
@@ -32,13 +32,13 @@ Trainer:
   max_epoch: 3
   save_dir: tmp/cityscape
   device:  cpu
-  axises: [1,2,3]
+#  axises: [0,1,2,3,4,5,6,7]
   metricname: metrics.csv
 
 
 Loss:
   name: cross_entropy
-  ignore_index: 20
+  ignore_index: 255
 
 StartTraining:
   save_train: False

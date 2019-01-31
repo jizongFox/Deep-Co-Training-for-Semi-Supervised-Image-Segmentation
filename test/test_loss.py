@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-from generalframework.loss.loss import JSD_2D, Entropy_2D, KL_Divergence_2D
+from generalframework.loss.loss import JSD_2D, Entropy_2D, KL_Divergence_2D,CrossEntropyLoss2d
 from generalframework.arch import get_arch
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -124,7 +124,19 @@ def test_kl_loss():
             plt.pause(0.0001)
             print(f'entropy loss:{loss1.item()}, JSD loss:{loss2_.item()}')
 
+def test_ignore_index():
+
+    imgs = torch.randn(1, 1, 16, 16)
+    net1 = get_arch('enet', {'num_classes': 2})
+    gt = torch.randint(0,3,(1,16,16))
+    gt[gt==2]=255
+    criterion = CrossEntropyLoss2d(ignore_index=255)
+    loss = criterion(net1(imgs),gt.long())
+
+
+
 
 if __name__ == '__main__':
-    test_jsd_loss()
+    # test_jsd_loss()
     # test_kl_loss()
+    test_ignore_index()

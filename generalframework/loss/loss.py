@@ -13,6 +13,8 @@ class CrossEntropyLoss2d(nn.Module):
 
     def __init__(self, weight=None, reduce=True, size_average=True, ignore_index=255):
         super(CrossEntropyLoss2d, self).__init__()
+        self.weight = weight
+        self.ignore_index = ignore_index
         if weight is not None:
             weight = torch.Tensor(weight)
         with warnings.catch_warnings():
