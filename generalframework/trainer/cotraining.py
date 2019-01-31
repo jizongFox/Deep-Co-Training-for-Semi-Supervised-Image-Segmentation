@@ -10,6 +10,7 @@ from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
 from ..models import Segmentator
 from ..scheduler import RampScheduler
 from ..utils.utils import *
+from ..utils.AEGenerator import *
 
 
 class CoTrainer(Trainer):
@@ -249,12 +250,12 @@ class CoTrainer(Trainer):
                     img, gt = img.to(self.device), gt.to(self.device)
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore")
-                        img_adv = fsgm_img_generator(self.segmentators[0].torchnet, eplision=0.05)(dcopy(img), gt,
-                                                                                                   criterion=CrossEntropyLoss2d())
+                        img_adv, _ = FSGMGenerator(self.segmentators[0].torchnet, eplision=0.05) \
+                            (dcopy(img), gt, criterion=CrossEntropyLoss2d())
                 else:
                     [[img, _], _, _] = fake_unlabeled_iterator_adv.__next__()
                     img = img.to(self.device)
-                    img_adv = VATGenerator(self.segmentators[0].torchnet, eplision=0.05)(dcopy(img))
+                    img_adv, _ = VATGenerator(self.segmentators[0].torchnet, eplision=0.05)(dcopy(img))
                 assert img.shape == img_adv.shape
                 adv_pred = self.segmentators[1].predict(img_adv, logit=False)
                 real_pred = self.segmentators[0].predict(img, logit=False)
@@ -263,12 +264,12 @@ class CoTrainer(Trainer):
                 if random() > 0.5:
                     [[img, gt], _, _] = fake_labeled_iterators_adv[1].__next__()
                     img, gt = img.to(self.device), gt.to(self.device)
-                    img_adv = fsgm_img_generator(self.segmentators[1].torchnet, eplision=0.05)(img, gt,
-                                                                                               criterion=CrossEntropyLoss2d())
+                    img_adv, _ = FSGMGenerator(self.segmentators[1].torchnet, eplision=0.05) \
+                        (img, gt, criterion=CrossEntropyLoss2d())
                 else:
                     [[img, _], _, _] = fake_unlabeled_iterator_adv.__next__()
                     img = img.to(self.device)
-                    img_adv = VATGenerator(self.segmentators[1].torchnet, eplision=0.05)(img)
+                    img_adv, _ = VATGenerator(self.segmentators[1].torchnet, eplision=0.05)(img)
 
                 adv_pred = self.segmentators[0].predict(img_adv, logit=False)
                 real_pred = self.segmentators[1].predict(img, logit=False)
@@ -364,9 +365,7 @@ class CoTrainer(Trainer):
             mean_dict = {f"S{i}": {"DSC": coef_dice[big_slice, i, self.axises].mean().item()} for i in
                          range(len(self.segmentators))}
 
-
-            nice_dict = dict_merge(dsc_dict,mean_dict,True)
-
+            nice_dict = dict_merge(dsc_dict, mean_dict, True)
 
             loss_dict = {f'L{i}': loss_log[0:batch_num, i].mean().item() for i in range(len(self.segmentators))}
             val_dataloader.set_description('val: ' + ','.join([f'{k}:{v:.3f}' for k, v in loss_dict.items()]))
