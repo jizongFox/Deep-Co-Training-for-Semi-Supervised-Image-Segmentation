@@ -11,7 +11,7 @@ from ..utils.utils import simplex
 
 class CrossEntropyLoss2d(nn.Module):
 
-    def __init__(self, weight=None, reduce=True, size_average=True, ignore_index=-1):
+    def __init__(self, weight=None, reduce=True, size_average=True, ignore_index=255):
         super(CrossEntropyLoss2d, self).__init__()
         if weight is not None:
             weight = torch.Tensor(weight)
