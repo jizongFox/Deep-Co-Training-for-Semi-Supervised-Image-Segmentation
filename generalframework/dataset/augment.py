@@ -1,6 +1,7 @@
 from torchvision import transforms
 import random
 import numpy as np, torch
+import collections
 
 import math
 import numbers
