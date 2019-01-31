@@ -1,0 +1,45 @@
+Arch:
+  name: deeplab
+  num_classes: 19
+
+Optim:
+  name: Adam
+  lr: 0.001
+
+Scheduler:
+  name: MultiStepLR
+  milestones: [10,20,30,40,50,60,70,80,90]
+  gamma: 0.7
+
+
+Dataset:
+  root_dir: dataset/CITYSCAPES
+  image_size: ( 512, 1024 )
+  augmentations:
+#    rcrop: [200, 200]                                #[crop of size (h,w)]
+#    rotate: 10                                    #[rotate -d to d degrees]
+#    scale: [256,256]                                 #[scale to size (h,w)]
+#    ccrop: [224,224]                                 #[center crop of (h,w)]
+
+Dataloader:
+  pin_memory: False
+  batch_size: 2
+  num_workers: 2
+  shuffle: True
+  drop_last: True
+
+Trainer:
+  max_epoch: 3
+  save_dir: tmp/cityscape
+  device:  cpu
+  axises: [1,2,3]
+  metricname: metrics.csv
+
+
+Loss:
+  name: cross_entropy
+  ignore_index: 20
+
+StartTraining:
+  save_train: False
+  save_val: False

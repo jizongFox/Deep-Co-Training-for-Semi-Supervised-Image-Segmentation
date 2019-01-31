@@ -58,19 +58,18 @@ def test_iter():
 def test_cityscapes_dataloader():
     # augmentations = Compose([Scale(2048), RandomRotate(10)])
 
-    local_path = '/home/jizong/Workspace/ReproduceAdaptSegNet/data/Cityscapes/data'
+    local_path = '../dataset/CITYSCAPES'
     dst = CityscapesDataset(local_path, is_transform=True, augmentation=None)
     bs = 4
-    trainloader = DataLoader(dst, batch_size=bs, num_workers=0,shuffle=True)
-    for i, ([img,gt],_,path) in enumerate(trainloader):
-        img = img.numpy()
-        imgs = np.transpose(imgs, [0, 2, 3, 1])
-        f, axarr = plt.subplots(bs, 2)
-        for j in range(bs):
-            axarr[j][0].imshow(imgs[j])
-            axarr[j][1].imshow(dst.decode_segmap(labels.numpy()[j]))
-        plt.show()
-        print()
+    trainloader = DataLoader(dst, batch_size=bs, num_workers=0, shuffle=True)
+    gt_label = []
+    for i, ([img, gt], _, path) in enumerate(trainloader):
+        for j in gt.unique():
+            if j not in gt_label:
+                gt_label.append(j.item())
+        print(sorted(gt_label))
+
+    print(sorted(gt_label))
 
 
 if __name__ == '__main__':

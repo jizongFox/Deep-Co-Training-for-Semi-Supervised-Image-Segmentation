@@ -55,7 +55,7 @@ class CityscapesDataset(Dataset):
     ## RGB channels
 
     def __init__(self, root_path: str, mode: str = "train", is_transform: bool = False,
-                 augmentation: Union[None, bool] = None, image_size=( 768,1024), quite: bool = False):
+                 augmentation: Union[None, bool] = None, image_size=(768,1024), quite: bool = False):
         """__init__
         :param root_path:
         :param mode:
@@ -89,7 +89,7 @@ class CityscapesDataset(Dataset):
                             "vegetation", "terrain", "sky", "person", "rider", "car", "truck", "bus", "train",
                             "motorcycle",
                             "bicycle", ]
-        self.ignore_index = 19
+        self.ignore_index = 255
         self.class_map = dict(zip(self.valid_classes, range(19)))
 
         if self.files[mode].__len__() == 0:
