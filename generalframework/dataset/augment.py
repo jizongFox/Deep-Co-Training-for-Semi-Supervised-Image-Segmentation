@@ -116,27 +116,31 @@ class RandomRotate(object):
 
 class Scale(object):
     def __init__(self, size):
+        assert isinstance(size, int) or (isinstance(size, collections.Iterable) and len(size) == 2)
+        if isinstance(size, int):
+            size = (size, size)
         self.size = size
 
     def __call__(self, img, mask):
         assert img.size == mask.size
         w, h = img.size
-        if (w >= h and w == self.size) or (h >= w and h == self.size):
+        if (w >= h and w == self.size[1]) or (h >= w and h == self.size[0]):
             return img, mask
         if w > h:
-            ow = self.size
-            oh = int(self.size * h / w)
+            ow = self.size[1]
+            oh = int(self.size[0] * h / w)
             return (
                 img.resize((ow, oh), Image.BILINEAR),
                 mask.resize((ow, oh), Image.NEAREST),
             )
         else:
-            oh = self.size
-            ow = int(self.size * w / h)
+            oh = self.size[0]
+            ow = int(self.size[1] * w / h)
             return (
                 img.resize((ow, oh), Image.BILINEAR),
                 mask.resize((ow, oh), Image.NEAREST),
             )
+
 
 
 class RandomSizedCrop(object):
