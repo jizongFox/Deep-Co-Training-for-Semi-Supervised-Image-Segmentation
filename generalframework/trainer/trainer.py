@@ -92,6 +92,8 @@ class Trainer(Base):
                        torch.float32),
                    "train_loss": torch.zeros((self.max_epoch, train_b), device=self.device).type(torch.float32)}
 
+        'testse'
+
         train_loader, val_loader = self.dataloaders['train'], self.dataloaders['val']
         for epoch in range(self.start_epoch, self.max_epoch):
             train_dice, _, train_loss = self._main_loop(train_loader, epoch, mode=ModelMode.TRAIN,
