@@ -41,8 +41,8 @@ Trainer:
   device: cuda
   axises: [1,2,3]
   metricname: metrics.csv
-#  adv_scheduler: [RampScheduler,{max_epoch: 80, max_value: 0.5, ramp_mult: -0.5}]
-  adv_scheduler: [ ConstantScheduler, {max_value: 1} ]
+  adv_scheduler: [RampScheduler,{max_epoch: 80, max_value: 0.5, ramp_mult: -0.5}]
+#  adv_scheduler: [ ConstantScheduler, {max_value: 1} ]
 
 
 Loss:

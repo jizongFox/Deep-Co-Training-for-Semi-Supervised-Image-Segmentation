@@ -3,7 +3,7 @@ set -e
 max_peoch=100
 data_aug=None
 net=enet
-logdir=cardiac/$net"_VAT"_epsilions
+logdir=cardiac/$net"_VAT"_epsilions_scheduler
 mkdir -p archives/$logdir
 
 
@@ -20,11 +20,10 @@ rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
-adv 1 0.0 &
+
 adv 2 0.001 &
 adv 1 0.005 &
-adv 2 0.01
-
+adv 2 0.01 &
 adv 1 0.05 &
 adv 2 0.1 &
 adv 1 0.5
