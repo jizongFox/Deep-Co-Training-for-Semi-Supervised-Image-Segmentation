@@ -2,7 +2,7 @@
 set -e
 max_peoch=100
 data_aug=None
-net=enet
+net=unet
 logdir=cardiac/$net"_VAT"
 mkdir -p archives/$logdir
 ## Fulldataset baseline
@@ -31,7 +31,7 @@ partial(){
 ### Partial dataset baseline
 currentfoldername=FS_partial
 rm -rf runs/$logdir/$currentfoldername
-CUDA_VISIBLE_DEVICES=1 python train_vat.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
+CUDA_VISIBLE_DEVICES=2 python train_vat.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
 Dataset.augment=$data_aug  StartTraining.train_adv=False  Arch.name=$net
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -40,14 +40,14 @@ mv -f runs/$logdir/$currentfoldername archives/$logdir
 adv(){
 currentfoldername=adv
 rm -rf runs/$logdir/$currentfoldername
-CUDA_VISIBLE_DEVICES=2 python train_vat.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
+CUDA_VISIBLE_DEVICES=3 python train_vat.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
 Dataset.augment=$data_aug StartTraining.train_adv=True  Arch.name=$net
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
 
-partial & fs & adv & pretrain
+adv & fs & adv & pretrain & partial
 
 python generalframework/postprocessing/plot.py --folders archives/$logdir/FS_fulldata/ archives/$logdir/FS_partial/ archives/$logdir/adv/  --file val_dice.npy --axis 1 2 3 --postfix=test
 python generalframework/postprocessing/plot.py --folders archives/$logdir/FS_fulldata/ archives/$logdir/FS_partial/ archives/$logdir/adv/  --file val_batch_dice.npy --axis 1 2 3 --postfix=test

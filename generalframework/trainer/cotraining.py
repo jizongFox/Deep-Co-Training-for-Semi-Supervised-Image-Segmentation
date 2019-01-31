@@ -273,7 +273,7 @@ class CoTrainer(Trainer):
 
                 adv_pred = self.segmentators[0].predict(img_adv, logit=False)
                 real_pred = self.segmentators[1].predict(img, logit=False)
-                adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred))
+                adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()))
 
                 adv_loss = sum(adv_losses) / adv_losses.__len__()
 
