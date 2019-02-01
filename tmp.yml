@@ -4,7 +4,7 @@ Arch:
 
 Optim:
   name: Adam
-  lr: 0.001
+  lr: 0.005
 
 Scheduler:
   name: MultiStepLR
@@ -13,7 +13,7 @@ Scheduler:
 
 
 Dataset:
-  root_dir: dataset/CITYSCAPES
+  root_dir: /home/jizong/Workspace/ReproduceAdaptSegNet/data/Cityscapes/data
   image_size: ( 256, 512 )
   augmentations:
 #    rcrop: [200, 200]                                #[crop of size (h,w)]
@@ -29,9 +29,9 @@ Dataloader:
   drop_last: True
 
 Trainer:
-  max_epoch: 3
+  max_epoch: 10
   save_dir: tmp/cityscape
-  device:  cpu
+  device:  cuda
 #  axises: [0,1,2,3,4,5,6,7]
   metricname: metrics.csv
 

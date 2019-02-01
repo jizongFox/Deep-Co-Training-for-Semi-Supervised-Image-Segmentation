@@ -3,7 +3,7 @@ from pprint import pprint
 from generalframework.dataset import get_dataloaders,get_cityscapes_dataloaders
 from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
-from generalframework.trainer import Trainer
+from generalframework.trainer import Trainer_City
 from generalframework.utils import yaml_parser, dict_merge
 import yaml
 warnings.filterwarnings('ignore')
@@ -25,5 +25,5 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)
     criterion = get_loss_fn(config['Loss'].get('name'), **{k: v for k, v in config['Loss'].items() if k != 'name'})
 
-trainer = Trainer(model, dataloaders=dataloders, criterion=criterion, **config['Trainer'], whole_config=config)
+trainer = Trainer_City(model, dataloaders=dataloders, criterion=criterion, **config['Trainer'], whole_config=config)
 trainer.start_training(**config['StartTraining'])

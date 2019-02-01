@@ -101,7 +101,7 @@ class CityscapesDataset(Dataset):
 
     def __len__(self):
         """__len__"""
-        return len(self.files[self.mode])
+        return int(len(self.files[self.mode]))
 
     def set_mode(self, mode):
         assert isinstance(mode, (str, ModelMode)), 'the type of mode should be str or ModelMode, given %s' % str(mode)
@@ -159,10 +159,10 @@ class CityscapesDataset(Dataset):
         lbl = lbl.astype(int)
 
         if not np.all(classes == np.unique(lbl)):
-            print("WARN: resizing labels yielded fewer classes")
-
+            # print("WARN: resizing labels yielded fewer classes")
+            pass
         if not np.all(np.unique(lbl[lbl != self.ignore_index]) < self.num_classes):
-            print("after det", classes, np.unique(lbl))
+            # print("after det", classes, np.unique(lbl))
             raise ValueError("Segmentation map contained invalid class values")
 
         img = torch.from_numpy(img).float()
