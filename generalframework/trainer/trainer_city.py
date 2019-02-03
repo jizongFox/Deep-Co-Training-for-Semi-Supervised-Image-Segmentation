@@ -53,12 +53,15 @@ class Trainer_City(Base):
         self.metricname = metricname
 
         # load coco pretrained model:
-        state_dict = torch.load('generalframework/trainer/deeplab_init_checkpoint/deeplabv2_resnet101_COCO_init.pth',
-                                map_location=lambda storage, loc: storage)
-        new_state_dict = {k.replace('scale.', ''): v for k, v in state_dict.items()}
-        assert len(set(self.segmentator.torchnet.state_dict().keys()) & set(new_state_dict.keys())) > 0
-        self.segmentator.torchnet.load_state_dict(new_state_dict, strict=False)
-        print('Coco pretrained model loaded')
+        try:
+            state_dict = torch.load('generalframework/trainer/deeplab_init_checkpoint/deeplabv2_resnet101_COCO_init.pth',
+                                    map_location=lambda storage, loc: storage)
+            new_state_dict = {k.replace('scale.', ''): v for k, v in state_dict.items()}
+            assert len(set(self.segmentator.torchnet.state_dict().keys()) & set(new_state_dict.keys())) > 0
+            self.segmentator.torchnet.load_state_dict(new_state_dict, strict=False)
+            print('Coco pretrained model loaded')
+        except Exception as e:
+            print(f'Loading coco pretrained model failed with: {e}')
         self.segmentator.torchnet = nn.DataParallel(self.segmentator.torchnet)
 
         if checkpoint is not None:
@@ -138,7 +141,6 @@ class Trainer_City(Base):
 
     def _main_loop(self, dataloader: DataLoader, epoch: int, mode, augment_data: bool = False, save: bool = False):
         self.segmentator.set_mode(mode)
-        # self.segmentator.torchnet.module.freeze_bn()
         dataloader.dataset.set_mode(mode)
         if augment_data is False and mode == ModelMode.TRAIN:
             dataloader.dataset.set_mode(ModelMode.EVAL)
@@ -148,7 +150,6 @@ class Trainer_City(Base):
         n_batch = len(dataloader)
 
         # for dataloader with batch_sampler, there is no dataloader.batch_size
-        n_img = n_batch * dataloader.batch_size if dataloader.drop_last else len(dataloader.dataset)
 
         loss_log = torch.zeros(n_batch)
         FreqW_Acc = torch.zeros(n_batch)
@@ -176,11 +177,6 @@ class Trainer_City(Base):
                 eval(k)[i] = v
             loss_log[i] = loss
 
-            # if save:
-            #     save_images(segs=preds.max(1)[1], names=filenames, root=self.save_dir, mode=mode.value.lower(),
-            #                 iter=epoch)
-
-            # for visualization
 
             mean_iou_dict = {"mIoU": Mean_IoU[:i + 1].mean().item()}
 

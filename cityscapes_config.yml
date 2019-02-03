@@ -1,5 +1,5 @@
 Arch:
-  name: deeplabv3
+  name: deeplabenet
   num_classes: 19
 
 Optim:
@@ -13,7 +13,7 @@ Scheduler:
 
 
 Dataset:
-  root_dir: /home/jizong/Workspace/ReproduceAdaptSegNet/data/Cityscapes/data
+  root_dir: dataset/Cityscapes_new
   image_size: ( 256, 512 )
   augmentations:
 #    rcrop: [200, 200]                                #[crop of size (h,w)]
@@ -31,10 +31,10 @@ Dataloader:
 Trainer:
   max_epoch: 1000
   save_dir: tmp/cityscape
-  device:  cuda
+  device:  cpu
 #  axises: [0,1,2,3,4,5,6,7]
   metricname: metrics.csv
-  checkpoint: tmp/cityscape/best.pth
+#  checkpoint: tmp/cityscape/best.pth
 
 
 Loss:

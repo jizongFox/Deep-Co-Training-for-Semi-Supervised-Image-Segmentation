@@ -1,0 +1,59 @@
+Arch:
+  name: deeplabenet
+  num_classes: 19
+
+Optim:
+  name: Adam
+  lr: 0.0005
+
+Scheduler:
+  name: MultiStepLR
+  milestones: [10,20,30,40,50,60,70,80,90]
+  gamma: 0.7
+
+
+Dataset:
+  root_dir: dataset/Cityscapes
+#  subfolders: ['img','gt']
+#  transform: segment_transform((256,256))
+#  augment: PILaugment
+  pin_memory: False
+  image_size: ( 512, 1024 )
+  augmentations:
+
+Lab_Dataloader:
+  pin_memory: False
+  batch_size: 2
+  num_workers: 2
+  shuffle: True
+  drop_last: True
+
+Unlab_Dataloader:
+  pin_memory: False
+  batch_size: 4
+  num_workers: 4
+  shuffle: True
+  drop_last: True
+
+Trainer:
+  max_epoch: 100
+  save_dir: tmp/cotraining
+  device: cpu
+  axises: [1,2,3]
+  metricname: metrics.csv
+  lambda_cot_max: 1
+  lambda_adv_max: 0.05
+  ramp_up_mult: -5
+  epoch_max_ramp: 80
+
+Loss:
+  name: cross_entropy
+  weight: [ 3.04604918, 12.87486447,  4.50877413, 38.16073733, 35.25777492, 31.47939379,45.78839668, 39.69483982,  6.06077586, 32.17056806, 17.08206309, 31.57448335,
+              47.33505319, 11.61448909, 44.65895354, 45.23628736, 45.28258013, 48.14824499, 41.93314524]
+
+
+StartTraining:
+  train_jsd: True
+  train_adv: False
+  save_train: True
+  save_val: False
