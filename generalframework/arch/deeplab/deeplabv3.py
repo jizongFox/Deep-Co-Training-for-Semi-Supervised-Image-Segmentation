@@ -49,7 +49,7 @@ class _ASPPModule(nn.Module):
 class DeepLabV3(nn.Sequential):
     """DeepLab v3"""
 
-    def __init__(self, n_classes, n_blocks, pyramids, grids, output_stride):
+    def __init__(self, num_classes, n_blocks=[3, 4, 23, 3], pyramids=[6, 12, 18], grids=[1, 2, 4], output_stride=8):
         super(DeepLabV3, self).__init__()
 
         if output_stride == 8:
@@ -87,10 +87,13 @@ class DeepLabV3(nn.Sequential):
         self.add_module(
             "fc1", _ConvBatchNormReLU(256 * (len(pyramids) + 2), 256, 1, 1, 0, 1)
         )
-        self.add_module("fc2", nn.Conv2d(256, n_classes, kernel_size=1))
+        self.add_module("fc2", nn.Conv2d(256, num_classes, kernel_size=1))
 
     def forward(self, x):
-        return super(DeepLabV3, self).forward(x)
+        out = super(DeepLabV3, self).forward(x)
+
+        out = F.interpolate(out, size=x.shape[2:], mode="bilinear", align_corners=False)
+        return out
 
     def freeze_bn(self):
         for m in self.named_modules():

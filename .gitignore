@@ -13,3 +13,4 @@ tmp/
 tmp/*
 archives/*
 test/data/
+generalframework/trainer/deeplab_init_checkpoint/

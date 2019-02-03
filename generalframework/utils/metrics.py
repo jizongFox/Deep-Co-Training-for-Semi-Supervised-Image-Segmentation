@@ -26,9 +26,9 @@ def scores(label_trues, label_preds, n_class, return_dict=True):
     acc = np.diag(hist).sum() / hist.sum()
     acc_cls = np.diag(hist) / hist.sum(axis=1)
     acc_cls = np.nanmean(acc_cls)
-    iu = np.diag(hist) / (hist.sum(axis=1) + hist.sum(axis=0) - np.diag(hist))
-    valid = hist.sum(axis=1) > 0  # added
-    mean_iu = np.nanmean(iu[valid])
+    iu = np.diag(hist) / (hist.sum(axis=1) + hist.sum(axis=0) - np.diag(hist)+1e-10)
+    valid = hist.sum(axis=1) > 0  # added # 横着加
+    mean_iu = np.nanmean(iu[valid]) ## gt 出现过的mean_iu
     freq = hist.sum(axis=1) / hist.sum()
     fwavacc = (freq[freq > 0] * iu[freq > 0]).sum()
     # cls_iu = dict(zip(range(n_class), iu))

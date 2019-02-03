@@ -1,12 +1,12 @@
-import os
 import shutil
 from abc import ABC, abstractmethod
 from typing import Dict
-import pandas as pd
+
 import yaml
+
 from generalframework import ModelMode
-from ..utils import *
 from ..models import Segmentator
+from ..utils import *
 from ..utils.metrics import scores
 
 
@@ -51,6 +51,15 @@ class Trainer_City(Base):
         self.best_score = -1
         self.start_epoch = 0
         self.metricname = metricname
+
+        # load coco pretrained model:
+        state_dict = torch.load('generalframework/trainer/deeplab_init_checkpoint/deeplabv2_resnet101_COCO_init.pth',
+                                map_location=lambda storage, loc: storage)
+        new_state_dict = {k.replace('scale.', ''): v for k, v in state_dict.items()}
+        assert len(set(self.segmentator.torchnet.state_dict().keys()) & set(new_state_dict.keys())) > 0
+        self.segmentator.torchnet.load_state_dict(new_state_dict, strict=False)
+        print('Coco pretrained model loaded')
+        self.segmentator.torchnet = nn.DataParallel(self.segmentator.torchnet)
 
         if checkpoint is not None:
             self._load_checkpoint(checkpoint)
@@ -129,6 +138,7 @@ class Trainer_City(Base):
 
     def _main_loop(self, dataloader: DataLoader, epoch: int, mode, augment_data: bool = False, save: bool = False):
         self.segmentator.set_mode(mode)
+        self.segmentator.torchnet.module.freeze_bn()
         dataloader.dataset.set_mode(mode)
         if augment_data is False and mode == ModelMode.TRAIN:
             dataloader.dataset.set_mode(ModelMode.EVAL)
@@ -150,10 +160,13 @@ class Trainer_City(Base):
         dataloader = tqdm_(dataloader)
         for i, (imgs, metainfo, filenames) in enumerate(dataloader):
             imgs = [img.to(self.device) for img in imgs]
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=UserWarning)
-                preds, loss = self.segmentator.update(imgs[0], imgs[1], self.criterion, mode=mode)
-            # c_dice = dice_coef(*self.toOneHot(preds, imgs[1]))
+
+            preds = self.segmentator.torchnet(imgs[0])
+            loss = self.criterion(preds, imgs[1].squeeze(1))
+            if mode == ModelMode.TRAIN:
+                self.segmentator.optimizer.zero_grad()
+                loss.backward()
+                self.segmentator.optimizer.step()
 
             c_dice = scores(label_preds=preds.max(1)[1].cpu().detach().numpy(),
                             label_trues=imgs[1].squeeze(1).cpu().numpy(),

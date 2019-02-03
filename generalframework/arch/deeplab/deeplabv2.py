@@ -48,7 +48,7 @@ class _ASPPModule(nn.Module):
 class DeepLabV2(nn.Sequential):
     """DeepLab v2"""
 
-    def __init__(self, num_classes, n_blocks, pyramids):
+    def __init__(self, num_classes, n_blocks=[3, 4, 23, 3], pyramids=[6, 12, 18, 24]):
         super(DeepLabV2, self).__init__()
         self.add_module(
             "layer1",

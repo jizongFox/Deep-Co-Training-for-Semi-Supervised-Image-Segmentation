@@ -1,11 +1,12 @@
 import warnings
 from pprint import pprint
-from generalframework.dataset import get_dataloaders,get_cityscapes_dataloaders
+from generalframework.dataset import get_dataloaders, get_cityscapes_dataloaders
 from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
 from generalframework.trainer import Trainer_City
 from generalframework.utils import yaml_parser, dict_merge
 import yaml
+
 warnings.filterwarnings('ignore')
 
 parser_args = yaml_parser()

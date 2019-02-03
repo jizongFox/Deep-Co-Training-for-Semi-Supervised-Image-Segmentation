@@ -1,10 +1,10 @@
 Arch:
-  name: deeplabv2multi
+  name: deeplabv3
   num_classes: 19
 
 Optim:
   name: Adam
-  lr: 0.005
+  lr: 0.0005
 
 Scheduler:
   name: MultiStepLR
@@ -23,17 +23,18 @@ Dataset:
 
 Dataloader:
   pin_memory: False
-  batch_size: 2
-  num_workers: 2
+  batch_size: 4
+  num_workers: 4
   shuffle: True
   drop_last: True
 
 Trainer:
-  max_epoch: 10
+  max_epoch: 100
   save_dir: tmp/cityscape
   device:  cuda
 #  axises: [0,1,2,3,4,5,6,7]
   metricname: metrics.csv
+  checkpoint: tmp/cityscape/best.pth
 
 
 Loss:

@@ -1,12 +1,14 @@
 import os
-import torch
-import scipy.misc as m
-import numpy as np
-from typing import Union
-from torch.utils.data import Dataset
-from ..utils.utils import recursive_glob
-from generalframework import ModelMode
 from pathlib import Path
+from typing import Union
+
+import numpy as np
+import scipy.misc as m
+import torch
+from torch.utils.data import Dataset
+
+from generalframework import ModelMode
+from ..utils.utils import recursive_glob
 
 
 class CityscapesDataset(Dataset):
@@ -55,7 +57,7 @@ class CityscapesDataset(Dataset):
     ## RGB channels
 
     def __init__(self, root_path: str, mode: str = "train", is_transform: bool = False,
-                 augmentation: Union[None, bool] = None, image_size=(768,1024), quite: bool = False):
+                 augmentation: Union[None, bool] = None, image_size=(768, 1024), quite: bool = False):
         """__init__
         :param root_path:
         :param mode:
@@ -73,7 +75,7 @@ class CityscapesDataset(Dataset):
         self.training = ModelMode.TRAIN
         self.num_classes = 19
         self.files: dict = {}
-        self.img_size = eval(image_size) if type(image_size)==str else image_size
+        self.img_size = eval(image_size) if type(image_size) == str else image_size
 
         self.images_base = self.root / "leftImg8bit" / self.mode
         self.annotations_base = self.root / "gtFine" / self.mode
@@ -101,7 +103,7 @@ class CityscapesDataset(Dataset):
 
     def __len__(self):
         """__len__"""
-        return int(len(self.files[self.mode]))
+        return int(len(self.files[self.mode])/20)
 
     def set_mode(self, mode):
         assert isinstance(mode, (str, ModelMode)), 'the type of mode should be str or ModelMode, given %s' % str(mode)
@@ -146,9 +148,9 @@ class CityscapesDataset(Dataset):
         img = m.imresize(
             img, (int(self.img_size[0]), int(self.img_size[1]))
         )  # uint8 with RGB mode
-        img = img.astype(np.float64)/255.0
+        img = img.astype(np.float64) / 255.0
         img -= self.CITYSCAPES_MEAN
-        img /=self.CITYSCAPES_STD
+        img /= self.CITYSCAPES_STD
 
         # NHWC -> NCHW
         img = img.transpose(2, 0, 1)

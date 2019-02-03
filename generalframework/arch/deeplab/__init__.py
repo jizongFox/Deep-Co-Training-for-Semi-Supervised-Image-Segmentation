@@ -4,6 +4,8 @@ from .deeplabv3 import *
 from .deeplabv3plus import *
 from .msc import *
 
+__all__ = ['DeepLabV3', 'DeepLabV3Plus', 'DeepLabV2', 'init_weights']
+
 
 def init_weights(model):
     for m in model.modules():
@@ -30,7 +32,7 @@ def DeepLabV2_ResNet101_MSC(num_classes):
     )
 
 
-def DeepLabV2S_ResNet101_MSC(n_classes):
+def DeepLabV2S_ResNet101_MSC(num_classes):
     return MSC(
         scale=DeepLabV2(
             num_classes=num_classes, n_blocks=[3, 4, 23, 3], pyramids=[3, 6, 9, 12]
