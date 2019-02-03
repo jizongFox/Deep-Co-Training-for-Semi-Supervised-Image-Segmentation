@@ -138,7 +138,7 @@ class Trainer_City(Base):
 
     def _main_loop(self, dataloader: DataLoader, epoch: int, mode, augment_data: bool = False, save: bool = False):
         self.segmentator.set_mode(mode)
-        self.segmentator.torchnet.module.freeze_bn()
+        # self.segmentator.torchnet.module.freeze_bn()
         dataloader.dataset.set_mode(mode)
         if augment_data is False and mode == ModelMode.TRAIN:
             dataloader.dataset.set_mode(ModelMode.EVAL)
@@ -186,7 +186,7 @@ class Trainer_City(Base):
 
             mean_cls_iou_dict = {f"c{j}": Class_IoU[:i + 1, 0, j].mean().item() for j in self.axises}
 
-            stat_dict = {**mean_iou_dict, **mean_cls_iou_dict}
+            stat_dict = {**mean_iou_dict, **mean_cls_iou_dict, **{'ls':loss_log[:i+1].mean().item()}}
             # to delete null dicts
             nice_dict = {k: f"{v:.2f}" for (k, v) in stat_dict.items() if v != 0 or v != float(np.nan)}
 

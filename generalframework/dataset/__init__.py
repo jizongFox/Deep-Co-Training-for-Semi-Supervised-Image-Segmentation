@@ -58,7 +58,7 @@ def get_cityscapes_dataloaders(dataset_dict: dict, dataloader_dict: dict):
     lab_set = CityscapesDataset(data_path, is_transform=True, mode='train', image_size=(dataset_dict["image_size"]),
                                 augmentation=data_aug)
     lab_loader = DataLoader(lab_set, **dataloader_dict)
-    val_set = CityscapesDataset(data_path, is_transform=True, mode='train', image_size=dataset_dict["image_size"])
+    val_set = CityscapesDataset(data_path, is_transform=True, mode='val', image_size=dataset_dict["image_size"])
     val_loader = DataLoader(val_set, **{**dataloader_dict, **{'shuffle': False, 'batch_size': 1}})
     return {'train': lab_loader, 'val': val_loader}
 
