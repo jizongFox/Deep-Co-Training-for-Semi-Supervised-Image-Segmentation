@@ -15,20 +15,20 @@ Scheduler:
 Dataset:
   root_dir: dataset/Cityscapes
   pin_memory: False
-  image_size: ( 128, 256 )
+  image_size: ( 256, 512 )
   augmentations:
 
 Lab_Dataloader:
   pin_memory: False
-  batch_size: 1
-  num_workers: 0
+  batch_size: 4
+  num_workers: 4
   shuffle: True
   drop_last: True
 
 Unlab_Dataloader:
   pin_memory: False
-  batch_size: 1
-  num_workers: 0
+  batch_size: 4
+  num_workers: 4
   shuffle: True
   drop_last: True
 
@@ -36,7 +36,7 @@ Trainer:
   max_epoch: 100
   save_dir: tmp/cotraining
   device: cuda:0
-#  axises:
+  #  axises:
   metricname: metrics.csv
   lambda_cot_max: 1
   lambda_adv_max: 0.05
@@ -46,8 +46,8 @@ Trainer:
 Loss:
   name: cross_entropy
   weight: [  3.3632, 14.0408,  4.9860, 39.2617, 36.5217, 32.8975, 46.2848,
-            40.6888,  6.6957, 33.5658, 18.4602, 32.9788, 47.6773, 12.7070, 45.2075,
-            45.7849, 45.8268, 48.4074, 42.7600]
+             40.6888,  6.6957, 33.5658, 18.4602, 32.9788, 47.6773, 12.7070, 45.2075,
+             45.7849, 45.8268, 48.4074, 42.7600]
 
 
 StartTraining:
