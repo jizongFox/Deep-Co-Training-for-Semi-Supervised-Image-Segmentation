@@ -91,7 +91,7 @@ class CityscapesDataset(Dataset):
                             "vegetation", "terrain", "sky", "person", "rider", "car", "truck", "bus", "train",
                             "motorcycle",
                             "bicycle", ]
-        self.ignore_index = 250
+        self.ignore_index = 255
         self.class_map = dict(zip(self.valid_classes, range(19)))
 
         if self.files[mode].__len__() == 0:
@@ -125,12 +125,17 @@ class CityscapesDataset(Dataset):
         )
 
         img = m.imread(img_path)
+
         img = np.array(img, dtype=np.uint8)
+        img = m.imresize(
+            img, (int(self.img_size[0]), int(self.img_size[1]))
+        )  # uint8 with RGB mode
 
         lbl = m.imread(lbl_path)
         lbl = self.encode_segmap(np.array(lbl, dtype=np.uint8))
+        lbl = m.imresize(lbl, (self.img_size[0], self.img_size[1]), "nearest", mode="F")
 
-        if self.augmentations is not None:
+        if self.augmentations is not None and self.training == ModelMode.TRAIN:
             img, lbl = self.augmentations(img, lbl)
 
         if self.is_transform:
@@ -145,9 +150,7 @@ class CityscapesDataset(Dataset):
         :param img:
         :param lbl:
         """
-        img = m.imresize(
-            img, (int(self.img_size[0]), int(self.img_size[1]))
-        )  # uint8 with RGB mode
+
         img = img.astype(np.float64) / 255.0
         img -= self.CITYSCAPES_MEAN
         img /= self.CITYSCAPES_STD
@@ -156,8 +159,7 @@ class CityscapesDataset(Dataset):
         img = img.transpose(2, 0, 1)
 
         classes = np.unique(lbl)
-        lbl = lbl.astype(float)
-        lbl = m.imresize(lbl, (self.img_size[0], self.img_size[1]), "nearest", mode="F")
+
         lbl = lbl.astype(int)
 
         if not np.all(classes == np.unique(lbl)):

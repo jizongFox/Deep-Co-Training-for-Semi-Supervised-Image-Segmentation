@@ -7,7 +7,7 @@ import math
 import numbers
 import torchvision.transforms.functional as tf
 from PIL import Image, ImageOps
-
+import collections
 
 class ToLabel():
     def __init__(self) -> None:
@@ -27,7 +27,7 @@ class Compose(object):
     def __call__(self, img, mask):
         if isinstance(img, np.ndarray):
             img = Image.fromarray(img, mode="RGB")
-            mask = Image.fromarray(mask, mode="L")
+            mask = Image.fromarray(mask)
             self.PIL2Numpy = True
 
         assert img.size == mask.size
@@ -110,12 +110,14 @@ class RandomRotate(object):
                       scale=1.0,
                       angle=rotate_degree,
                       resample=Image.NEAREST,
-                      fillcolor=250,
+                      fillcolor=255,
                       shear=0.0))
 
 
 class Scale(object):
     def __init__(self, size):
+        if isinstance(size,str):
+            size = eval(size)
         assert isinstance(size, int) or (isinstance(size, collections.Iterable) and len(size) == 2)
         if isinstance(size, int):
             size = (size, size)
@@ -205,6 +207,7 @@ key2aug = {
     "rsizecrop": RandomSizedCrop,
     "rotate": RandomRotate,
     "ccrop": CenterCrop,
+    "sale":Scale
 }
 
 

@@ -42,8 +42,6 @@ val_dataloader = dataloders['val']
 
 model1 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
 model2 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
-# model2.load_state_dict(model1.state_dict)
-
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)

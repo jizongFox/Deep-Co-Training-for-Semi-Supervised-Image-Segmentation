@@ -4,38 +4,40 @@ Arch:
 
 Optim:
   name: Adam
-  lr: 0.005
+  lr: 0.0005
+  weight_decay: 0.0002
+  amsgrad: True
 
 Scheduler:
-  name: MultiStepLR
-  milestones: [10,20,30,40,50,60,70,80,90]
-  gamma: 0.7
-
+#  name: MultiStepLR
+#  milestones: [10,20,30,40,50,60,70,80,90, 120, 150, 200, 250]
+#  gamma: 0.7
+  name: StepLR
+  step_size: 100
+  gamma: 0.1
 
 Dataset:
   root_dir: dataset/Cityscapes
-  image_size: ( 512, 1024 )
+  image_size: (512, 1024)
   augmentations:
-#    rcrop: [200, 200]                                #[crop of size (h,w)]
 #    rotate: 10                                    #[rotate -d to d degrees]
-#    scale: [256,256]                                 #[scale to size (h,w)]
-#    ccrop: [224,224]                                 #[center crop of (h,w)]
+#    rcrop: [384, 768]                                #[crop of size (h,w)]
+#
 
 Dataloader:
   pin_memory: False
-  batch_size: 2
-  num_workers: 16
+  batch_size: 12
+  num_workers: 12
   shuffle: True
   drop_last: True
 
 Trainer:
-  max_epoch: 1000
+  max_epoch: 300
   save_dir: tmp/cityscape
   device:  cuda:0
   #  axises: [0,1,2,3,4,5,6,7]
   metricname: metrics.csv
 #  checkpoint: tmp/cityscape/best.pth
-
 
 Loss:
   name: cross_entropy
@@ -47,3 +49,4 @@ Loss:
 StartTraining:
   save_train: False
   save_val: False
+  augment_labeled_data: True

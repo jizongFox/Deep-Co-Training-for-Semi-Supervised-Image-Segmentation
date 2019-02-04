@@ -1,7 +1,7 @@
 import shutil
 from abc import ABC, abstractmethod
 from typing import Dict
-
+import pandas as pd
 import yaml
 from generalframework import ModelMode
 from generalframework.metrics.iou import IoU
@@ -106,22 +106,29 @@ class Trainer_City(Base):
                                                                                              mode=ModelMode.TRAIN,
                                                                                              augment_data=augment_labeled_data,
                                                                                              save=save_train)
-            if (epoch + 1) % 2 == 0:
-                with torch.no_grad():
-                    val_mean_Acc, _, val_mean_IoU, val_class_IoU, val_loss = self._main_loop(val_loader, epoch,
-                                                                                             mode=ModelMode.EVAL,
-                                                                                             save=save_val)
-                self.checkpoint(val_mean_IoU, epoch)
+
+            with torch.no_grad():
+                val_mean_Acc, _, val_mean_IoU, val_class_IoU, val_loss = self._main_loop(val_loader, epoch,
+                                                                                         mode=ModelMode.EVAL,
+                                                                                         save=save_val)
+            self.checkpoint(val_mean_IoU, epoch)
             self.schedulerStep()
 
             for k in metrics:
                 try:
                     assert metrics[k][epoch].shape == eval(k).shape, (k, metrics[k][epoch].shape, eval(k).shape)
                     metrics[k][epoch] = eval(k)
-                except Exception as e:
+                except:
                     pass
             for k, e in metrics.items():
                 np.save(Path(self.save_dir, f"{k}.npy"), e.detach().cpu().numpy())
+
+            df = pd.DataFrame(
+                {
+                    **{f"train_mean_IoU": metrics["train_mean_IoU"].cpu()},
+                    **{f"val_mean_IoU": metrics["val_mean_IoU"].cpu()},
+                })
+            df.to_csv(Path(self.save_dir, self.metricname), float_format="%.4f", index_label="epoch")
 
     def _main_loop(self, dataloader: DataLoader, epoch: int, mode, augment_data: bool = False, save: bool = False):
         self.segmentator.set_mode(mode)
@@ -130,12 +137,12 @@ class Trainer_City(Base):
             dataloader.dataset.set_mode(ModelMode.EVAL)
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
         assert dataloader.dataset.training == mode if augment_data else ModelMode.EVAL
-
         n_batch = len(dataloader)
 
         # for dataloader with batch_sampler, there is no dataloader.batch_size
         metrics = IoU(19, ignore_index=255)
         loss_log = torch.zeros(n_batch)
+        mean_iou_dict: dict
 
         dataloader = tqdm_(dataloader)
         c_dice = None
