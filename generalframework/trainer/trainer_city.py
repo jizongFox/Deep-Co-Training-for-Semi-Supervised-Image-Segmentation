@@ -62,7 +62,7 @@ class Trainer_City(Base):
             self.segmentator.torchnet.load_state_dict(new_state_dict, strict=False)
             print('Coco pretrained model loaded')
         except Exception as e:
-            print(f'Loading coco pretrained model failed with: {e}')
+            print(f'Loading coco pretrained model failed with:\n {e}')
 
         if checkpoint is not None:
             self._load_checkpoint(checkpoint)
@@ -106,12 +106,12 @@ class Trainer_City(Base):
                                                                                              mode=ModelMode.TRAIN,
                                                                                              augment_data=augment_labeled_data,
                                                                                              save=save_train)
-            if epoch + 1 % 10 == 0:
+            if (epoch + 1) % 2 == 0:
                 with torch.no_grad():
                     val_mean_Acc, _, val_mean_IoU, val_class_IoU, val_loss = self._main_loop(val_loader, epoch,
                                                                                              mode=ModelMode.EVAL,
                                                                                              save=save_val)
-                    self.checkpoint(val_mean_IoU, epoch)
+                self.checkpoint(val_mean_IoU, epoch)
             self.schedulerStep()
 
             for k in metrics:

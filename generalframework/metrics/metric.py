@@ -3,11 +3,12 @@ class Metric(object):
 
     From: https://github.com/pytorch/tnt/blob/master/torchnet/meter/meter.py
     """
+
     def reset(self):
         pass
 
-    def add(self):
+    def add(self, **kwargs):
         pass
 
-    def value(self):
+    def value(self, **kwargs):
         pass

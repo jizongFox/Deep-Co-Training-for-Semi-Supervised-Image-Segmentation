@@ -4,6 +4,7 @@ from .confusionmatrix import ConfusionMatrix
 from .metric import Metric
 import torch
 
+
 class IoU(Metric):
     """Computes the intersection over union (IoU) per class and corresponding
     mean (mIoU).
@@ -77,7 +78,7 @@ class IoU(Metric):
             for K classes it's numpy.ndarray with K elements. The second output,
             is the mean IoU.
         """
-        hist= self.conf_metric.value()
+        hist = self.conf_metric.value()
         # if self.ignore_index is not None:
         #     for index in self.ignore_index:
         #         conf_matrix[:, self.ignore_index] = 0
@@ -110,4 +111,3 @@ class IoU(Metric):
             "Mean_IoU": np.nanmean(iu),
             "Class_IoU": torch.from_numpy(cls_iu).float(),
         }
-

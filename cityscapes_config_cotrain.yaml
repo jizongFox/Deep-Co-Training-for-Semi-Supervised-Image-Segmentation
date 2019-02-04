@@ -14,31 +14,28 @@ Scheduler:
 
 Dataset:
   root_dir: dataset/Cityscapes
-#  subfolders: ['img','gt']
-#  transform: segment_transform((256,256))
-#  augment: PILaugment
   pin_memory: False
-  image_size: ( 512, 768 )
+  image_size: ( 128, 256 )
   augmentations:
 
 Lab_Dataloader:
   pin_memory: False
-  batch_size: 2
-  num_workers: 2
+  batch_size: 1
+  num_workers: 0
   shuffle: True
   drop_last: True
 
 Unlab_Dataloader:
   pin_memory: False
-  batch_size: 2
-  num_workers: 2
+  batch_size: 1
+  num_workers: 0
   shuffle: True
   drop_last: True
 
 Trainer:
   max_epoch: 100
   save_dir: tmp/cotraining
-  device: cuda
+  device: cuda:0
 #  axises:
   metricname: metrics.csv
   lambda_cot_max: 1
@@ -50,11 +47,11 @@ Loss:
   name: cross_entropy
   weight: [  3.3632, 14.0408,  4.9860, 39.2617, 36.5217, 32.8975, 46.2848,
             40.6888,  6.6957, 33.5658, 18.4602, 32.9788, 47.6773, 12.7070, 45.2075,
-            45.7849, 45.8268, 48.4074, 42.7600,0.0000 ]
+            45.7849, 45.8268, 48.4074, 42.7600]
 
 
 StartTraining:
-  train_jsd: False
-  train_adv: False
-  save_train: False
-  save_val: False
+  train_jsd: True
+  train_adv: True
+  save_train: True
+  save_val: True

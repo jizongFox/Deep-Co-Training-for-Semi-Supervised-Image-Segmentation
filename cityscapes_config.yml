@@ -14,7 +14,7 @@ Scheduler:
 
 Dataset:
   root_dir: dataset/Cityscapes
-  image_size: ( 256, 512 )
+  image_size: ( 512, 1024 )
   augmentations:
 #    rcrop: [200, 200]                                #[crop of size (h,w)]
 #    rotate: 10                                    #[rotate -d to d degrees]
@@ -23,7 +23,7 @@ Dataset:
 
 Dataloader:
   pin_memory: False
-  batch_size: 12
+  batch_size: 2
   num_workers: 16
   shuffle: True
   drop_last: True

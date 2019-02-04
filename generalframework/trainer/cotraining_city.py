@@ -6,6 +6,7 @@ import yaml
 from tensorboardX import SummaryWriter
 
 from generalframework import ModelMode
+from ..metrics.iou import IoU
 from .trainer import Trainer
 from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
 from ..models import Segmentator
@@ -160,18 +161,10 @@ class CoTrainer_City(Trainer):
         # Here the concept of epoch is defined as the epoch
         n_batch = max(map_(len, self.labeled_dataloaders))
         S = len(self.segmentators)
-
-        FreqW_Acc = torch.zeros(n_batch, S)
-        Mean_Acc = torch.zeros(n_batch, S)
-        Mean_IoU = torch.zeros(n_batch, S)
-        Overall_Acc = torch.zeros(n_batch, S)
-        Class_IoU = torch.zeros(n_batch, S, self.C)
+        metrics = [IoU(self.C, ignore_index=255) for _ in range(S)]
         sup_loss_log = torch.zeros(n_batch, S)
         jsd_loss_log = torch.zeros(n_batch)
         adv_loss_log = torch.zeros(n_batch)
-
-        lab_done = 0
-        unlab_done = 0
 
         # build fake_iterator
         fake_labeled_iterators = [iterator_(dcopy(x)) for x in labeled_dataloaders]
@@ -187,16 +180,13 @@ class CoTrainer_City(Trainer):
             for enu_lab in range(len(fake_labeled_iterators)):
                 [[img, gt], _, path] = fake_labeled_iterators[enu_lab].__next__()
                 img, gt = img.to(self.device), gt.to(self.device)
-                lab_B = img.shape[0]
                 # backward and update when the mode = ModelMode.TRAIN
                 pred, sup_loss = self.segmentators[enu_lab].update(img, gt, criterion=self.criterions.get('sup'),
                                                                    mode=ModelMode.TRAIN)
-                c_dice = scores(label_preds=pred.max(1)[1].cpu().detach().numpy(),
-                                label_trues=gt.squeeze(1).cpu().numpy(),
-                                n_class=19)
-                for k, v in c_dice.items():
-                    eval(k)[batch_num][enu_lab] = v
-                sup_loss_log[batch_num][enu_lab] = sup_loss.detach()
+
+                metrics[enu_lab].add(predicted=pred, target=gt)
+
+                sup_loss_log[batch_num] = sup_loss.detach()
 
                 if save:
                     save_images(pred2class(pred), names=map_(lambda x: Path(x).name, path), root=self.save_dir,
@@ -209,11 +199,6 @@ class CoTrainer_City(Trainer):
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
                 unlab_preds: List[Tensor] = map_(lambda x: x.predict(unlab_img, logit=False), self.segmentators)
                 assert unlab_preds.__len__() == self.segmentators.__len__()
-
-                # c_dices = map_(lambda x: scores(label_preds=x.max(1)[1].cpu().detach().numpy(),
-                #                                 label_trues=unlab_gt.squeeze(1).cpu().numpy(),
-                #                                 n_class=19), unlab_preds)
-                # record unlabeled data
 
                 # function for JSD
                 jsdloss_2D = self.criterions.get('jsd')(unlab_preds)

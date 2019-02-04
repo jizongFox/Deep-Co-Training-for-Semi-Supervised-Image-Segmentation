@@ -37,15 +37,12 @@ lab_dataloader1 = extract_cities(dataloders['train'],
                                  [city for city in citylist if city not in ['stuttgart', 'ulm', 'zurich']])
 lab_dataloader2 = extract_cities(dataloders['train'],
                                  [city for city in citylist if city not in ['aachen', 'bremen', 'darmstadt']])
-lab_dataloader3 = extract_cities(dataloders['train'],
-                                 [city for city in citylist if city not in ['aachen', 'bremen', 'darmstadt']])
 unlab_dataloader = get_cityscapes_dataloaders(config['Dataset'], config['Unlab_Dataloader'])['train']
 
 val_dataloader = dataloders['val']
 
 model1 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
 model2 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
-model3 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)
@@ -53,8 +50,8 @@ with warnings.catch_warnings():
                   'jsd': get_loss_fn('jsd'),
                   'adv': get_loss_fn('jsd')}
 
-cotrainner = CoTrainer_City(segmentators=[model1, model2,model3],
-                            labeled_dataloaders=[lab_dataloader1, lab_dataloader2,lab_dataloader3],
+cotrainner = CoTrainer_City(segmentators=[model1, model2],
+                            labeled_dataloaders=[lab_dataloader1, lab_dataloader2],
                             unlabeled_dataloader=unlab_dataloader,
                             val_dataloader=val_dataloader,
                             criterions=criterions,
