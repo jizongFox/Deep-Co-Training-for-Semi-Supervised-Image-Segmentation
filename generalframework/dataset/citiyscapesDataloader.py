@@ -5,9 +5,9 @@ from typing import Union
 import numpy as np
 import scipy.misc as m
 import torch
+from generalframework import ModelMode
 from torch.utils.data import Dataset
 
-from generalframework import ModelMode
 from ..utils.utils import recursive_glob
 
 
@@ -103,8 +103,8 @@ class CityscapesDataset(Dataset):
 
     def __len__(self):
         """__len__"""
-        return int(len(self.files[self.mode])/10)
-        
+        return int(len(self.files[self.mode]))
+
     def set_mode(self, mode):
         assert isinstance(mode, (str, ModelMode)), 'the type of mode should be str or ModelMode, given %s' % str(mode)
 

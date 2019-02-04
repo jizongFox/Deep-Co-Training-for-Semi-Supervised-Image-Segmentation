@@ -103,25 +103,26 @@ class Trainer_City(Base):
 
         train_loader, val_loader = self.dataloaders['train'], self.dataloaders['val']
         for epoch in range(self.start_epoch, self.max_epoch):
-            train_mean_Acc, _, train_mean_IoU, \
-            train_class_IoU, train_loss = self._main_loop(train_loader, epoch,
-                                                          mode=ModelMode.TRAIN,
-                                                          augment_data=augment_labeled_data,
-                                                          save=save_train)
-            with torch.no_grad():
-                val_mean_Acc, _, val_mean_IoU, \
-                val_class_IoU, val_loss = self._main_loop(val_loader, epoch,
-                                                          mode=ModelMode.EVAL,
-                                                          save=save_val)
+            train_mean_Acc, _, train_mean_IoU, train_class_IoU, train_loss = self._main_loop(train_loader, epoch,
+                                                                                             mode=ModelMode.TRAIN,
+                                                                                             augment_data=augment_labeled_data,
+                                                                                             save=save_train)
+            if epoch + 1 % 10 == 0:
+                with torch.no_grad():
+                    val_mean_Acc, _, val_mean_IoU, val_class_IoU, val_loss = self._main_loop(val_loader, epoch,
+                                                                                             mode=ModelMode.EVAL,
+                                                                                             save=save_val)
+                    self.checkpoint(val_mean_IoU, epoch)
             self.schedulerStep()
 
             for k in metrics:
-                assert metrics[k][epoch].shape == eval(k).shape, (k, metrics[k][epoch].shape, eval(k).shape)
-                metrics[k][epoch] = eval(k)
+                try:
+                    assert metrics[k][epoch].shape == eval(k).shape, (k, metrics[k][epoch].shape, eval(k).shape)
+                    metrics[k][epoch] = eval(k)
+                except:
+                    pass
             for k, e in metrics.items():
                 np.save(Path(self.save_dir, f"{k}.npy"), e.detach().cpu().numpy())
-
-            self.checkpoint(val_mean_IoU, epoch)
 
     def _main_loop(self, dataloader: DataLoader, epoch: int, mode, augment_data: bool = False, save: bool = False):
         self.segmentator.set_mode(mode)
@@ -137,7 +138,7 @@ class Trainer_City(Base):
         metrics = IoU(19, ignore_index=255)
         loss_log = torch.zeros(n_batch)
 
-        dataloader = tqdm_(dataloader)
+        # dataloader = tqdm_(dataloader)
         c_dice = None
         for i, (imgs, metainfo, filenames) in enumerate(dataloader):
             imgs = [img.to(self.device) for img in imgs]
@@ -156,14 +157,14 @@ class Trainer_City(Base):
 
             mean_cls_iou_dict = {f"c{j}": c_dice['Class_IoU'][j].mean().item() for j in self.axises}
 
-            stat_dict = {**mean_iou_dict, **{'ls': loss_log[:i + 1].mean().item()}} if epoch % 10 == 0 else {
+            stat_dict = {**mean_iou_dict, **{'ls': loss_log[:i + 1].mean().item()}} if epoch % 10 != 0 else {
                 **mean_iou_dict, **mean_cls_iou_dict, **{'ls': loss_log[:i + 1].mean().item()}}
             # to delete null dicts
             nice_dict = {k: f"{v:.2f}" for (k, v) in stat_dict.items() if v != 0 or v != float(np.nan)}
-
-            dataloader.set_description(
-                f'{"tls" if mode == ModelMode.TRAIN else "vlos"}:{loss_log[:i + 1].mean().item():.3f}')
-            dataloader.set_postfix(nice_dict)  # using average value of the dict
+            #
+            # dataloader.set_description(
+            #     f'{"tls" if mode == ModelMode.TRAIN else "vlos"}:{loss_log[:i + 1].mean().item():.3f}')
+            # dataloader.set_postfix(nice_dict)  # using average value of the dict
 
         print(f"{desc} " + ', '.join(f"{k}:{v}" for (k, v) in nice_dict.items()))
 
