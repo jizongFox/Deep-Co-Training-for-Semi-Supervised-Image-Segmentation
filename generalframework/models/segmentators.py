@@ -4,6 +4,7 @@ from typing import List
 import torch
 from torch import Tensor
 from torch import optim
+from torch import nn
 from torch.nn import NLLLoss
 from torch.nn import functional as F
 from torch.optim import lr_scheduler
@@ -29,6 +30,10 @@ class Segmentator(ABC):
         self.scheduler_name = self.scheduler_dict['name']
         self.scheduler_params = {k: v for k, v in self.scheduler_dict.items() if k != 'name'}
         torchnet = get_arch(self.arch_name, self.arch_params)
+        if torch.cuda.device_count() > 1:
+            print("Let's use", torch.cuda.device_count(), "GPUs!")
+            # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+            torchnet = nn.DataParallel(torchnet)
         optimizer: optim.adam.Adam = getattr(optim, self.optim_name)(torchnet.parameters(), **self.optim_params)
         scheduler: lr_scheduler._LRScheduler = getattr(lr_scheduler, self.scheduler_name)(optimizer,
                                                                                           **self.scheduler_params)

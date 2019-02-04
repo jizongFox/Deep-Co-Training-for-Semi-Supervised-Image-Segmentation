@@ -63,7 +63,6 @@ class Trainer_City(Base):
             print('Coco pretrained model loaded')
         except Exception as e:
             print(f'Loading coco pretrained model failed with: {e}')
-        self.segmentator.torchnet = nn.DataParallel(self.segmentator.torchnet)
 
         if checkpoint is not None:
             self._load_checkpoint(checkpoint)
@@ -119,7 +118,7 @@ class Trainer_City(Base):
                 try:
                     assert metrics[k][epoch].shape == eval(k).shape, (k, metrics[k][epoch].shape, eval(k).shape)
                     metrics[k][epoch] = eval(k)
-                except:
+                except Exception as e:
                     pass
             for k, e in metrics.items():
                 np.save(Path(self.save_dir, f"{k}.npy"), e.detach().cpu().numpy())
@@ -138,9 +137,10 @@ class Trainer_City(Base):
         metrics = IoU(19, ignore_index=255)
         loss_log = torch.zeros(n_batch)
 
-        # dataloader = tqdm_(dataloader)
+        dataloader = tqdm_(dataloader)
         c_dice = None
         for i, (imgs, metainfo, filenames) in enumerate(dataloader):
+
             imgs = [img.to(self.device) for img in imgs]
 
             preds = self.segmentator.torchnet(imgs[0])
@@ -157,14 +157,16 @@ class Trainer_City(Base):
 
             mean_cls_iou_dict = {f"c{j}": c_dice['Class_IoU'][j].mean().item() for j in self.axises}
 
-            stat_dict = {**mean_iou_dict, **{'ls': loss_log[:i + 1].mean().item()}} if epoch % 10 != 0 else {
-                **mean_iou_dict, **mean_cls_iou_dict, **{'ls': loss_log[:i + 1].mean().item()}}
+            stat_dict = {**mean_iou_dict, **mean_cls_iou_dict, **{'ls': loss_log[:i + 1].mean().item()}}
             # to delete null dicts
             nice_dict = {k: f"{v:.2f}" for (k, v) in stat_dict.items() if v != 0 or v != float(np.nan)}
             #
-            # dataloader.set_description(
-            #     f'{"tls" if mode == ModelMode.TRAIN else "vlos"}:{loss_log[:i + 1].mean().item():.3f}')
-            # dataloader.set_postfix(nice_dict)  # using average value of the dict
+            dataloader.set_description(
+                f'{"tls" if mode == ModelMode.TRAIN else "vlos"}:{loss_log[:i + 1].mean().item():.3f}')
+            dataloader.set_postfix(nice_dict)  # using average value of the dict
+
+        stat_dict = {**mean_iou_dict, **{'ls': loss_log[:i + 1].mean().item()}}
+        nice_dict = {k: f"{v:.2f}" for (k, v) in stat_dict.items() if v != 0 or v != float(np.nan)}
 
         print(f"{desc} " + ', '.join(f"{k}:{v}" for (k, v) in nice_dict.items()))
 

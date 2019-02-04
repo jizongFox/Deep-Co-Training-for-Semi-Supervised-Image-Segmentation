@@ -4,7 +4,7 @@ Arch:
 
 Optim:
   name: Adam
-  lr: 0.01
+  lr: 0.005
 
 Scheduler:
   name: MultiStepLR
@@ -23,15 +23,15 @@ Dataset:
 
 Dataloader:
   pin_memory: False
-  batch_size: 4
-  num_workers: 4
+  batch_size: 12
+  num_workers: 16
   shuffle: True
   drop_last: True
 
 Trainer:
   max_epoch: 1000
   save_dir: tmp/cityscape
-  device:  cuda
+  device:  cuda:0
   #  axises: [0,1,2,3,4,5,6,7]
   metricname: metrics.csv
 #  checkpoint: tmp/cityscape/best.pth
