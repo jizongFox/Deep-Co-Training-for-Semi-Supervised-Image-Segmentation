@@ -1,12 +1,12 @@
 from torchvision import transforms
 import random
 import numpy as np, torch
+import collections
 
 import math
 import numbers
 import torchvision.transforms.functional as tf
 from PIL import Image, ImageOps
-from torchvision.transforms import RandomCrop
 
 
 class ToLabel():
@@ -140,7 +140,6 @@ class Scale(object):
                 img.resize((ow, oh), Image.BILINEAR),
                 mask.resize((ow, oh), Image.NEAREST),
             )
-
 
 
 class RandomSizedCrop(object):

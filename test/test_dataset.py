@@ -4,6 +4,7 @@ import time
 from torch.utils.data import DataLoader
 from generalframework.utils import iterator_
 from pathlib import Path
+from generalframework.dataset.augment import Scale, RandomRotate, Compose
 import numpy as np
 
 
@@ -56,20 +57,23 @@ def test_iter():
 
 
 def test_cityscapes_dataloader():
-    # augmentations = Compose([Scale(2048), RandomRotate(10)])
+    augmentations = Compose([Scale(2048), RandomRotate(10)])
 
-    local_path = '../dataset/CITYSCAPES'
-    dst = CityscapesDataset(local_path, is_transform=True, augmentation=None)
+    local_path = '../dataset/Cityscapes'
+    dst = CityscapesDataset(local_path, is_transform=True, augmentation=augmentations)
     bs = 4
-    trainloader = DataLoader(dst, batch_size=bs, num_workers=0, shuffle=True)
-    gt_label = []
-    for i, ([img, gt], _, path) in enumerate(trainloader):
-        for j in gt.unique():
-            if j not in gt_label:
-                gt_label.append(j.item())
-        print(sorted(gt_label))
+    trainloader = DataLoader(dst, batch_size=bs, num_workers=0)
+    for i, data_samples in enumerate(trainloader):
+        [[imgs, labels], _, _] = data_samples
 
-    print(sorted(gt_label))
+        imgs = imgs.numpy()[:, ::-1, :, :]
+        imgs = np.transpose(imgs, [0, 2, 3, 1])
+        f, axarr = plt.subplots(bs, 2)
+        for j in range(bs):
+            axarr[j][0].imshow(imgs[j])
+            axarr[j][1].imshow(dst.decode_segmap(labels.numpy()[j]))
+        plt.show()
+        print()
 
 
 if __name__ == '__main__':
