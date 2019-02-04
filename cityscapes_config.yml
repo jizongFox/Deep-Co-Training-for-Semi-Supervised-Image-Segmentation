@@ -13,7 +13,7 @@ Scheduler:
 
 
 Dataset:
-  root_dir: dataset/Cityscapes_new
+  root_dir: dataset/Cityscapes
   image_size: ( 256, 512 )
   augmentations:
 #    rcrop: [200, 200]                                #[crop of size (h,w)]
@@ -31,7 +31,7 @@ Dataloader:
 Trainer:
   max_epoch: 1000
   save_dir: tmp/cityscape
-  device:  cpu
+  device:  cuda
 #  axises: [0,1,2,3,4,5,6,7]
   metricname: metrics.csv
 #  checkpoint: tmp/cityscape/best.pth
@@ -40,6 +40,9 @@ Trainer:
 Loss:
   name: cross_entropy
   ignore_index: 255
+  weight: [  3.3632, 14.0408,  4.9860, 39.2617, 36.5217, 32.8975, 46.2848,
+             40.6888,  6.6957, 33.5658, 18.4602, 32.9788, 47.6773, 12.7070, 45.2075,
+             45.7849, 45.8268, 48.4074, 42.7600]
 
 StartTraining:
   save_train: False

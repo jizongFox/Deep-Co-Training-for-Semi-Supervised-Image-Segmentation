@@ -3,11 +3,11 @@ from abc import ABC, abstractmethod
 from typing import Dict
 
 import yaml
-
 from generalframework import ModelMode
+from generalframework.metrics.iou import IoU
+
 from ..models import Segmentator
 from ..utils import *
-from ..utils.metrics import scores
 
 
 class Base(ABC):
@@ -54,8 +54,9 @@ class Trainer_City(Base):
 
         # load coco pretrained model:
         try:
-            state_dict = torch.load('generalframework/trainer/deeplab_init_checkpoint/deeplabv2_resnet101_COCO_init.pth',
-                                    map_location=lambda storage, loc: storage)
+            state_dict = torch.load(
+                'generalframework/trainer/deeplab_init_checkpoint/deeplabv2_resnet101_COCO_init.pth',
+                map_location=lambda storage, loc: storage)
             new_state_dict = {k.replace('scale.', ''): v for k, v in state_dict.items()}
             assert len(set(self.segmentator.torchnet.state_dict().keys()) & set(new_state_dict.keys())) > 0
             self.segmentator.torchnet.load_state_dict(new_state_dict, strict=False)
@@ -85,40 +86,33 @@ class Trainer_City(Base):
 
     def start_training(self, save_train=False, save_val=False, augment_labeled_data=False):
         # prepare for something:
-        n_class: int = self.C
         train_b: int = len(self.dataloaders['train'])  # Number of iteration per epoch: different if batch_size > 1
-        train_n: int = train_b * self.dataloaders['train'].batch_size \
-            if self.dataloaders['train'].drop_last \
-            else len(self.dataloaders['train'].dataset)
-        # Number of images in dataset
-
         val_b: int = len(self.dataloaders['val'])
-        val_n: int = val_b * self.dataloaders['val'].batch_size if self.dataloaders['val'].drop_last \
-            else len(self.dataloaders['val'].dataset)
 
         metrics = {"val_loss": torch.zeros((self.max_epoch, val_b), device=self.device).type(torch.float32),
-                   "val_mean_IoU": torch.zeros((self.max_epoch, val_b), device=self.device).type(torch.float32),
-                   "val_mean_Acc": torch.zeros((self.max_epoch, val_b), device=self.device).type(torch.float32),
-                   "val_class_IoU": torch.zeros((self.max_epoch, val_b, 1, self.C), device=self.device).type(
+                   "val_mean_IoU": torch.zeros((self.max_epoch), device=self.device).type(torch.float32),
+                   "val_mean_Acc": torch.zeros((self.max_epoch), device=self.device).type(torch.float32),
+                   "val_class_IoU": torch.zeros((self.max_epoch, self.C), device=self.device).type(
                        torch.float32),
-
                    "train_loss": torch.zeros((self.max_epoch, train_b), device=self.device).type(torch.float32),
-                   "train_mean_IoU": torch.zeros((self.max_epoch, train_b), device=self.device).type(torch.float32),
-                   "train_mean_Acc": torch.zeros((self.max_epoch, train_b), device=self.device).type(torch.float32),
-                   "train_class_IoU": torch.zeros((self.max_epoch, train_b, 1, self.C), device=self.device).type(
+                   "train_mean_IoU": torch.zeros((self.max_epoch), device=self.device).type(torch.float32),
+                   "train_mean_Acc": torch.zeros((self.max_epoch), device=self.device).type(torch.float32),
+                   "train_class_IoU": torch.zeros((self.max_epoch, self.C), device=self.device).type(
                        torch.float32)
                    }
 
         train_loader, val_loader = self.dataloaders['train'], self.dataloaders['val']
         for epoch in range(self.start_epoch, self.max_epoch):
-            train_loss, _, train_mean_Acc, train_mean_IoU, _, train_class_IoU = self._main_loop(train_loader, epoch,
-                                                                                                mode=ModelMode.TRAIN,
-                                                                                                augment_data=augment_labeled_data,
-                                                                                                save=save_train)
+            train_mean_Acc, _, train_mean_IoU, \
+            train_class_IoU, train_loss = self._main_loop(train_loader, epoch,
+                                                          mode=ModelMode.TRAIN,
+                                                          augment_data=augment_labeled_data,
+                                                          save=save_train)
             with torch.no_grad():
-                val_loss, _, val_mean_Acc, val_mean_IoU, _, val_class_IoU = self._main_loop(val_loader, epoch,
-                                                                                            mode=ModelMode.EVAL,
-                                                                                            save=save_val)
+                val_mean_Acc, _, val_mean_IoU, \
+                val_class_IoU, val_loss = self._main_loop(val_loader, epoch,
+                                                          mode=ModelMode.EVAL,
+                                                          save=save_val)
             self.schedulerStep()
 
             for k in metrics:
@@ -127,17 +121,7 @@ class Trainer_City(Base):
             for k, e in metrics.items():
                 np.save(Path(self.save_dir, f"{k}.npy"), e.detach().cpu().numpy())
 
-            # df = pd.DataFrame(
-            #     {
-            #         **{f"train_dice_{i}": metrics["train_dice"].mean(1)[:, 0, i].cpu() for i in self.axises},
-            #         **{f"val_dice_{i}": metrics["val_dice"].mean(1)[:, 0, i].cpu() for i in self.axises},
-            #         **{f"val_batch_dice_{i}": metrics["val_batch_dice"].mean(1)[:, 0, i].cpu() for i in self.axises}
-            #     })
-            #
-            # df.to_csv(Path(self.save_dir, self.metricname), float_format="%.4f", index_label="epoch")
-
-            current_metric = val_mean_IoU.mean()
-            self.checkpoint(current_metric, epoch)
+            self.checkpoint(val_mean_IoU, epoch)
 
     def _main_loop(self, dataloader: DataLoader, epoch: int, mode, augment_data: bool = False, save: bool = False):
         self.segmentator.set_mode(mode)
@@ -150,15 +134,11 @@ class Trainer_City(Base):
         n_batch = len(dataloader)
 
         # for dataloader with batch_sampler, there is no dataloader.batch_size
-
+        metrics = IoU(19, ignore_index=255)
         loss_log = torch.zeros(n_batch)
-        FreqW_Acc = torch.zeros(n_batch)
-        Mean_Acc = torch.zeros(n_batch)
-        Mean_IoU = torch.zeros(n_batch)
-        Overall_Acc = torch.zeros(n_batch)
-        Class_IoU = torch.zeros(n_batch, 1, self.C)
 
         dataloader = tqdm_(dataloader)
+        c_dice = None
         for i, (imgs, metainfo, filenames) in enumerate(dataloader):
             imgs = [img.to(self.device) for img in imgs]
 
@@ -168,31 +148,26 @@ class Trainer_City(Base):
                 self.segmentator.optimizer.zero_grad()
                 loss.backward()
                 self.segmentator.optimizer.step()
+            metrics.add(predicted=preds, target=imgs[1])
+            c_dice = metrics.value()
+            loss_log[i] = loss.detach()
 
-            c_dice = scores(label_preds=preds.max(1)[1].cpu().detach().numpy(),
-                            label_trues=imgs[1].squeeze(1).cpu().numpy(),
-                            n_class=19)
+            mean_iou_dict = {'mIoU': c_dice['Mean_IoU']}
 
-            for k, v in c_dice.items():
-                eval(k)[i] = v
-            loss_log[i] = loss
+            mean_cls_iou_dict = {f"c{j}": c_dice['Class_IoU'][j].mean().item() for j in self.axises}
 
-
-            mean_iou_dict = {"mIoU": Mean_IoU[:i + 1].mean().item()}
-
-            mean_cls_iou_dict = {f"c{j}": Class_IoU[:i + 1, 0, j].mean().item() for j in self.axises}
-
-            stat_dict = {**mean_iou_dict, **mean_cls_iou_dict, **{'ls':loss_log[:i+1].mean().item()}}
+            stat_dict = {**mean_iou_dict, **{'ls': loss_log[:i + 1].mean().item()}} if epoch % 10 == 0 else {
+                **mean_iou_dict, **mean_cls_iou_dict, **{'ls': loss_log[:i + 1].mean().item()}}
             # to delete null dicts
             nice_dict = {k: f"{v:.2f}" for (k, v) in stat_dict.items() if v != 0 or v != float(np.nan)}
 
             dataloader.set_description(
-                f'{"trals" if mode == ModelMode.TRAIN else "vallos"}:{loss_log[:i + 1].mean().item():.3f}')
+                f'{"tls" if mode == ModelMode.TRAIN else "vlos"}:{loss_log[:i + 1].mean().item():.3f}')
             dataloader.set_postfix(nice_dict)  # using average value of the dict
 
         print(f"{desc} " + ', '.join(f"{k}:{v}" for (k, v) in nice_dict.items()))
 
-        return loss_log, FreqW_Acc, Mean_Acc, Mean_IoU, Overall_Acc, Class_IoU
+        return c_dice["Mean_Acc"], c_dice["FreqW_Acc"], c_dice["Mean_IoU"], c_dice["Class_IoU"], loss_log
 
     def checkpoint(self, metric, epoch, filename='best.pth'):
         if metric <= self.best_score:

@@ -27,7 +27,7 @@ def main(folder_path:str,resoltion:Tuple[int,int]):
 
 
 if __name__ == '__main__':
-    main('../../dataset/Cityscapes/',resoltion=(1024,512))
+    main('/home/jizong/Workspace/ReproduceAdaptSegNet/data/Cityscapes/',resoltion=(1024,512))
 
 
 

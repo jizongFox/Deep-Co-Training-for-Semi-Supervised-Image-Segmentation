@@ -1,14 +1,14 @@
+import os
+import random
 import warnings
 from pprint import pprint
 
 import numpy as np
-import os
-import random
 import torch
 import yaml
 
-from generalframework.dataset import get_dataloaders, extract_cities, get_cityscapes_dataloaders, citylist
-from generalframework.loss import get_loss_fn,enet_weighing
+from generalframework.dataset import extract_cities, get_cityscapes_dataloaders, citylist
+from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
 from generalframework.trainer import CoTrainer_City
 from generalframework.utils import yaml_parser, dict_merge
@@ -37,25 +37,24 @@ lab_dataloader1 = extract_cities(dataloders['train'],
                                  [city for city in citylist if city not in ['stuttgart', 'ulm', 'zurich']])
 lab_dataloader2 = extract_cities(dataloders['train'],
                                  [city for city in citylist if city not in ['aachen', 'bremen', 'darmstadt']])
+lab_dataloader3 = extract_cities(dataloders['train'],
+                                 [city for city in citylist if city not in ['aachen', 'bremen', 'darmstadt']])
 unlab_dataloader = get_cityscapes_dataloaders(config['Dataset'], config['Unlab_Dataloader'])['train']
 
 val_dataloader = dataloders['val']
 
 model1 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
 model2 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
-# model2.load_state_dict(model1.state_dict)
-# class_weights = enet_weighing(dataloders['train'],19)
-# print(class_weights)
-
+model3 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)
-    criterions = {'sup': get_loss_fn('cross_entropy',**{'weight':config['Loss']['weight'],'ignore_index' : 255}),
+    criterions = {'sup': get_loss_fn('cross_entropy', **{'weight': config['Loss']['weight'], 'ignore_index': 255}),
                   'jsd': get_loss_fn('jsd'),
                   'adv': get_loss_fn('jsd')}
 
-cotrainner = CoTrainer_City(segmentators=[model1, model2],
-                            labeled_dataloaders=[lab_dataloader1, lab_dataloader2],
+cotrainner = CoTrainer_City(segmentators=[model1, model2,model3],
+                            labeled_dataloaders=[lab_dataloader1, lab_dataloader2,lab_dataloader3],
                             unlabeled_dataloader=unlab_dataloader,
                             val_dataloader=val_dataloader,
                             criterions=criterions,

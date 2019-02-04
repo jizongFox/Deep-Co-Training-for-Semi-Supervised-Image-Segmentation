@@ -103,7 +103,7 @@ class CityscapesDataset(Dataset):
 
     def __len__(self):
         """__len__"""
-        return int(len(self.files[self.mode]))
+        return int(len(self.files[self.mode])/10)
         
     def set_mode(self, mode):
         assert isinstance(mode, (str, ModelMode)), 'the type of mode should be str or ModelMode, given %s' % str(mode)
