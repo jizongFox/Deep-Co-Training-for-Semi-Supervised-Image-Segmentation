@@ -15,26 +15,26 @@ Scheduler:
 Dataset:
   root_dir: dataset/Cityscapes
   pin_memory: False
-  image_size: ( 256, 512 )
+  image_size: ( 64, 128 )
   augmentations:
 
 Lab_Dataloader:
   pin_memory: False
   batch_size: 4
-  num_workers: 4
+  num_workers: 0
   shuffle: True
   drop_last: True
 
 Unlab_Dataloader:
   pin_memory: False
   batch_size: 4
-  num_workers: 4
+  num_workers: 0
   shuffle: True
   drop_last: True
 
 Trainer:
   max_epoch: 100
-  save_dir: tmp/cotraining
+  save_dir: tmp/cityscapes_cotraining
   device: cuda:0
   #  axises:
   metricname: metrics.csv
