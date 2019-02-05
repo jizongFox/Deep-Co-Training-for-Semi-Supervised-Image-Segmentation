@@ -26,8 +26,8 @@ Dataset:
 
 Dataloader:
   pin_memory: False
-  batch_size: 12
-  num_workers: 12
+  batch_size: 4
+  num_workers: 0
   shuffle: True
   drop_last: True
 

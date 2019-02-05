@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from typing import Union
 
 import numpy as np
 import scipy.misc as m
@@ -51,8 +50,8 @@ class CityscapesDataset(Dataset):
 
     label_colours = dict(zip(range(19), colors))
 
-    CITYSCAPES_MEAN = [0.28689554, 0.32513303, 0.28389177]
-    CITYSCAPES_STD = [0.18696375, 0.19017339, 0.18720214]
+    CITYSCAPES_MEAN = [0.290101, 0.328081, 0.286964]
+    CITYSCAPES_STD = [0.182954, 0.186566, 0.184475]
 
     ## RGB channels
 
@@ -103,7 +102,7 @@ class CityscapesDataset(Dataset):
 
     def __len__(self):
         """__len__"""
-        return int(len(self.files[self.mode]))
+        return int(len(self.files[self.mode])/20)
 
     def set_mode(self, mode):
         assert isinstance(mode, (str, ModelMode)), 'the type of mode should be str or ModelMode, given %s' % str(mode)

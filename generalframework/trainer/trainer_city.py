@@ -1,6 +1,7 @@
 import shutil
 from abc import ABC, abstractmethod
 from typing import Dict
+
 import pandas as pd
 import yaml
 from generalframework import ModelMode
@@ -118,7 +119,7 @@ class Trainer_City(Base):
                 try:
                     assert metrics[k][epoch].shape == eval(k).shape, (k, metrics[k][epoch].shape, eval(k).shape)
                     metrics[k][epoch] = eval(k)
-                except:
+                except Exception as e:
                     pass
             for k, e in metrics.items():
                 np.save(Path(self.save_dir, f"{k}.npy"), e.detach().cpu().numpy())
@@ -139,7 +140,6 @@ class Trainer_City(Base):
         assert dataloader.dataset.training == mode if augment_data else ModelMode.EVAL
         n_batch = len(dataloader)
 
-        # for dataloader with batch_sampler, there is no dataloader.batch_size
         metrics = IoU(19, ignore_index=255)
         loss_log = torch.zeros(n_batch)
         mean_iou_dict: dict
@@ -172,7 +172,7 @@ class Trainer_City(Base):
                 f'{"tls" if mode == ModelMode.TRAIN else "vlos"}:{loss_log[:i + 1].mean().item():.3f}')
             dataloader.set_postfix(nice_dict)  # using average value of the dict
 
-        stat_dict = {**mean_iou_dict, **{'ls': loss_log[:i + 1].mean().item()}}
+        stat_dict = {**mean_iou_dict, **{'ls': loss_log.mean().item()}}
         nice_dict = {k: f"{v:.2f}" for (k, v) in stat_dict.items() if v != 0 or v != float(np.nan)}
 
         print(f"{desc} " + ', '.join(f"{k}:{v}" for (k, v) in nice_dict.items()))

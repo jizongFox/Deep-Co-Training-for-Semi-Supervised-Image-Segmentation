@@ -1,19 +1,18 @@
+from operator import itemgetter
 from random import random
 from typing import Dict
 
 import pandas as pd
 import yaml
-from tensorboardX import SummaryWriter
-from operator import itemgetter
-
 from generalframework import ModelMode
-from ..metrics.iou import IoU
+from tensorboardX import SummaryWriter
+
 from .trainer import Trainer
 from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
+from ..metrics.iou import IoU
 from ..models import Segmentator
 from ..scheduler import RampScheduler
 from ..utils.AEGenerator import *
-from ..utils.metrics import scores
 from ..utils.utils import *
 
 
@@ -136,25 +135,19 @@ class CoTrainer_City(Trainer):
             for k, v in metrics.items():
                 np.save(self.save_dir / f'{k}.npy', v.data.cpu().numpy())
 
-            # writer = pd.ExcelWriter(Path(self.save_dir, self.metricname.replace('csv', 'xlsx')), engine='openpyxl')
-            # for s in range(self.segmentators.__len__()):
-            #     df = pd.DataFrame(
-            #         {
-            #             **{f"train_dice_{i}": metrics["train_dice"].mean(1)[:, s, i] for i in self.axises},
-            #             **{f"train_unlab_dice_{i}": metrics["train_unlab_dice"].mean(1)[:, s, i] for i in
-            #                self.axises},
-            #             **{f"val_dice_{i}": metrics["val_dice"].mean(1)[:, s, i] for i in self.axises},
-            #             **{f"val_batch_dice_{i}": metrics["val_batch_dice"].mean(1)[:, s, i] for i in self.axises}
-            #         })
-            #     # the saved metrics are with only axis==3, as the foreground dice.
-            #
-            #     df.to_csv(Path(self.save_dir, self.metricname.replace('.csv', f'_{s}.csv')), float_format="%.4f",
-            #               index_label="epoch")
-            #     df.to_excel(excel_writer=writer, sheet_name=f'Seg_{s}', encoding="utf-8", index_label='epoch',
-            #                 float_format="%.4f")
-            # writer.save()
-            # writer.close()
-            current_metric = val_dice[:, :, self.axises].mean([0, 2])
+            df = pd.DataFrame(
+                {
+                    **{f"train_loss_{i}": metrics["train_loss"].mean(1)[:, i].cpu() for i in range(S)},
+                    **{f"train_jsd_loss": metrics["train_jsd_loss"].mean(1).cpu()},
+                    **{f"train_adv_loss": metrics["train_adv_loss"].mean(1).cpu()},
+                    **{f"train_mean_IoU_{i}": metrics["train_mean_IoU"][:, i].cpu() for i in range(S)},
+                    **{f"val_loss_{i}": metrics["val_loss"].mean(1)[:, i].cpu() for i in range(S)},
+                    **{f"val_mean_IoU_{i}": metrics["train_mean_IoU"][:, i].cpu() for i in range(S)},
+                })
+
+            df.to_csv(Path(self.save_dir, self.metricname), float_format="%.4f", index_label="epoch")
+
+            current_metric = Tensor(val_mean_IoU)
             self.checkpoint(current_metric, epoch)
 
     def _train_loop(self, labeled_dataloaders: List[DataLoader], unlabeled_dataloader: DataLoader, epoch: int,
@@ -165,7 +158,7 @@ class CoTrainer_City(Trainer):
             l_dataloader.dataset.set_mode(ModelMode.TRAIN)
         unlabeled_dataloader.dataset.training = ModelMode.TRAIN if augment_unlabeled_data else ModelMode.EVAL
 
-        assert self.segmentators[0].training == True
+        assert self.segmentators[0].training
         assert self.labeled_dataloaders[0].dataset.training == ModelMode.TRAIN \
             if augment_labeled_data else ModelMode.EVAL
         assert self.unlabeled_dataloader.dataset.training == ModelMode.TRAIN \
@@ -264,26 +257,18 @@ class CoTrainer_City(Trainer):
             }
             # to delete null dicts
             nice_dict = {k: f"{v:.2f}" for (k, v) in stat_dict.items() if v != 0 or v != float(np.nan)}
-            #
             n_batch_iter.set_description(
                 f'{"tls" if mode == ModelMode.TRAIN else "vlos"}')
             n_batch_iter.set_postfix(nice_dict)  # using average value of the dict
+
+        for s in range(S):
+            self.upload_dict(f'train_{s}', {k: v for k, v in metrics[s].value().items() if k != 'Class_IoU'}, epoch)
+
         print(f"{desc} " + ', '.join(f"{k}:{v}" for (k, v) in nice_dict.items()))
 
         return map_(lambda x: x.value()["Mean_Acc"], metrics), map_(lambda x: x.value()["FreqW_Acc"], metrics), map_(
             lambda x: x.value()["Mean_IoU"], metrics), map_(lambda x: x.value()["Class_IoU"],
                                                             metrics), sup_loss_log, jsd_loss_log, adv_loss_log
-
-        #     #
-        # self.upload_dicts('labeled dataset', lab_dsc_dict, epoch)
-        # self.upload_dicts('unlabeled dataset', unlab_dsc_dict, epoch)
-
-        ## make sure that the nice dict is for labeled dataset
-        # nice_dict = dict_merge(lab_dsc_dict, lab_mean_dict, re=True)
-        # print(
-        #     f"{desc} " + ', '.join([f'{k}_{k_}: {v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()])
-        # )
-        # return coef_dice, unlabel_coef_dice
 
     def _eval_loop(self, val_dataloader: DataLoader,
                    epoch: int,
@@ -299,8 +284,6 @@ class CoTrainer_City(Trainer):
         loss_log = torch.zeros(n_batch, S)
         val_dataloader = tqdm_(val_dataloader)
         metrics = [IoU(self.C, ignore_index=255) for _ in range(S)]
-
-        dsc_dict = {}
         nice_dict = {}
 
         for batch_num, [(img, gt), _, path] in enumerate(val_dataloader):
@@ -325,6 +308,8 @@ class CoTrainer_City(Trainer):
             val_dataloader.set_postfix(nice_dict)  # using average value of the dict
 
         # self.upload_dicts('val_data', dsc_dict, epoch)
+        for s in range(S):
+            self.upload_dict(f'eval_{s}', {k: v for k, v in metrics[s].value().items() if k != 'Class_IoU'}, epoch)
 
         print(f"{desc} " + ', '.join(f"{k}:{v}" for (k, v) in nice_dict.items()))
 
