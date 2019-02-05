@@ -74,7 +74,10 @@ class Trainer_City(Base):
         checkpoint = Path(checkpoint)
         assert checkpoint.exists(), checkpoint
         state_dict = torch.load(checkpoint, map_location=torch.device('cpu'))
-        self.segmentator.load_state_dict(state_dict['segmentator'])
+        # self.segmentator.load_state_dict(state_dict['segmentator'])
+        # state_dict['state_dict'].pop('transposed_conv.weight')
+        # self.segmentator.torchnet.load_state_dict(state_dict['state_dict'], strict=False)
+
         self.best_score = state_dict['best_score']
         self.start_epoch = state_dict['best_epoch']
         print(f'>>>  {checkpoint} has been loaded successfully. Best score {self.best_score:.3f} @ {self.start_epoch}.')
@@ -140,7 +143,7 @@ class Trainer_City(Base):
         assert dataloader.dataset.training == mode if augment_data else ModelMode.EVAL
         n_batch = len(dataloader)
 
-        metrics = IoU(19, ignore_index=255)
+        metrics = IoU(self.C, ignore_index=255)
         loss_log = torch.zeros(n_batch)
         mean_iou_dict: dict
 

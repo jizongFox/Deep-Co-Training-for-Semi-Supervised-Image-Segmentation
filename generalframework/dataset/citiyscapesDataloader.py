@@ -102,7 +102,7 @@ class CityscapesDataset(Dataset):
 
     def __len__(self):
         """__len__"""
-        return int(len(self.files[self.mode])/20)
+        return int(len(self.files[self.mode]))
 
     def set_mode(self, mode):
         assert isinstance(mode, (str, ModelMode)), 'the type of mode should be str or ModelMode, given %s' % str(mode)
@@ -151,8 +151,8 @@ class CityscapesDataset(Dataset):
         """
 
         img = img.astype(np.float64) / 255.0
-        img -= self.CITYSCAPES_MEAN
-        img /= self.CITYSCAPES_STD
+        # img -= self.CITYSCAPES_MEAN
+        # img /= self.CITYSCAPES_STD
 
         # NHWC -> NCHW
         img = img.transpose(2, 0, 1)
