@@ -80,7 +80,10 @@ class Segmentator(ABC):
                 'scheduler_state_dict': self.scheduler.state_dict()}
 
     def load_state_dict(self, state_dict: dict):
-        self.torchnet.load_state_dict(state_dict['net_state_dict'])
+        try:
+            self.torchnet.load_state_dict(state_dict['net_state_dict'])
+        except:
+            self.torchnet.load_state_dict({k.replace("module.",""):v for k,v in state_dict['net_state_dict'].items()})
         self.optimizer.load_state_dict(state_dict['optim_state_dict'])
         self.scheduler.load_state_dict(state_dict['scheduler_state_dict'])
 

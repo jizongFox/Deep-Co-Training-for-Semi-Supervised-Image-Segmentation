@@ -1,9 +1,9 @@
+import os
+import random
 import warnings
 from pprint import pprint
 
 import numpy as np
-import os
-import random
 import torch
 import yaml
 
@@ -33,8 +33,9 @@ config = dict_merge(config, parser_args, True)
 pprint(config)
 
 dataloders = get_dataloaders(config['Dataset'], config['Lab_Dataloader'])
-lab_dataloader1 = extract_patients(dataloders['train'], [str(x) for x in range(1, 26)])
-lab_dataloader2 = extract_patients(dataloders['train'], [str(x) for x in range(26, 50)])
+lab_dataloader1 = extract_patients(dataloders['train'], [str(x) for x in range(1, 20)])
+lab_dataloader2 = extract_patients(dataloders['train'], [str(x) for x in range(15, 40)])
+lab_dataloader3 = extract_patients(dataloders['train'], [str(x) for x in range(30, 50)])
 unlab_dataloader = get_dataloaders(config['Dataset'], config['Unlab_Dataloader'], quite=True)['train']
 unlab_dataloader = extract_patients(unlab_dataloader, [str(x) for x in range(50, 100)])
 
@@ -42,6 +43,7 @@ val_dataloader = dataloders['val']
 
 model1 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
 model2 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
+model3 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)
@@ -49,8 +51,8 @@ with warnings.catch_warnings():
                   'jsd': get_loss_fn('jsd'),
                   'adv': get_loss_fn('jsd')}
 
-cotrainner = CoTrainer(segmentators=[model1, model2],
-                       labeled_dataloaders=[lab_dataloader1, lab_dataloader2],
+cotrainner = CoTrainer(segmentators=[model1, model2, model3],
+                       labeled_dataloaders=[lab_dataloader1, lab_dataloader2, lab_dataloader3],
                        unlabeled_dataloader=unlab_dataloader,
                        val_dataloader=val_dataloader,
                        criterions=criterions,

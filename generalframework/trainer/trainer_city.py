@@ -4,9 +4,9 @@ from typing import Dict
 
 import pandas as pd
 import yaml
+
 from generalframework import ModelMode
 from generalframework.metrics.iou import IoU
-
 from ..models import Segmentator
 from ..utils import *
 
@@ -74,10 +74,7 @@ class Trainer_City(Base):
         checkpoint = Path(checkpoint)
         assert checkpoint.exists(), checkpoint
         state_dict = torch.load(checkpoint, map_location=torch.device('cpu'))
-        # self.segmentator.load_state_dict(state_dict['segmentator'])
-        # state_dict['state_dict'].pop('transposed_conv.weight')
-        # self.segmentator.torchnet.load_state_dict(state_dict['state_dict'], strict=False)
-
+        self.segmentator.load_state_dict(state_dict['segmentator'])
         self.best_score = state_dict['best_score']
         self.start_epoch = state_dict['best_epoch']
         print(f'>>>  {checkpoint} has been loaded successfully. Best score {self.best_score:.3f} @ {self.start_epoch}.')
@@ -109,21 +106,19 @@ class Trainer_City(Base):
             train_mean_Acc, _, train_mean_IoU, train_class_IoU, train_loss = self._main_loop(train_loader, epoch,
                                                                                              mode=ModelMode.TRAIN,
                                                                                              augment_data=augment_labeled_data,
-                                                                                             save=save_train)
+                                                                                             save=save_train if epoch % 10 == 0 else False)
 
             with torch.no_grad():
                 val_mean_Acc, _, val_mean_IoU, val_class_IoU, val_loss = self._main_loop(val_loader, epoch,
                                                                                          mode=ModelMode.EVAL,
-                                                                                         save=save_val)
+                                                                                         save=save_val if epoch % 10 == 0 else False)
             self.checkpoint(val_mean_IoU, epoch)
             self.schedulerStep()
 
             for k in metrics:
-                try:
-                    assert metrics[k][epoch].shape == eval(k).shape, (k, metrics[k][epoch].shape, eval(k).shape)
-                    metrics[k][epoch] = eval(k)
-                except Exception as e:
-                    pass
+                assert metrics[k][epoch].shape == eval(k).shape, (k, metrics[k][epoch].shape, eval(k).shape)
+                metrics[k][epoch] = eval(k)
+
             for k, e in metrics.items():
                 np.save(Path(self.save_dir, f"{k}.npy"), e.detach().cpu().numpy())
 

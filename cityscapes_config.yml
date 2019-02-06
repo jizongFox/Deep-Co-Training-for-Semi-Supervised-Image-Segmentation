@@ -19,7 +19,7 @@ Scheduler:
 Dataset:
   debug: True
   root_dir: dataset/Cityscapes
-  image_size: (256, 512)
+  image_size: (512, 1024)
   augmentations:
 #    rotate: 10                                    #[rotate -d to d degrees]
 #    rcrop: [384, 768]                                #[crop of size (h,w)]
@@ -27,7 +27,7 @@ Dataset:
 
 Dataloader:
   pin_memory: False
-  batch_size: 5
+  batch_size: 1
   num_workers: 16
   shuffle: True
   drop_last: True
@@ -38,7 +38,7 @@ Trainer:
   device:  cuda:0
   #  axises: [0,1,2,3,4,5,6,7]
   metricname: metrics.csv
-#  checkpoint: tmp/cityscape/best.pth
+  checkpoint: tmp/cityscape/best.pth
 
 Loss:
   name: cross_entropy
