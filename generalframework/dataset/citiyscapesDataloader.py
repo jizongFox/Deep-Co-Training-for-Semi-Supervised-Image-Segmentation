@@ -56,7 +56,7 @@ class CityscapesDataset(Dataset):
     ## RGB channels
 
     def __init__(self, root_path: str, mode: str = "train", is_transform: bool = False,
-                 augmentation=None, image_size=(768, 1024), quite: bool = False):
+                 augmentation=None, image_size=(768, 1024), quite: bool = False,):
         """__init__
         :param root_path:
         :param mode:

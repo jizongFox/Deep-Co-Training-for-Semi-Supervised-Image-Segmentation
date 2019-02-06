@@ -148,7 +148,7 @@ class Trainer_City(Base):
         mean_iou_dict: dict
 
         dataloader = tqdm_(dataloader)
-        c_dice = None
+        c_dice: dict
         for i, (imgs, metainfo, filenames) in enumerate(dataloader):
 
             imgs = [img.to(self.device) for img in imgs]
@@ -162,6 +162,10 @@ class Trainer_City(Base):
             metrics.add(predicted=preds, target=imgs[1])
             c_dice = metrics.value()
             loss_log[i] = loss.detach()
+            if save:
+                save_images(segs=preds.max(1)[1], names=map_(lambda x: Path(x).name, filenames), root=self.save_dir,
+                            mode=mode.value.lower(),
+                            iter=epoch)
 
             mean_iou_dict = {'mIoU': c_dice['Mean_IoU']}
 

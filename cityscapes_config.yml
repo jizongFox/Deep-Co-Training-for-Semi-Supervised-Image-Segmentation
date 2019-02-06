@@ -13,12 +13,13 @@ Scheduler:
 #  milestones: [10,20,30,40,50,60,70,80,90, 120, 150, 200, 250]
 #  gamma: 0.7
   name: StepLR
-  step_size: 100
-  gamma: 0.1
+  step_size: 50
+  gamma: 0.3
 
 Dataset:
+  debug: True
   root_dir: dataset/Cityscapes
-  image_size: (512, 1024)
+  image_size: (256, 512)
   augmentations:
 #    rotate: 10                                    #[rotate -d to d degrees]
 #    rcrop: [384, 768]                                #[crop of size (h,w)]
@@ -26,7 +27,7 @@ Dataset:
 
 Dataloader:
   pin_memory: False
-  batch_size: 15
+  batch_size: 5
   num_workers: 16
   shuffle: True
   drop_last: True
@@ -37,7 +38,7 @@ Trainer:
   device:  cuda:0
   #  axises: [0,1,2,3,4,5,6,7]
   metricname: metrics.csv
-#  checkpoint: tmp/cityscape/enet
+#  checkpoint: tmp/cityscape/best.pth
 
 Loss:
   name: cross_entropy
@@ -47,6 +48,6 @@ Loss:
              45.7849, 45.8268, 48.4074, 42.7600]
 
 StartTraining:
-  save_train: False
-  save_val: False
+  save_train: True
+  save_val: True
   augment_labeled_data: False
