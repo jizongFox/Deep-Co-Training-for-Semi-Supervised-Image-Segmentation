@@ -4,35 +4,38 @@ Arch:
 
 Optim:
   name: Adam
-  lr: 0.005
-  weight_decay: 0.0002
+  lr: 0.0005
+#  weight_decay: 0.00002
 
 Scheduler:
-  name: StepLR
-#  milestones: [10,20,30,40,50,60,70,80,90]
-  step_size: 50
-  gamma: 0.1
+#  name: StepLR
+##  milestones: [10,20,30,40,50,60,70,80,90]
+#  step_size: 50
+#  gamma: 0.1
+  name: MultiStepLR
+  milestones: [10,20,30,40,50,60,70,80,90]
+  gamma: 0.7
 
 
 Dataset:
   root_dir: dataset/ACDC-all
   subfolders: ['img','gt']
   transform: segment_transform((256,256))
-  augment: PILaugment
+  augment: None
   pin_memory: False
 
 Lab_Dataloader:
   pin_memory: False
   batch_size: 2
   num_workers: 2
-  shuffle: False
+  shuffle: True
   drop_last: True
 #  batch_sampler: [PatientSampler,
 #                  {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
 Model_num: 2
 
 Lab_Partitions:
-  label: [[1,40],[10,50]]
+  label: [[1,101],[1,101]]
   unlabel: [50,100]
 
 
@@ -47,7 +50,7 @@ Trainer:
   max_epoch: 120
   save_dir: tmp/ACDC_cotraining
   device: cuda:0
-  axises: [1,2,3]
+  axises: [0,1,2,3]
   metricname: metrics.csv
   lambda_cot_max: 1
   lambda_adv_max: 0.005
@@ -59,8 +62,8 @@ Loss:
   weight: [1, 1, 1, 1]
 
 StartTraining:
-  train_jsd: True
-  train_adv: True
+  train_jsd: False
+  train_adv: False
   save_train: False
   save_val: True
   augment_labeled_data: False

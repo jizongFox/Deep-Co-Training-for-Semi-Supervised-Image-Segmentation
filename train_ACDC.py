@@ -26,7 +26,7 @@ warnings.filterwarnings('ignore')
 parser_args = yaml_parser()
 print('->>Input args:')
 pprint(parser_args)
-with open('ACDC_config.yaml', 'r') as f:
+with open('config/ACDC_config.yaml', 'r') as f:
     config = yaml.load(f.read())
 print('->> Merged Config:')
 config = dict_merge(config, parser_args, True)
