@@ -1,0 +1,35 @@
+Checkpoints: ['archives/cardiac/enet_VAT_epsilions/adv_eps_0.0/best.pth',
+              'archives/cardiac/enet_VAT_epsilions/adv_eps_0.001/best.pth' ]
+Device: cpu
+Ensemble_method: soft
+
+Arch:
+  name: enet
+  num_classes: 4
+
+Optim:
+  name: Adam
+  lr: 0.0005
+
+
+Scheduler:
+  name: MultiStepLR
+  milestones: [10,20,30,40,50,60,70,80,90]
+  gamma: 0.7
+
+
+Dataset:
+  root_dir: dataset/ACDC-all
+  subfolders: ['img','gt']
+  transform: segment_transform((256,256))
+  augment: PILaugment
+  pin_memory: False
+
+Dataloader:
+  pin_memory: False
+  batch_size: 2
+  num_workers: 2
+  shuffle: True
+  drop_last: True
+#  batch_sampler: [PatientSampler,
+#                  {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]

@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import yaml
 
-from generalframework.dataset import get_dataloaders, extract_patients
+from generalframework.dataset import get_ACDC_dataloaders, extract_patients
 from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
 from generalframework.trainer import CoTrainer
@@ -41,12 +41,12 @@ def get_models(config):
 
 
 def get_dataloders(config):
-    dataloders = get_dataloaders(config['Dataset'], config['Lab_Dataloader'])
+    dataloders = get_ACDC_dataloaders(config['Dataset'], config['Lab_Dataloader'])
     labeled_dataloaders = []
     for i in config['Lab_Partitions']['label']:
         labeled_dataloaders.append(extract_patients(dataloders['train'], [str(x) for x in range(*i)]))
 
-    unlab_dataloader = get_dataloaders(config['Dataset'], config['Unlab_Dataloader'], quite=True)['train']
+    unlab_dataloader = get_ACDC_dataloaders(config['Dataset'], config['Unlab_Dataloader'], quite=True)['train']
     unlab_dataloader = extract_patients(unlab_dataloader, [str(x) for x in range(*config['Lab_Partitions']['unlabel'])])
     val_dataloader = dataloders['val']
     return labeled_dataloaders, unlab_dataloader, val_dataloader

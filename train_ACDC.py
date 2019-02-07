@@ -7,7 +7,7 @@ import random
 import torch
 import yaml
 
-from generalframework.dataset import get_dataloaders
+from generalframework.dataset import get_ACDC_dataloaders
 from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
 from generalframework.trainer import Trainer
@@ -32,7 +32,7 @@ print('->> Merged Config:')
 config = dict_merge(config, parser_args, True)
 pprint(config)
 
-dataloders = get_dataloaders(config['Dataset'], config['Dataloader'])
+dataloders = get_ACDC_dataloaders(config['Dataset'], config['Dataloader'])
 
 model = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
 
