@@ -2,7 +2,7 @@ from generalframework.models import Segmentator
 import yaml, os
 import torch
 import torch.nn as nn
-with open('../config.yaml','r') as f:
+with open('../ACDC_config.yaml','r') as f:
     config = yaml.load(f.read())
 
 print(config)

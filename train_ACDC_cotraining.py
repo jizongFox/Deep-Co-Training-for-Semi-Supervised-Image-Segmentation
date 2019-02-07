@@ -26,24 +26,34 @@ warnings.filterwarnings('ignore')
 parser_args = yaml_parser()
 print('->>Input args:')
 pprint(parser_args)
-with open('config_cotrain.yaml', 'r') as f:
+with open('config/ACDC_config_cotrain.yaml', 'r') as f:
     config = yaml.load(f.read())
 print('->> Merged Config:')
 config = dict_merge(config, parser_args, True)
 pprint(config)
 
-dataloders = get_dataloaders(config['Dataset'], config['Lab_Dataloader'])
-lab_dataloader1 = extract_patients(dataloders['train'], [str(x) for x in range(1, 20)])
-lab_dataloader2 = extract_patients(dataloders['train'], [str(x) for x in range(15, 40)])
-lab_dataloader3 = extract_patients(dataloders['train'], [str(x) for x in range(30, 50)])
-unlab_dataloader = get_dataloaders(config['Dataset'], config['Unlab_Dataloader'], quite=True)['train']
-unlab_dataloader = extract_patients(unlab_dataloader, [str(x) for x in range(50, 100)])
 
-val_dataloader = dataloders['val']
+def get_models(config):
+    for i in range(config['Model_num']):
+        return [Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
+                for _ in range(config['Model_num'])]
 
-model1 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
-model2 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
-model3 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
+
+def get_dataloders(config):
+    dataloders = get_dataloaders(config['Dataset'], config['Lab_Dataloader'])
+    labeled_dataloaders = []
+    for i in config['Lab_Partitions']['label']:
+        labeled_dataloaders.append(extract_patients(dataloders['train'], [str(x) for x in range(*i)]))
+
+    unlab_dataloader = get_dataloaders(config['Dataset'], config['Unlab_Dataloader'], quite=True)['train']
+    unlab_dataloader = extract_patients(unlab_dataloader, [str(x) for x in range(*config['Lab_Partitions']['unlabel'])])
+    val_dataloader = dataloders['val']
+    return labeled_dataloaders, unlab_dataloader, val_dataloader
+
+
+labeled_dataloaders, unlab_dataloader, val_dataloader = get_dataloders(config)
+
+segmentators = get_models(config)
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)
@@ -51,8 +61,8 @@ with warnings.catch_warnings():
                   'jsd': get_loss_fn('jsd'),
                   'adv': get_loss_fn('jsd')}
 
-cotrainner = CoTrainer(segmentators=[model1, model2, model3],
-                       labeled_dataloaders=[lab_dataloader1, lab_dataloader2, lab_dataloader3],
+cotrainner = CoTrainer(segmentators=segmentators,
+                       labeled_dataloaders=labeled_dataloaders,
                        unlabeled_dataloader=unlab_dataloader,
                        val_dataloader=val_dataloader,
                        criterions=criterions,

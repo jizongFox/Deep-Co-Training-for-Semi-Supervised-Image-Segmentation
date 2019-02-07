@@ -23,7 +23,6 @@ Dataset:
   augmentations:
 #    rotate: 10                                    #[rotate -d to d degrees]
 #    rcrop: [384, 768]                                #[crop of size (h,w)]
-#
 
 Dataloader:
   pin_memory: False

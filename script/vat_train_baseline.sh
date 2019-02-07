@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -e
+
+cd ..
 max_peoch=100
 data_aug=None
 net=unet

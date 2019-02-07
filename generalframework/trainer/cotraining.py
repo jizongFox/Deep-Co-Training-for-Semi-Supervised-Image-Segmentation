@@ -1,17 +1,18 @@
-from copy import deepcopy as dcopy
 from operator import itemgetter
 from random import random
 from typing import Dict
+
+import pandas as pd
 import yaml
 from tensorboardX import SummaryWriter
-import pandas as pd
+
 from generalframework import ModelMode
 from .trainer import Trainer
 from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
 from ..models import Segmentator
 from ..scheduler import RampScheduler
-from ..utils.utils import *
 from ..utils.AEGenerator import *
+from ..utils.utils import *
 
 
 class CoTrainer(Trainer):
@@ -19,7 +20,8 @@ class CoTrainer(Trainer):
     def __init__(self, segmentators: List[Segmentator], labeled_dataloaders: List[DataLoader],
                  unlabeled_dataloader: DataLoader, val_dataloader: DataLoader, criterions: Dict[str, nn.Module],
                  max_epoch: int = 100, save_dir: str = 'tmp', device: str = 'cpu',
-                 axises: List[int] = [1, 2, 3], checkpoint: str = None, metricname: str = 'metrics.csv',
+                 axises: List[int] = [1, 2, 3], checkpoint: Union[List[str], None] = None,
+                 metricname: str = 'metrics.csv',
                  lambda_cot_max: int = 10, lambda_adv_max: float = 0.5, ramp_up_mult: float = -5,
                  epoch_max_ramp: int = 80, whole_config=None) -> None:
 
@@ -42,7 +44,7 @@ class CoTrainer(Trainer):
         # assert set(map_(lambda x: len(x), self.labeled_dataloaders)).__len__() == 1
 
         self.criterions = criterions
-        assert set(self.criterions.keys()) == set(['jsd', 'sup', 'adv'])
+        assert set(self.criterions.keys()) == {'jsd', 'sup', 'adv'}
 
         self.save_dir = Path(save_dir)
         # assert not (self.save_dir.exists() and checkpoint is None), f'>> save_dir: {self.save_dir} exits.'
@@ -51,7 +53,7 @@ class CoTrainer(Trainer):
         ## save the whole new config to the save_dir
         if whole_config:
             with open(Path(self.save_dir, 'config.yml'), 'w') as outfile:
-                yaml.dump(whole_config, outfile, default_flow_style=True)
+                yaml.dump(whole_config, outfile, default_flow_style=False)
 
         self.device = torch.device(device)
         self.C = self.segmentators[0].arch_params['num_classes']
@@ -74,7 +76,8 @@ class CoTrainer(Trainer):
         [segmentator.to(device) for segmentator in self.segmentators]
         [criterion.to(device) for _, criterion in self.criterions.items()]
 
-    def start_training(self, train_jsd=False, train_adv=False, save_train=False, save_val=False):
+    def start_training(self, train_jsd=False, train_adv=False, save_train=False, save_val=False,
+                       augment_labeled_data=False, augment_unlabeled_data=False):
         ## prepare for something:
         S = len(self.segmentators)
         n_img = max(map_(lambda x: len(x.dataset), self.labeled_dataloaders))
@@ -97,7 +100,9 @@ class CoTrainer(Trainer):
                                                             mode=ModelMode.TRAIN,
                                                             save=save_train,
                                                             train_jsd=train_jsd,
-                                                            train_adv=train_adv
+                                                            train_adv=train_adv,
+                                                            augment_labeled_data=augment_labeled_data,
+                                                            augment_unlabeled_data=augment_unlabeled_data
                                                             )
 
             with torch.no_grad():
@@ -140,7 +145,7 @@ class CoTrainer(Trainer):
                     train_jsd=False, train_adv=False):
         [segmentator.set_mode(mode) for segmentator in self.segmentators]
         for l_dataloader in labeled_dataloaders:
-            l_dataloader.dataset.set_mode(ModelMode.TRAIN)
+            l_dataloader.dataset.set_mode(ModelMode.TRAIN if augment_labeled_data else ModelMode.EVAL)
         unlabeled_dataloader.dataset.training = ModelMode.TRAIN if augment_unlabeled_data else ModelMode.EVAL
 
         assert self.segmentators[0].training == True
@@ -240,14 +245,12 @@ class CoTrainer(Trainer):
             ## adversarial loss:
 
             if train_adv:
-
                 choice = np.random.choice(list(range(S)), 2, replace=False).tolist()
 
                 adv_loss = self._adv_training(segmentators=itemgetter(*choice)(self.segmentators),
                                               lab_data_iterators=itemgetter(*choice)(fake_labeled_iterators_adv),
                                               unlab_data_iterator=fake_unlabeled_iterator_adv,
                                               eplision=0.005)
-
 
                 map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
                 adv_loss *= self.adv_scheduler.value
@@ -271,7 +274,7 @@ class CoTrainer(Trainer):
 
             # the general shape of the dict to save upload
 
-            loss_dict = {f'L{i}': loss_log[0:batch_num, i].mean().item() for i in range(len(self.segmentators))}
+            loss_dict = {f'L{i}': loss_log[:batch_num + 1, i].mean().item() for i in range(len(self.segmentators))}
 
             nice_dict = dict_merge(lab_dsc_dict, lab_mean_dict, re=True) if report_status == 'label' else dict_merge(
                 unlab_dsc_dict, unlab_mean_dict, re=True)
@@ -372,8 +375,8 @@ class CoTrainer(Trainer):
             dsc_dict = {f"S{i}": {f"DSC{n}": coef_dice[big_slice, i, n].mean().item() for n in self.axises} \
                         for i in range(len(self.segmentators))}
 
-            b_dsc_dict = {f"S{i}": {f"bDSC{n}": batch_dice[big_slice, i, n].mean().item() for n in self.axises} \
-                          for i in range(len(self.segmentators))}
+            # b_dsc_dict = {f"S{i}": {f"bDSC{n}": batch_dice[big_slice, i, n].mean().item() for n in self.axises} \
+            #               for i in range(len(self.segmentators))}
 
             mean_dict = {f"S{i}": {"DSC": coef_dice[big_slice, i, self.axises].mean().item()} for i in
                          range(len(self.segmentators))}
@@ -405,6 +408,20 @@ class CoTrainer(Trainer):
             segmentator.schedulerStep()
         self.cot_scheduler.step()
         self.adv_scheduler.step()
+
+    def _load_checkpoint(self, checkpoint):
+        assert isinstance(checkpoint, list), 'checkpoint should be provided as a list.'
+        for i, cp in enumerate(checkpoint):
+            cp = Path(cp)
+            assert cp.exists(), cp
+            state_dict = torch.load(cp, map_location=torch.device('cpu'))
+            self.segmentators[i].load_state_dict(state_dict['segmentator'])
+            self.best_score[i] = state_dict['best_score']
+            self.start_epoch = max(state_dict['best_epoch'], self.start_epoch)
+            print(
+                f'>>>  {cp} has been loaded successfully. \
+                Best score {self.best_score:.3f} @ {state_dict["best_epoch"]}.')
+            self.segmentators[i].train()
 
     def checkpoint(self, metric, epoch, filename='best.pth'):
         assert isinstance(metric, Tensor)

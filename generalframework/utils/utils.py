@@ -7,6 +7,9 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
+from copy import deepcopy as dcopy
+from functools import reduce
+
 from skimage.io import imsave
 from torch import Tensor, einsum
 from torch.utils.data import DataLoader
@@ -279,9 +282,6 @@ class iterator_(object):
             return self.iter_dataloader.__next__()
 
 
-
-
-
 ## argparser
 
 def yaml_parser() -> dict:
@@ -292,10 +292,6 @@ def yaml_parser() -> dict:
     args: dict = _parser(args.strings)
     # pprint(args)
     return args
-
-
-from copy import deepcopy as dcopy
-from functools import reduce
 
 
 def _parser(strings: List[str]) -> List[dict]:
