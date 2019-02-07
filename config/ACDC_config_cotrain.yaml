@@ -32,7 +32,6 @@ Lab_Dataloader:
   drop_last: True
 #  batch_sampler: [PatientSampler,
 #                  {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
-Model_num: 2
 
 Lab_Partitions:
   label: [[1,101],[1,101]]

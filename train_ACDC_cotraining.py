@@ -34,9 +34,10 @@ pprint(config)
 
 
 def get_models(config):
-    for i in range(config['Model_num']):
+    num_models = config['Lab_Partitions']['label'].__len__()
+    for i in range(num_models):
         return [Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
-                for _ in range(config['Model_num'])]
+                for _ in range(num_models)]
 
 
 def get_dataloders(config):
