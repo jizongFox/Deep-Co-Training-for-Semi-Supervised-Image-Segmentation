@@ -26,23 +26,35 @@ warnings.filterwarnings('ignore')
 parser_args = yaml_parser()
 print('->>Input args:')
 pprint(parser_args)
-with open('cityscapes_config_cotrain.yaml', 'r') as f:
+with open('config/cityscapes_config_cotraing.yaml', 'r') as f:
     config = yaml.load(f.read())
 print('->> Merged Config:')
 config = dict_merge(config, parser_args, True)
 pprint(config)
 
-dataloders = get_cityscapes_dataloaders(config['Dataset'], config['Lab_Dataloader'])
-lab_dataloader1 = extract_cities(dataloders['train'],
-                                 [city for city in citylist if city not in ['stuttgart', 'ulm', 'zurich']])
-lab_dataloader2 = extract_cities(dataloders['train'],
-                                 [city for city in citylist if city not in ['aachen', 'bremen', 'darmstadt']])
-unlab_dataloader = get_cityscapes_dataloaders(config['Dataset'], config['Unlab_Dataloader'])['train']
 
-val_dataloader = dataloders['val']
+def get_models(config):
+    num_models = config['Lab_Partitions']['label'].__len__()
+    for i in range(num_models):
+        return [Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
+                for _ in range(num_models)]
 
-model1 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
-model2 = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
+
+def get_dataloders(config):
+    dataloders = get_cityscapes_dataloaders(config['Dataset'], config['Lab_Dataloader'])
+    labeled_dataloaders = []
+    for i in config['Lab_Partitions']['label']:
+        labeled_dataloaders.append(extract_cities(dataloders['train'], [city for city in citylist if city not in i]))
+
+    unlab_dataloader = get_cityscapes_dataloaders(config['Dataset'], config['Unlab_Dataloader'])['train']
+    unlab_dataloader = extract_cities(unlab_dataloader,
+                                      [city for city in citylist if city not in config['Lab_Partitions']['unlabel']])
+    val_dataloader = dataloders['val']
+    return labeled_dataloaders, unlab_dataloader, val_dataloader
+
+
+labeled_dataloaders, unlab_dataloader, val_dataloader = get_dataloders(config)
+models = get_models(config)
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)
@@ -50,8 +62,8 @@ with warnings.catch_warnings():
                   'jsd': get_loss_fn('jsd'),
                   'adv': get_loss_fn('jsd')}
 
-cotrainner = CoTrainer_City(segmentators=[model1, model2],
-                            labeled_dataloaders=[lab_dataloader1, lab_dataloader2],
+cotrainner = CoTrainer_City(segmentators=models,
+                            labeled_dataloaders=labeled_dataloaders,
                             unlabeled_dataloader=unlab_dataloader,
                             val_dataloader=val_dataloader,
                             criterions=criterions,

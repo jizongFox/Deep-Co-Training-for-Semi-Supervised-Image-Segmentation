@@ -5,23 +5,35 @@ Arch:
 Optim:
   name: Adam
   lr: 0.0005
+  weight_decay: 0.0002
 
 Scheduler:
-  name: MultiStepLR
-  milestones: [10,20,30,40,50,60,70,80,90]
-  gamma: 0.7
+  name: StepLR
+  step_size: 100
+  gamma: 0.1
 
+Lab_Partitions:
+  label: [['aachen','bremen','darmstadt'],['stuttgart','ulm','zurich']]  # city to exclude
+  unlabel: ['erfurt',
+            'hanover',
+            'krefeld',
+            'strasbourg',
+            'tubingen',
+            'weimar',
+            'bochum',
+            'cologne',
+            'dusseldorf',]
 
 Dataset:
   root_dir: dataset/Cityscapes
   pin_memory: False
-  image_size: ( 64, 128 )
+  image_size: ( 512,1024 )
   augmentations:
 
 Lab_Dataloader:
   pin_memory: False
   batch_size: 4
-  num_workers: 0
+  num_workers: 4
   shuffle: True
   drop_last: True
 
@@ -33,7 +45,7 @@ Unlab_Dataloader:
   drop_last: True
 
 Trainer:
-  max_epoch: 100
+  max_epoch: 300
   save_dir: tmp/cityscapes_cotraining
   device: cuda:0
   #  axises:
@@ -50,7 +62,7 @@ Loss:
              45.7849, 45.8268, 48.4074, 42.7600]
 
 StartTraining:
-  train_jsd: True
-  train_adv: True
-  save_train: True
+  train_jsd: False
+  train_adv: False
+  save_train: False
   save_val: True

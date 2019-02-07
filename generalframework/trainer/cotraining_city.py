@@ -74,6 +74,20 @@ class CoTrainer_City(Trainer):
 
         self.to(self.device)
 
+    def _load_checkpoint(self, checkpoint):
+        assert isinstance(checkpoint, list), 'checkpoint should be provided as a list.'
+        for i, cp in enumerate(checkpoint):
+            cp = Path(cp)
+            assert cp.exists(), cp
+            state_dict = torch.load(cp, map_location=torch.device('cpu'))
+            self.segmentators[i].load_state_dict(state_dict['segmentator'])
+            self.best_score[i] = state_dict['best_score']
+            self.start_epoch = max(state_dict['best_epoch'], self.start_epoch)
+            print(
+                f'>>>  {cp} has been loaded successfully. \
+                Best score {self.best_score:.3f} @ {state_dict["best_epoch"]}.')
+            self.segmentators[i].train()
+
     def to(self, device: torch.device):
         [segmentator.to(device) for segmentator in self.segmentators]
         [criterion.to(device) for _, criterion in self.criterions.items()]
