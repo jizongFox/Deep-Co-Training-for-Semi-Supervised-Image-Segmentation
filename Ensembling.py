@@ -84,6 +84,7 @@ for i, (model, state_dict) in enumerate(zip(models, state_dicts)):
     model.eval()
     print(f'model {i} has the best score: {state_dict["best_score"]:.3f}.')
 
+
 with torch.no_grad():
     done = 0
     for i, ((img, gt), _, filename) in tqdm(enumerate(dataloaders['val'])):
@@ -106,3 +107,4 @@ with torch.no_grad():
     print(f'evaluation done with:\n')
     pprint(individual_result_dict)
     pprint(ensemble_result_dict)
+
