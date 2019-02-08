@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 cd ..
-max_peoch=200
+max_peoch=20
 data_aug=None
 net=unet
 logdir=cardiac/$net"_first_try_2models"
@@ -25,7 +25,7 @@ Partial(){
 gpu=$1
 currentfoldername=PS
 rm -rf runs/$logdir/$currentfoldername
-echo CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
+CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
 Lab_Partitions.label="[[1,41],[21,61]]" Lab_Partitions.unlabel="[61,101]" \
@@ -86,7 +86,7 @@ Arch.name=$net
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
-
+#
 FS 1 &
 Partial 2 &
 Partial_alldata 2
@@ -106,10 +106,12 @@ archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/  --file v
 ## ensemble
 Ensemble(){
 subfolder=$1
-echo $(python Ensembling.py Checkpoint="[archives/$logdir/$subfolder/best_0.pth,archives/$logdir/$subfolder/best_1.pth ]")->archives/$logdir/$subfolder/ensemble.txt
+gpu=$2
+echo CUDA_VISIBLE_DEVICES=$gpu python Ensembling.py Checkpoints=[archives/$logdir/$subfolder/best_0.pth,archives/$logdir/$subfolder/best_1.pth] Arch.name=$net
+echo $(CUDA_VISIBLE_DEVICES=$gpu python Ensembling.py Checkpoints=[\'archives/$logdir/$subfolder/best_0.pth\',\'archives/$logdir/$subfolder/best_1.pth\']  Arch.name=$net)->archives/$logdir/$subfolder/ensemble.txt
 }
 
-Ensemble PS
-Ensemble JSD
-Ensemble ADV
-Ensemble JSD_ADV
+Ensemble PS 1
+Ensemble JSD 1
+Ensemble ADV 1
+Ensemble JSD_ADV 1

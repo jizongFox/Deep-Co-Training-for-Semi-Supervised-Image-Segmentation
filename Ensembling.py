@@ -9,9 +9,6 @@ from typing import List
 from torch import Tensor
 from tqdm import tqdm
 import numpy as np
-import os
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 parser_args = yaml_parser()
 print('->>Input args:')
@@ -20,7 +17,7 @@ with open('config/ensembling_config.yaml', 'r') as f:
     config = yaml.load(f.read())
 print('->> Merged Config:')
 config = dict_merge(config, parser_args, True)
-# pprint(config)
+pprint(config)
 
 dataloaders = get_ACDC_dataloaders(config['Dataset'], config['Dataloader'], quite=True)
 dataloaders['val'].dataset.training = 'eval'
