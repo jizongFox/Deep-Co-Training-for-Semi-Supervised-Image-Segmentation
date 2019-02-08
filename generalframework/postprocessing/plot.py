@@ -8,7 +8,7 @@ import os, sys
 import argparse
 import matplotlib
 
-matplotlib.use('agg')
+matplotlib.use('Agg')
 
 
 def main(args: argparse.Namespace) -> None:
@@ -26,6 +26,7 @@ def main(args: argparse.Namespace) -> None:
     for filepath in filepaths:
         assert filepath.exists(), f'{filepath.name} doesn\'t exisit'
 
+    value_name = ''
     fig = plt.figure()
     for axis_, s in zip(args.axis, styles):
         plt.clf()
@@ -35,24 +36,14 @@ def main(args: argparse.Namespace) -> None:
             # metrics_file = pd.read_csv(filepath)
             metrics_file = np.load(filepath)
 
-            for seg in range(metrics_file.shape[2]):
-                x = np.arange(0, metrics_file.shape[0])
-                # x = np.array(metrics_file.index.tolist())
-
-                # value = metrics_file.iloc[:, axis_].tolist()
-                value = metrics_file[:, :, seg, axis_].mean(1)
-                value_name = f'DSC{axis_}'
-                if args.interpolate:
-                    new_x = np.linspace(0, len(x) - 1, (len(x) - 1) * 8)
-                    new_value = spline(x, np.array(value), new_x, 3)
-                    # assert new_value.min() == np.array(value).min()
-                    # assert new_value.max() == np.array(value).max()
-                    x, y = new_x, new_value
-                else:
-                    x, y = x, value
-                label = f'Seg_{seg}' + value_name
-                plt.plot(x, y, label=label + ' ' + folername_, linestyle=s)
-                print(f'{filepath}, {label}: {np.array(value).max()}')
+            segs = range(metrics_file.shape[2])
+            if args.seg_id in segs:
+                segs = [args.seg_id]
+                value_name = build_plot(plt, axis_, segs, metrics_file, filepath, folername_,
+                                               args.interpolate, s)
+            else:
+                value_name = build_plot(plt, axis_, segs, metrics_file, filepath, folername_,
+                                               args.interpolate, s)
 
         if not args.draw_all:
             plt.title(file + ' ' + value_name)
@@ -80,6 +71,24 @@ def main(args: argparse.Namespace) -> None:
         fig.savefig(str(filepath.parents[1]) + '/' + args.postfix + '_' + 'all.png')
 
 
+def build_plot(plt, axis_, seg_lst, metrics_file, filepath, folername_, interpolate, style, quite=False):
+    for seg in seg_lst:
+        x = np.arange(0, metrics_file.shape[0])
+        value = metrics_file[:, :, seg, axis_].mean(1)
+        value_name = f'DSC{axis_}'
+        if interpolate:
+            new_x = np.linspace(0, len(x) - 1, (len(x) - 1) * 8)
+            new_value = spline(x, np.array(value), new_x, 3)
+            x, y = new_x, new_value
+        else:
+            x, y = x, value
+        label = f'Seg_{seg}_' + value_name
+        plt.plot(x, y, label=label + ' ' + folername_, linestyle=style)
+        if not quite:
+            print(f'{filepath}, {label}: {np.array(value).max()}')
+    return value_name
+
+
 def get_args() -> argparse.Namespace:
     choices = argparse.ArgumentParser(description='input folders and files to report the training')
     choices.add_argument('--folders', type=str, nargs='+', help='folders that contain the reported file', required=True)
@@ -90,6 +99,8 @@ def get_args() -> argparse.Namespace:
     choices.add_argument('--y_lim', type=float, nargs='*', help='[y_min, y_max]', default=[0, 0])
     choices.add_argument('--draw_all', action='store_true', help='draw all together')
     choices.add_argument('--postfix', type=str, default='', required=True)
+    choices.add_argument('--seg_id', type=int, default=None,
+                         help='Optional index of the segmentator to be plotted, otherwise all segmentators are reported')
     args = choices.parse_args()
     print(args)
     return args
