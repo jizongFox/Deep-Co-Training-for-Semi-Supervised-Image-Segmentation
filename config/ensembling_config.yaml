@@ -1,7 +1,8 @@
 Checkpoints: ['archives/cardiac/enet_VAT_epsilions/adv_eps_0.0/best.pth',
               'archives/cardiac/enet_VAT_epsilions/adv_eps_0.001/best.pth' ]
-Device: cpu
+Device: cuda
 Ensemble_method: soft
+Output_dir: archives/cardiac/unet_FS_sanity_check_2model/PS/
 
 Arch:
   name: enet
