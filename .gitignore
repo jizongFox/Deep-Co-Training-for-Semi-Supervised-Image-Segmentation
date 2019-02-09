@@ -7,6 +7,7 @@ results/*
 run/
 zzz*.py
 archive
+results
 runs/
 envs
 tmp/

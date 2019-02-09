@@ -17,6 +17,7 @@ with open('config/ensembling_config.yaml', 'r') as f:
     config = yaml.load(f.read())
 print('->> Merged Config:')
 config = dict_merge(config, parser_args, True)
+
 pprint(config)
 
 dataloaders = get_ACDC_dataloaders(config['Dataset'], config['Dataloader'], quite=True)
