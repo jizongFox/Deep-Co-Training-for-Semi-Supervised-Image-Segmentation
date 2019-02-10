@@ -1,5 +1,5 @@
 Arch:
-  name: unet
+  name: enet
   num_classes: 4
 
 Optim:
