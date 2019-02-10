@@ -67,6 +67,8 @@ cotrainner = CoTrainer(segmentators=segmentators,
                        unlabeled_dataloader=unlab_dataloader,
                        val_dataloader=val_dataloader,
                        criterions=criterions,
+                       adv_scheduler_dict=config['Adv_Scheduler'],
+                       cot_scheduler_dict=config['Cot_Scheduler'],
                        **config['Trainer'],
                        whole_config=config)
 

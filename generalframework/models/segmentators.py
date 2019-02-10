@@ -3,8 +3,8 @@ from typing import List
 
 import torch
 from torch import Tensor
-from torch import optim
 from torch import nn
+from torch import optim
 from torch.nn import NLLLoss
 from torch.nn import functional as F
 from torch.optim import lr_scheduler
@@ -83,7 +83,9 @@ class Segmentator(ABC):
         try:
             self.torchnet.load_state_dict(state_dict['net_state_dict'])
         except:
-            self.torchnet.load_state_dict({k.replace("module.",""):v for k,v in state_dict['net_state_dict'].items()})
+            self.torchnet.load_state_dict(
+                {k.replace("module.", ""): v for k, v in state_dict['net_state_dict'].items()}
+            )
         self.optimizer.load_state_dict(state_dict['optim_state_dict'])
         self.scheduler.load_state_dict(state_dict['scheduler_state_dict'])
 

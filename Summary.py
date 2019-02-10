@@ -1,3 +1,4 @@
+import argparse
 import warnings
 from pathlib import Path
 from pprint import pprint
@@ -13,22 +14,38 @@ from tqdm import tqdm
 
 from generalframework.dataset import get_ACDC_dataloaders
 from generalframework.models import Segmentator
-from generalframework.utils import yaml_parser, dict_merge, dice_coef, probs2one_hot, class2one_hot
+from generalframework.utils import dice_coef, probs2one_hot, class2one_hot
 
 warnings.filterwarnings('ignore')
 
-parser_args = yaml_parser()
-print('->>Input args:')
-pprint(parser_args)
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input_dir', required=True, help='input folder directory')
+    return parser.parse_args()
+
+
 with open('config/ensembling_config.yaml', 'r') as f:
     config = yaml.load(f.read())
-print('->> Merged Config:')
-config = dict_merge(config, parser_args, True)
+args = get_args()
+# pprint(config)
 
-pprint(config)
+input_dir = Path(args.input_dir)
+checkpoints = list(input_dir.glob('best*.pth'))
 
 dataloaders = get_ACDC_dataloaders(config['Dataset'], config['Dataloader'], quite=True)
 dataloaders['val'].dataset.training = 'eval'
+
+
+def load_model(checkpoint):
+    checkpoint = torch.load(checkpoint, map_location=torch.device('cpu'))['segmentator']
+    model = Segmentator(arch_dict=checkpoint['arch_dict'], optim_dict=checkpoint['optim_dict'],
+                        scheduler_dict=checkpoint['scheduler_dict'])
+    return model
+
+
+def load_models(checkpoints):
+    return [load_model(c) for c in checkpoints]
 
 
 def toOneHot(pred_logit, mask):
@@ -76,10 +93,9 @@ class Ensembleway(object):
 device = torch.device(config['Device'])
 ensemble = Ensembleway(config['Ensemble_method'])
 
-models = [Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler']) for _ in
-          range(config['Checkpoints'].__len__())]
+models = load_models(checkpoints)
 
-state_dicts = [torch.load(c, map_location=torch.device('cpu')) for c in config['Checkpoints']]
+state_dicts = [torch.load(c, map_location=torch.device('cpu')) for c in checkpoints]
 
 val_b: int = len(dataloaders['val'])
 val_n: int = val_b * dataloaders['val'].batch_size if dataloaders['val'].drop_last \
@@ -112,4 +128,4 @@ with torch.no_grad():
     ensemble_result_dict = {
         f'ensemble': {f'DSC{i}': coef_dice[:, -1, i].mean().item() for i in range(config['Arch']['num_classes'])}}
     summary = pd.DataFrame({**ensemble_result_dict, **individual_result_dict})
-    summary.to_csv(Path(config['Checkpoints'][0]).parent / 'summary.csv')
+    summary.to_csv(Path(args.input_dir) / 'summary.csv')

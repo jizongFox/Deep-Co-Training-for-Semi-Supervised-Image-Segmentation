@@ -22,8 +22,9 @@ class CoTrainer(Trainer):
                  max_epoch: int = 100, save_dir: str = 'tmp', device: str = 'cpu',
                  axises: List[int] = [1, 2, 3], checkpoint: Union[List[str], None] = None,
                  metricname: str = 'metrics.csv',
-                 lambda_cot_max: int = 10, lambda_adv_max: float = 0.5, ramp_up_mult: float = -5,
-                 epoch_max_ramp: int = 80, whole_config=None) -> None:
+                 adv_scheduler_dict: dict = None,
+                 cot_scheduler_dict: dict = None,
+                 whole_config=None) -> None:
 
         self.max_epoch = max_epoch
         self.segmentators = segmentators
@@ -62,8 +63,9 @@ class CoTrainer(Trainer):
         self.metricname = metricname
 
         ## scheduler
-        self.cot_scheduler = RampScheduler(max_epoch=epoch_max_ramp, max_value=lambda_cot_max, ramp_mult=ramp_up_mult)
-        self.adv_scheduler = RampScheduler(max_epoch=epoch_max_ramp, max_value=lambda_adv_max, ramp_mult=ramp_up_mult)
+        self.cot_scheduler = eval(cot_scheduler_dict['name'])(**{k:v for k,v in cot_scheduler_dict.items() if k!='name'})
+        self.adv_scheduler = eval(adv_scheduler_dict['name'])(
+            **{k: v for k, v in adv_scheduler_dict.items() if k != 'name'})
 
         if checkpoint is not None:
             # todo

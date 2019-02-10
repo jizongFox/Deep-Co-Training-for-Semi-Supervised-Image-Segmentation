@@ -2,11 +2,11 @@
 set -e
 cd ..
 
-max_peoch=200
+max_peoch=2
 
 data_aug=None
 net=unet
-logdir=cardiac/$net"_first_try_2models"
+logdir=cardiac/$net"_cotraining2models_test"
 mkdir -p archives/$logdir
 ## Fulldataset baseline
 
@@ -92,33 +92,40 @@ rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
-FS 1 &
-Partial 2 &
-Partial_alldata 2
-JSD 1 & ADV 2
-JSD_ADV 1
+FS 0
+#&
+Partial 0
+
+Partial_alldata 0
+JSD 0
+ADV 0
+JSD_ADV 0
 rm -rf runs/$logdir
 
 
 python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
 archives/$logdir/PS_alldata/ archives/$logdir/PS/ \
-archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/ --file val_dice.npy --axis 1 2 3 --postfix=model0 --seg_id=0
+archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/ --file val_dice.npy --axis 1 2 3 --postfix=model0 --seg_id=0 --y_lim 0.3 0.9
 
 python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
 archives/$logdir/PS_alldata/ archives/$logdir/PS/ \
-archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/  --file val_dice.npy --axis 1 2 3 --postfix=model1 --seg_id=1
+archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/  --file val_dice.npy --axis 1 2 3 --postfix=model1 --seg_id=1 --y_lim 0.3 0.9
 
 ## ensemble
-Ensemble(){
+Summary(){
 subfolder=$1
 gpu=$2
-echo CUDA_VISIBLE_DEVICES=$gpu python Ensembling.py Checkpoints=[archives/$logdir/$subfolder/best_0.pth,archives/$logdir/$subfolder/best_1.pth] Arch.name=$net
-echo $(CUDA_VISIBLE_DEVICES=$gpu python Ensembling.py Checkpoints=[\'archives/$logdir/$subfolder/best_0.pth\',\'archives/$logdir/$subfolder/best_1.pth\']  Arch.name=$net)->archives/$logdir/$subfolder/ensemble.txt
+echo CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir archives/$logdir/$subfolder
+CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir archives/$logdir/$subfolder
 }
+#
+Summary FS 0
+Summary PS 0
+Summary PS_alldata 0
+Summary JSD 0
+Summary ADV 0
+Summary JSD_ADV 0
 
-Ensemble PS 1
-Ensemble JSD 1
-Ensemble ADV 1
-Ensemble JSD_ADV 1
+python generalframework/postprocessing/report.py --folder=archives/$logdir/ --file=summary.csv
 
-zip -rq archives/$logdir".zip" archives/$logdir
+#zip -rq archives/$logdir".zip" archives/$logdir

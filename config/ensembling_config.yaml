@@ -1,11 +1,10 @@
 
-Checkpoints: ['archives/cardiac/enet_VAT_epsilions/adv_eps_0.0/best.pth','archives/cardiac/enet_VAT_epsilions/adv_eps_0.001/best.pth']
+Checkpoints: ['archives/cardiac/unet_cotraining2models/ADV/best_0.pth','archives/cardiac/unet_cotraining2models/ADV/best_1.pth']
 Device: cuda:0
 Ensemble_method: soft
-Output_dir: archives/cardiac/unet_FS_sanity_check_2model/PS/
 
 Arch:
-  name: enet
+  name: unet
   num_classes: 4
 
 Optim:

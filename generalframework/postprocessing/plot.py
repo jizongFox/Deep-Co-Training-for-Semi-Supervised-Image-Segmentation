@@ -33,7 +33,6 @@ def main(args: argparse.Namespace) -> None:
 
         for filepath, c in zip(filepaths, colors):
             folername_ = filepath.parent.name
-            # metrics_file = pd.read_csv(filepath)
             metrics_file = np.load(filepath)
 
             segs = range(metrics_file.shape[2])

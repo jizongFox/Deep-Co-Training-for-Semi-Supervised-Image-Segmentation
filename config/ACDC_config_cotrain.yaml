@@ -47,10 +47,20 @@ Trainer:
   device: cuda:0
   axises: [1,2,3]
   metricname: metrics.csv
-  lambda_cot_max: 1
-  lambda_adv_max: 0.005
-  ramp_up_mult: -5
-  epoch_max_ramp: 100
+
+Cot_Scheduler:
+  name: RampScheduler
+  begin_epoch: 1
+  max_epoch: 80
+  max_value: 1.0
+  ramp_mult: -5
+
+Adv_Scheduler:
+  name: RampScheduler
+  begin_epoch: 10
+  max_epoch: 100
+  max_value: 0.005
+  ramp_mult: -5
 
 Loss:
   name: cross_entropy

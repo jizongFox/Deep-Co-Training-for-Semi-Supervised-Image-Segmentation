@@ -3,7 +3,7 @@ from generalframework.scheduler import RampScheduler, ConstantScheduler, RampDow
 
 def test_rampfunction():
     l = []
-    begin_epoch, max_epoch, max_value, ramp_mult = 20, 100, 1, -7
+    begin_epoch, max_epoch, max_value, ramp_mult = 10, 100, 0.005, -5
     scheduler = RampScheduler(begin_epoch, max_epoch, max_value, ramp_mult)
     for i in range(120):
         scheduler.step()
@@ -45,5 +45,5 @@ def test_rampDownScheduler():
 
 if __name__ == '__main__':
     test_rampfunction()
-    test_constantfunction()
-    test_rampDownScheduler()
+    # test_constantfunction()
+    # test_rampDownScheduler()
