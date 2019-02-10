@@ -120,3 +120,5 @@ Ensemble PS 1
 Ensemble JSD 1
 Ensemble ADV 1
 Ensemble JSD_ADV 1
+
+zip -rq archives/$logdir".zip" archives/$logdir
