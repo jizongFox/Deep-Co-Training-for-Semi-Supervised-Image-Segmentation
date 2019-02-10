@@ -15,7 +15,6 @@ def seed_everything(seed=1234):
     torch.backends.cudnn.deterministic = True
 
 
-
 class Model(torch.nn.Module):
     def __init__(self, input_shape, num_classes=10):
         super(Model, self).__init__()
@@ -35,8 +34,8 @@ class Model(torch.nn.Module):
             torch.nn.Conv2d(192, 192, kernel_size=3, padding=1),
             torch.nn.ReLU(inplace=True),
         )
-        self.H_out =  H // (2 * 2 * 2)
-        self.W_out =  W // (2 * 2 * 2)
+        self.H_out = H // (2 * 2 * 2)
+        self.W_out = W // (2 * 2 * 2)
         self.classifier = torch.nn.Sequential(
             torch.nn.Dropout(),
             torch.nn.Linear(192 * self.H_out * self.W_out, 2048),
@@ -71,15 +70,16 @@ def main():
         data_iter = iter(dataloader)
         while True:
             try:
-                X, Y         = next(data_iter)
+                X, Y = next(data_iter)
                 data, labels = X.cuda(async=True), Y.cuda(async=True)
                 optimizer.zero_grad()
-                output       = model(data)
-                loss         = CrossEntropyLoss()(output, labels)
+                output = model(data)
+                loss = CrossEntropyLoss()(output, labels)
                 loss.backward()
                 optimizer.step()
             except StopIteration:
                 break
+
 
 if __name__ == '__main__':
     main()

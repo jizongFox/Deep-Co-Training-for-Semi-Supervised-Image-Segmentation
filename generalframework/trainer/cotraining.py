@@ -38,7 +38,6 @@ class CoTrainer(Trainer):
         ## the sgementators and dataloaders must be different instance
         assert set(map_(id, self.segmentators)).__len__() == self.segmentators.__len__()
         assert set(map_(id, self.labeled_dataloaders)).__len__() == self.segmentators.__len__()
-
         ## labeled_dataloaders should have the same number of images
         # assert set(map_(lambda x: len(x.dataset), self.labeled_dataloaders)).__len__() == 1
         # assert set(map_(lambda x: len(x), self.labeled_dataloaders)).__len__() == 1
