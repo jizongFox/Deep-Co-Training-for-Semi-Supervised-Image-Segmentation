@@ -65,8 +65,10 @@ def main(args: argparse.Namespace) -> None:
     ]
     print('{} images randomly selected'.format(filepaths.__len__()))
     # resize and save in destiny_path
-    resize_ = partial(preprocessing, destiny_path, resize=args.preprocess, size=args.size)
-    Pool().map(resize_, filepaths)
+    preprocessing(filepaths, destiny_path, resize=args.preprocess, size=args.size)
+
+    # resize_ = partial(preprocessing, destiny_path, resize=args.preprocess, size=args.size)
+    # Pool().map(resize_, filepaths)
 
 
 def get_args() -> argparse.Namespace:
