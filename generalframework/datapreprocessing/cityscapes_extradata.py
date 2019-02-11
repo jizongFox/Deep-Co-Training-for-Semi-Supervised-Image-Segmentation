@@ -39,7 +39,7 @@ def preprocessing(filepaths: list, destiny_path: Path, resize: bool, size: Itera
             dst_dir_img.mkdir(parents=True, exist_ok=True)
 
         gt_path = Path(
-            img_path.as_posix().replace('/leftImg8bit', '/gtCoarse').replace('_leftImg8bit', '_gtCoarse_color'))
+            img_path.as_posix().replace('/leftImg8bit', '/gtCoarse').replace('_leftImg8bit', '_gtCoarse_labelIds'))
         parts = gt_path.parts
         dst_dir_gt = destiny_path.joinpath(*parts[-4:-1])
         if not dst_dir_gt.exists():
@@ -90,7 +90,8 @@ def get_args() -> argparse.Namespace:
     choices.add_argument('--images_path', type=str,
                          help='path to the unzipped leftImg8bit_trainextra folder of Cityscapes dataset', required=True)
     choices.add_argument('--preprocess', type=bool, help='if the images must be preprocessed', default=True)
-    choices.add_argument('--n_images', type=int, help='number of images to be selected as extra training data', default=2000)
+    choices.add_argument('--n_images', type=int, help='number of images to be selected as extra training data',
+                         default=2000)
     choices.add_argument('--size', type=int, nargs='*', help='size of the preprocessed images', default=[1024, 512])
     args = choices.parse_args()
     print(args)

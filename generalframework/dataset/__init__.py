@@ -1,4 +1,5 @@
 import re
+import numpy as np
 from typing import List, Dict
 from copy import deepcopy as dcopy
 from torch.utils.data import DataLoader
@@ -120,3 +121,16 @@ def extract_cities(dataloader: DataLoader, city_names: List[str]):
     new_dataloader = dcopy(dataloader)
     new_dataloader.dataset.files['train'] = new_files
     return new_dataloader
+
+
+def extract_dataset_by_p(dataloader: DataLoader, p: float = 0.5,random_state=1):
+    np.random.seed(random_state)
+    labeled_dataloader = dcopy(dataloader)
+    unlabeled_dataloader = dcopy(dataloader)
+    files = labeled_dataloader.dataset.files['train']
+    labeled_files = np.random.choice(files, int(len(files) * p),replace=False).tolist()
+    labeled_dataloader.dataset.files['train'] = labeled_files
+    unlabeled_files = [x for x in files if x not in labeled_files]
+    unlabeled_dataloader.dataset.files['train'] = unlabeled_files
+    assert unlabeled_files.__len__()+len(labeled_files) ==len(files)
+    return labeled_dataloader, unlabeled_dataloader

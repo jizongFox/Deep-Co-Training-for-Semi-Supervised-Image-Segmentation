@@ -13,16 +13,18 @@ Scheduler:
   gamma: 0.1
 
 Lab_Partitions:
-  label: [['aachen','bremen','darmstadt'],['stuttgart','ulm','zurich']]  # city to exclude
-#  unlabel: ['erfurt',
-#            'hanover',
-#            'krefeld',
-#            'strasbourg',
-#            'tubingen',
-#            'weimar',
-#            'bochum',
-#            'cologne',
-#            'dusseldorf',]
+  split_ratio: 0.5
+  num: 3
+#  label: [['aachen','bremen','darmstadt'],['stuttgart','ulm','zurich']]  # city to exclude
+##  unlabel: ['erfurt',
+##            'hanover',
+##            'krefeld',
+##            'strasbourg',
+##            'tubingen',
+##            'weimar',
+##            'bochum',
+##            'cologne',
+##            'dusseldorf',]
 
 Dataset:
   root_dir: dataset/Cityscapes
@@ -30,11 +32,6 @@ Dataset:
   image_size: ( 512,1024 )
   augmentations:
 
-Unlab_Dataset:
-  root_dir: dataset/Cityscapes_extra
-  pin_memory: False
-  image_size: ( 512,1024 )
-  augmentations:
 
 Lab_Dataloader:
   pin_memory: False
@@ -79,7 +76,7 @@ Loss:
              45.7849, 45.8268, 48.4074, 42.7600]
 
 StartTraining:
-  train_jsd: False
-  train_adv: False
+  train_jsd: True
+  train_adv: True
   save_train: False
   save_val: True

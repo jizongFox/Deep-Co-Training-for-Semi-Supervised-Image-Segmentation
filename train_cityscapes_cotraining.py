@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import yaml
 
-from generalframework.dataset import extract_cities, get_cityscapes_dataloaders, citylist
+from generalframework.dataset import extract_cities, get_cityscapes_dataloaders, citylist, extract_dataset_by_p
 from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
 from generalframework.trainer import CoTrainer_City
@@ -34,7 +34,7 @@ pprint(config)
 
 
 def get_models(config):
-    num_models = config['Lab_Partitions']['label'].__len__()
+    num_models = config['Lab_Partitions']['num']
     for i in range(num_models):
         return [Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
                 for _ in range(num_models)]
@@ -43,10 +43,13 @@ def get_models(config):
 def get_dataloders(config):
     dataloders = get_cityscapes_dataloaders(config['Dataset'], config['Lab_Dataloader'])
     labeled_dataloaders = []
-    for i in config['Lab_Partitions']['label']:
-        labeled_dataloaders.append(extract_cities(dataloders['train'], [city for city in citylist if city not in i]))
+    # for i in config['Lab_Partitions']['label']:
+    #     labeled_dataloaders.append(extract_cities(dataloders['train'], [city for city in citylist if city not in i]))
+    labeled_dataloader, unlab_dataloader = extract_dataset_by_p(dataloders['train'])
+    for i in range(config['Lab_Partitions']['num']):
+        labeled_dataloaders.append(extract_dataset_by_p(labeled_dataloader, 0.8, i)[0])
 
-    unlab_dataloader = get_cityscapes_dataloaders(config['Unlab_Dataset'], config['Unlab_Dataloader'])['train']
+    unlab_dataloader = get_cityscapes_dataloaders(config['Dataset'], config['Unlab_Dataloader'])['train']
     # unlab_dataloader = extract_cities(unlab_dataloader,
     #                                   [city for city in citylist if city not in config['Lab_Partitions']['unlabel']])
     val_dataloader = dataloders['val']
