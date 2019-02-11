@@ -42,7 +42,7 @@ Unlab_Dataloader:
   drop_last: True
 
 Trainer:
-  max_epoch: 120
+  max_epoch: 75
   save_dir: tmp/ACDC_cotraining
   device: cuda:0
   axises: [1,2,3]

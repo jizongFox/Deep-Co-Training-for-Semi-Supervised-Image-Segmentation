@@ -10,7 +10,7 @@ from generalframework import ModelMode
 from .trainer import Trainer
 from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
 from ..models import Segmentator
-from ..scheduler import RampScheduler
+from ..scheduler import RampScheduler,RampDownScheduler,ConstantScheduler
 from ..utils.AEGenerator import *
 from ..utils.utils import *
 
