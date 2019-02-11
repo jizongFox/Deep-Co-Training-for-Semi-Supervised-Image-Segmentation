@@ -94,7 +94,7 @@ class CoTrainer_City(Trainer):
         [segmentator.to(device) for segmentator in self.segmentators]
         [criterion.to(device) for _, criterion in self.criterions.items()]
 
-    def start_training(self, train_jsd=False, train_adv=False, save_train=False, save_val=False):
+    def start_training(self, train_jsd=False, train_adv=False, save_train=False, save_val=False, augment_labeled_data=False, augment_unlabeled_data=False):
         # prepare for something:
         S = len(self.segmentators)
         train_b = max(map_(len, self.labeled_dataloaders))
@@ -128,7 +128,9 @@ class CoTrainer_City(Trainer):
                                               mode=ModelMode.TRAIN,
                                               save=save_train,
                                               train_jsd=train_jsd,
-                                              train_adv=train_adv
+                                              train_adv=train_adv,
+                                              augment_labeled_data=augment_labeled_data,
+                                              augment_unlabeled_data=augment_unlabeled_data
                                               )
 
             with torch.no_grad():

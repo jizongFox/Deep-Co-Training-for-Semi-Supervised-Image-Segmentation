@@ -14,23 +14,15 @@ Scheduler:
 
 Lab_Partitions:
   split_ratio: 0.5
-  num: 3
-#  label: [['aachen','bremen','darmstadt'],['stuttgart','ulm','zurich']]  # city to exclude
-##  unlabel: ['erfurt',
-##            'hanover',
-##            'krefeld',
-##            'strasbourg',
-##            'tubingen',
-##            'weimar',
-##            'bochum',
-##            'cologne',
-##            'dusseldorf',]
+  num: 2
 
 Dataset:
   root_dir: dataset/Cityscapes
   pin_memory: False
   image_size: ( 512,1024 )
   augmentations:
+    rotate: 10                                    #[rotate -d to d degrees]
+    rcrop: [256,512]                                #[crop of size (h,w)]
 
 
 Lab_Dataloader:
@@ -50,7 +42,7 @@ Unlab_Dataloader:
 Trainer:
   max_epoch: 300
   save_dir: tmp/cityscapes_cotraining
-  device: cpu
+  device: cuda:0
   #  axises:
   metricname: metrics.csv
 
@@ -80,3 +72,5 @@ StartTraining:
   train_adv: True
   save_train: False
   save_val: True
+  augment_labeled_data: True
+  augment_unlabeled_data: True
