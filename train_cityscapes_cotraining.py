@@ -46,9 +46,9 @@ def get_dataloders(config):
     for i in config['Lab_Partitions']['label']:
         labeled_dataloaders.append(extract_cities(dataloders['train'], [city for city in citylist if city not in i]))
 
-    unlab_dataloader = get_cityscapes_dataloaders(config['Dataset'], config['Unlab_Dataloader'])['train']
-    unlab_dataloader = extract_cities(unlab_dataloader,
-                                      [city for city in citylist if city not in config['Lab_Partitions']['unlabel']])
+    unlab_dataloader = get_cityscapes_dataloaders(config['Unlab_Dataset'], config['Unlab_Dataloader'])['train']
+    # unlab_dataloader = extract_cities(unlab_dataloader,
+    #                                   [city for city in citylist if city not in config['Lab_Partitions']['unlabel']])
     val_dataloader = dataloders['val']
     return labeled_dataloaders, unlab_dataloader, val_dataloader
 
@@ -67,6 +67,8 @@ cotrainner = CoTrainer_City(segmentators=models,
                             unlabeled_dataloader=unlab_dataloader,
                             val_dataloader=val_dataloader,
                             criterions=criterions,
+                            adv_scheduler_dict=config['Adv_Scheduler'],
+                            cot_scheduler_dict=config['Cot_Scheduler'],
                             **config['Trainer'],
                             whole_config=config)
 
