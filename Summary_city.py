@@ -1,7 +1,6 @@
 import argparse
 import warnings
 from pathlib import Path
-from pprint import pprint
 from typing import List
 
 import numpy as np
@@ -12,9 +11,10 @@ import yaml
 from torch import Tensor
 from tqdm import tqdm
 
-from generalframework.dataset import get_ACDC_dataloaders
+from generalframework.dataset import get_cityscapes_dataloaders
+from generalframework.metrics import IoU
 from generalframework.models import Segmentator
-from generalframework.utils import dice_coef, probs2one_hot, class2one_hot
+from generalframework.utils import probs2one_hot, class2one_hot
 
 warnings.filterwarnings('ignore')
 
@@ -25,7 +25,7 @@ def get_args():
     return parser.parse_args()
 
 
-with open('config/ensembling_config.yaml', 'r') as f:
+with open('config/ensembling_city_config.yaml', 'r') as f:
     config = yaml.load(f.read())
 args = get_args()
 # pprint(config)
@@ -33,7 +33,7 @@ args = get_args()
 input_dir = Path(args.input_dir)
 checkpoints = list(input_dir.glob('best*.pth'))
 
-dataloaders = get_ACDC_dataloaders(config['Dataset'], config['Dataloader'], quite=True)
+dataloaders = get_cityscapes_dataloaders(config['Dataset'], config['Dataloader'])
 dataloaders['val'].dataset.training = 'eval'
 
 
@@ -97,35 +97,33 @@ models = load_models(checkpoints)
 
 state_dicts = [torch.load(c, map_location=torch.device('cpu')) for c in checkpoints]
 
-val_b: int = len(dataloaders['val'])
-val_n: int = val_b * dataloaders['val'].batch_size if dataloaders['val'].drop_last \
-    else len(dataloaders['val'].dataset)
-coef_dice = torch.zeros(val_n, len(models) + 1, config['Arch']['num_classes'])
+# val_b: int = len(dataloaders['val'])
+# val_n: int = val_b * dataloaders['val'].batch_size if dataloaders['val'].drop_last \
+#     else len(dataloaders['val'].dataset)
+# coef_dice = torch.zeros(val_n, len(models) + 1, config['Arch']['num_classes'])
+
 
 for i, (model, state_dict) in enumerate(zip(models, state_dicts)):
     model.load_state_dict(state_dict['segmentator'])
     model.to(device)
     model.eval()
     print(f'model {i} has the best score: {state_dict["best_score"]:.3f}.')
-
+meters = [IoU(19) for _ in range(len(state_dicts) + 1)]
 with torch.no_grad():
-    done = 0
     for i, ((img, gt), _, filename) in tqdm(enumerate(dataloaders['val'])):
         img, gt = img.to(device), gt.to(device)
         b = filename.__len__()
         preds = [model.predict(img, logit=False) for model in models]
         for j, pred in enumerate(preds):
-            coef_dice[done:done + b, j] = dice_coef(*toOneHot(pred, gt))
+            meters[j].add(predicted=pred.max(1)[1], target=gt)
 
         preds_ = ensemble(preds)
-        coef_dice[done:done + b, -1] = dice_coef(*toOneHot(preds_, gt))
-        done += b
+        meters[-1].add(predicted=preds_, target=gt)
 
     individual_result_dict = {
-        f'model_{i}': {f'DSC{j}': coef_dice[:, i, j].mean().item() for j in range(config['Arch']['num_classes'])} for i
-        in
-        range(models.__len__())}
+    f'model_{i}': {f'DSC{j}': meters[i].value()['Class_IoU'][j].item() for j in range(config['Arch']['num_classes'])} for i in
+    range(models.__len__())}
     ensemble_result_dict = {
-        f'ensemble': {f'DSC{i}': coef_dice[:, -1, i].mean().item() for i in range(config['Arch']['num_classes'])}}
+        f'ensemble': {f'DSC{i}': meters[-1].value()['Class_IoU'][i].item() for i in range(config['Arch']['num_classes'])}}
     summary = pd.DataFrame({**ensemble_result_dict, **individual_result_dict})
     summary.to_csv(Path(args.input_dir) / 'summary.csv')

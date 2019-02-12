@@ -4,14 +4,13 @@ from typing import Dict
 
 import pandas as pd
 import yaml
-from generalframework import ModelMode
 from tensorboardX import SummaryWriter
 
+from generalframework import ModelMode
 from .trainer import Trainer
 from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
 from ..metrics.iou import IoU
 from ..models import Segmentator
-from ..scheduler import RampScheduler
 from ..utils.AEGenerator import *
 from ..utils.utils import *
 
@@ -94,7 +93,8 @@ class CoTrainer_City(Trainer):
         [segmentator.to(device) for segmentator in self.segmentators]
         [criterion.to(device) for _, criterion in self.criterions.items()]
 
-    def start_training(self, train_jsd=False, train_adv=False, save_train=False, save_val=False, augment_labeled_data=False, augment_unlabeled_data=False):
+    def start_training(self, train_jsd=False, train_adv=False, save_train=False, save_val=False,
+                       augment_labeled_data=False, augment_unlabeled_data=False):
         # prepare for something:
         S = len(self.segmentators)
         train_b = max(map_(len, self.labeled_dataloaders))
@@ -126,7 +126,7 @@ class CoTrainer_City(Trainer):
                                               unlabeled_dataloader=self.unlabeled_dataloader,
                                               epoch=epoch,
                                               mode=ModelMode.TRAIN,
-                                              save=save_train,
+                                              save=save_train if epoch % 10 == 0 else False,
                                               train_jsd=train_jsd,
                                               train_adv=train_adv,
                                               augment_labeled_data=augment_labeled_data,
@@ -140,7 +140,7 @@ class CoTrainer_City(Trainer):
                 val_loss = self._eval_loop(val_dataloader=self.val_dataloader,
                                            epoch=epoch,
                                            mode=ModelMode.EVAL,
-                                           save=save_val)
+                                           save=save_val if epoch % 10 == 0 else False)
 
             self.schedulerStep()
 

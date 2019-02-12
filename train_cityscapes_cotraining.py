@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import yaml
 
-from generalframework.dataset import extract_cities, get_cityscapes_dataloaders, citylist, extract_dataset_by_p
+from generalframework.dataset import get_cityscapes_dataloaders, extract_dataset_by_p
 from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
 from generalframework.trainer import CoTrainer_City
@@ -45,13 +45,11 @@ def get_dataloders(config):
     labeled_dataloaders = []
     # for i in config['Lab_Partitions']['label']:
     #     labeled_dataloaders.append(extract_cities(dataloders['train'], [city for city in citylist if city not in i]))
-    labeled_dataloader, unlab_dataloader = extract_dataset_by_p(dataloders['train'])
+    labeled_dataloader, unlab_dataloader = extract_dataset_by_p(dataloders['train'],
+                                                                config['Lab_Partitions']['split_ratio'])
     for i in range(config['Lab_Partitions']['num']):
-        labeled_dataloaders.append(extract_dataset_by_p(labeled_dataloader, 0.8, i)[0])
-
-    unlab_dataloader = get_cityscapes_dataloaders(config['Dataset'], config['Unlab_Dataloader'])['train']
-    # unlab_dataloader = extract_cities(unlab_dataloader,
-    #                                   [city for city in citylist if city not in config['Lab_Partitions']['unlabel']])
+        labeled_dataloaders.append(
+            extract_dataset_by_p(labeled_dataloader, config['Lab_Partitions']['mix_ratio'], i)[0])
     val_dataloader = dataloders['val']
     return labeled_dataloaders, unlab_dataloader, val_dataloader
 

@@ -4,8 +4,8 @@ Device: cuda:0
 Ensemble_method: soft
 
 Arch:
-  name: unet
-  num_classes: 4
+  name: deepnetenet
+  num_classes: 19
 
 Optim:
   name: Adam
@@ -19,11 +19,13 @@ Scheduler:
 
 
 Dataset:
-  root_dir: dataset/ACDC-all
+  root_dir: dataset/Cityscapes
   subfolders: ['img','gt']
   transform: segment_transform((256,256))
-  augment: PILaugment
+#  augment: PILaugment
   pin_memory: False
+  image_size: (512,1024)
+  augmentations:
 
 Dataloader:
   pin_memory: False

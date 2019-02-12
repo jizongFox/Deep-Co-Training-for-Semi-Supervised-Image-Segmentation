@@ -5,10 +5,10 @@ time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
-max_peoch=100
+max_peoch=125
 data_aug=None
 net=unet
-logdir=cardiac/$net"_cotraining2models_test"
+logdir=cardiac/$net"_cotraining2models_rerun_to_compare"
 
 
 FS(){
@@ -47,7 +47,7 @@ rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,61]]" Lab_Partitions.unlabel="[61,101]" \
+Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
 Arch.name=$net
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir

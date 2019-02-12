@@ -15,7 +15,7 @@ def main(args: argparse.Namespace) -> None:
     colors = ["c", "r", "g", "b", "m", 'y', 'k', 'chartreuse', 'coral']
     styles = [':', '--', '-.', ]
     assert args.folders.__len__() <= colors.__len__()
-    assert args.axis.__len__() <= styles.__len__()
+    # assert args.axis.__len__() <= styles.__len__()
     assert args.y_lim.__len__() == 2
     assert args.y_lim[0] <= args.y_lim[1]
 
@@ -28,13 +28,13 @@ def main(args: argparse.Namespace) -> None:
 
     value_name = ''
     fig = plt.figure()
-    for axis_, style in zip(args.axis, styles):
+    for style in styles:
         plt.clf()
 
         for filepath, c in zip(filepaths, colors):
             foldername_ = filepath.parent.name
             # metrics_file = pd.read_csv(filepath)
-            metrics_file = np.load(filepath)
+            metrics_file = np.nanmean(np.load(filepath)[:,args.num_seg],1)
             metrics = filepath.stem.split('_')[2]
 
             value_name = build_mean_plot(plt, metrics, metrics_file, filepath, foldername_, args.interpolate, style)
@@ -87,7 +87,8 @@ def get_args() -> argparse.Namespace:
     choices.add_argument('--folders', type=str, nargs='+', help='folders that contain the reported file', required=True)
     choices.add_argument('--file', type=str, help='input the filename to report', required=True)
     choices.add_argument('--interpolate', action='store_true')
-    choices.add_argument('--axis', type=int, nargs='+', help='the axis number choice to draw', required=True)
+    # choices.add_argument('--axis', type=int, nargs='+', help='the axis number choice to draw', required=True)
+    choices.add_argument('--num_seg',type=int, default=0)
     choices.add_argument('--show', action='store_true')
     choices.add_argument('--y_lim', type=float, nargs='*', help='[y_min, y_max]', default=[0, 0])
     choices.add_argument('--draw_all', action='store_true', help='draw all together')

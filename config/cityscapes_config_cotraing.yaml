@@ -14,16 +14,16 @@ Scheduler:
 
 Lab_Partitions:
   split_ratio: 0.5
+  mix_ratio: 0.9
   num: 2
 
 Dataset:
   root_dir: dataset/Cityscapes
   pin_memory: False
-  image_size: ( 512,1024 )
+  image_size: (512,1024)
   augmentations:
     rotate: 10                                    #[rotate -d to d degrees]
     rcrop: [256,512]                                #[crop of size (h,w)]
-
 
 Lab_Dataloader:
   pin_memory: False
@@ -32,31 +32,23 @@ Lab_Dataloader:
   shuffle: True
   drop_last: True
 
-Unlab_Dataloader:
-  pin_memory: False
-  batch_size: 4
-  num_workers: 4
-  shuffle: True
-  drop_last: True
 
 Trainer:
   max_epoch: 300
   save_dir: tmp/cityscapes_cotraining
   device: cuda:0
-  #  axises:
   metricname: metrics.csv
-
 
 Cot_Scheduler:
   name: RampScheduler
-  begin_epoch: 1
+  begin_epoch: 10
   max_epoch: 80
   max_value: 1.0
   ramp_mult: -5
 
 Adv_Scheduler:
   name: RampScheduler
-  begin_epoch: 10
+  begin_epoch: 20
   max_epoch: 100
   max_value: 0.005
   ramp_mult: -5
