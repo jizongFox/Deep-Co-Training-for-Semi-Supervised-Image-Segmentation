@@ -1,5 +1,5 @@
 from operator import itemgetter
-from random import random
+import random
 from typing import Dict
 
 import pandas as pd
@@ -13,6 +13,11 @@ from ..models import Segmentator
 from ..utils.AEGenerator import *
 from ..scheduler import *
 from ..utils.utils import *
+
+
+def fix_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
 
 class CoTrainer(Trainer):
@@ -146,6 +151,8 @@ class CoTrainer(Trainer):
     def _train_loop(self, labeled_dataloaders: List[DataLoader], unlabeled_dataloader: DataLoader, epoch: int,
                     mode: ModelMode, save: bool, augment_labeled_data=False, augment_unlabeled_data=False,
                     train_jsd=False, train_adv=False):
+
+        fix_seed(epoch)
         [segmentator.set_mode(mode) for segmentator in self.segmentators]
         for l_dataloader in labeled_dataloaders:
             l_dataloader.dataset.set_mode(ModelMode.TRAIN if augment_labeled_data else ModelMode.EVAL)
@@ -177,14 +184,14 @@ class CoTrainer(Trainer):
 
         fake_unlabeled_iterator = iterator_(dcopy(unlabeled_dataloader))
         fake_unlabeled_iterator_adv = iterator_(dcopy(unlabeled_dataloader))
+        report_iterator = iterator_(['label', 'unlab'])
+        report_status = 'label'
 
         n_batch_iter = tqdm_(range(n_batch))
 
         lab_dsc_dict = {}
         lab_mean_dict = {}
         unlab_dsc_dict = {}
-        report_iterator = iterator_(['label', 'unlab'])
-        report_status = 'label'
 
         for batch_num in n_batch_iter:
             if batch_num % 30 == 0 and train_jsd:
@@ -217,7 +224,7 @@ class CoTrainer(Trainer):
             coef_dice[batch_slice] = torch.cat([x.unsqueeze(1) for x in c_dices], dim=1)
             loss_log[batch_num] = torch.cat([x.detach().unsqueeze(0) for x in sup_losses], dim=0)
             lab_done += lab_B
-            # print(f'batch:{batch_num},{list(self.segmentators[0].torchnet.parameters())[0].sum()}')
+            # print(f'batch:{batch_num},{list(self.segmentators[0].torchnet.parameters())[0].sum()},{path}')
 
             # highlight
             supervisedLoss = sum(sup_losses)
@@ -315,7 +322,6 @@ class CoTrainer(Trainer):
         )
         return coef_dice, unlabel_coef_dice
 
-
     def _eval_loop(self, val_dataloader: DataLoader,
                    epoch: int,
                    mode: ModelMode = ModelMode.EVAL,
@@ -341,13 +347,13 @@ class CoTrainer(Trainer):
             img, gt = img.to(self.device), gt.to(self.device)
             B = img.shape[0]
             preds = map_(lambda x: x.predict(img, logit=True), self.segmentators)
-            loss = map_(lambda pred: self.criterions.get('sup')(pred,gt.squeeze(1)), preds)
+            loss = map_(lambda pred: self.criterions.get('sup')(pred, gt.squeeze(1)), preds)
             c_dices = map_(lambda x: dice_coef(*self.toOneHot(x, gt)), preds)  # shape: B, axises
             b_dices = map_(lambda x: dice_batch(*self.toOneHot(x, gt)), preds)
             batch_slice = slice(done, done + B)
             coef_dice[batch_slice] = torch.cat([x.unsqueeze(1) for x in c_dices], dim=1)
             batch_dice[batch_num] = torch.cat([x.unsqueeze(0) for x in b_dices], dim=0)
-            loss_log[batch_num]= torch.stack(loss)
+            loss_log[batch_num] = torch.stack(loss)
             done += B
 
             if save:
@@ -379,7 +385,6 @@ class CoTrainer(Trainer):
         )
         return coef_dice, batch_dice
 
-
     def _adv_training(self, segmentators: List[Segmentator],
                       lab_data_iterators: List[iterator_], unlab_data_iterator: iterator_,
                       eplision: float = 0.05):
@@ -387,7 +392,7 @@ class CoTrainer(Trainer):
         adv_losses = []
         ## draw first term from labeled1 or unlabeled
         img, img_adv = None, None
-        if random() > 0.5:
+        if random.random() > 0.5:
             [[img, gt], _, _] = lab_data_iterators[0].__next__()
             img, gt = img.to(self.device), gt.to(self.device)
             with warnings.catch_warnings():
@@ -397,13 +402,13 @@ class CoTrainer(Trainer):
         else:
             [[img, _], _, _] = unlab_data_iterator.__next__()
             img = img.to(self.device)
-            img_adv, _ = VATGenerator(self.segmentators[0].torchnet, eplision=eplision,axises=self.axises)(dcopy(img))
+            img_adv, _ = VATGenerator(self.segmentators[0].torchnet, eplision=eplision, axises=[0, 1, 2, 3])(dcopy(img))
         assert img.shape == img_adv.shape
         adv_pred = segmentators[1].predict(img_adv, logit=False)
         real_pred = segmentators[0].predict(img, logit=False)
         adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred))
 
-        if random() > 0.5:
+        if random.random() > 0.5:
             [[img, gt], _, _] = lab_data_iterators[1].__next__()
             img, gt = img.to(self.device), gt.to(self.device)
             img_adv, _ = FSGMGenerator(self.segmentators[1].torchnet, eplision=eplision) \
@@ -411,7 +416,7 @@ class CoTrainer(Trainer):
         else:
             [[img, _], _, _] = unlab_data_iterator.__next__()
             img = img.to(self.device)
-            img_adv, _ = VATGenerator(self.segmentators[1].torchnet, eplision=eplision,axises=self.axises)(dcopy(img))
+            img_adv, _ = VATGenerator(self.segmentators[1].torchnet, eplision=eplision, axises=[0, 1, 2, 3])(dcopy(img))
 
         adv_pred = segmentators[0].predict(img_adv, logit=False)
         real_pred = segmentators[1].predict(img, logit=False)

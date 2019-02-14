@@ -5,7 +5,7 @@ time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
-max_peoch=200
+max_peoch=3
 data_aug=None
 net=enet
 logdir=cardiac/$net"_2modelbaseline_samepartitions"
