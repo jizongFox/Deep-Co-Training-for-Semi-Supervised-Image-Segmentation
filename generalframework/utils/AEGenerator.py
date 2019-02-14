@@ -70,9 +70,7 @@ class VATGenerator(object):
         # return torch.from_numpy(d)
         d_reshaped = d.view(d.shape[0], -1, *(1 for _ in range(d.dim() - 2)))
         d /= torch.norm(d_reshaped, dim=1, keepdim=True) + 1e-16
-
-
-        # assert torch.allclose(d.view(d.shape[0], -1).norm(dim=1), torch.ones(d.shape[0]).to(d.device))
+        assert torch.allclose(d.view(d.shape[0], -1).norm(dim=1), torch.ones(d.shape[0]).to(d.device))
 
         return d
 
@@ -123,7 +121,6 @@ class VATGenerator(object):
             y_hat = self.net(img + d)
             delta_kl: torch.Tensor
             # Here the pred is the reference as y in cross-entropy.
-
             if loss_name == 'kl':
                 delta_kl = self.kl_div_with_logit(pred.detach(), y_hat, self.axises)  # B/H/W
             elif loss_name == 'l2':

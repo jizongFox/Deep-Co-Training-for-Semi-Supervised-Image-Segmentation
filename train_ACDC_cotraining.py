@@ -13,16 +13,20 @@ from generalframework.models import Segmentator
 from generalframework.trainer import CoTrainer
 from generalframework.utils import yaml_parser, dict_merge
 
-seed = 1234
-random.seed(seed)
-torch.manual_seed(seed)
-torch.cuda.manual_seed_all(seed)
-np.random.seed(seed)
-os.environ['PYTHONHASHSEED'] = str(seed)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
-
 warnings.filterwarnings('ignore')
+
+
+def fix_seed(seed):
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
+fix_seed(1234)
 
 parser_args = yaml_parser()
 print('->>Input args:')
