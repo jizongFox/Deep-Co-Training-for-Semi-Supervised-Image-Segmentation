@@ -105,6 +105,7 @@ class CoTrainer(Trainer):
                                                             augment_labeled_data=augment_labeled_data,
                                                             augment_unlabeled_data=augment_unlabeled_data
                                                             )
+            print(f'epoch: {epoch}, {list(self.segmentators[0].torchnet.parameters())[0].sum()}')
 
             with torch.no_grad():
                 val_dice, val_batch_dice = self._eval_loop(val_dataloader=self.val_dataloader,
@@ -130,7 +131,7 @@ class CoTrainer(Trainer):
                         **{f"val_dice_{i}": metrics["val_dice"].mean(1)[:, s, i] for i in self.axises},
                         **{f"val_batch_dice_{i}": metrics["val_batch_dice"].mean(1)[:, s, i] for i in self.axises}
                     })
-                ## the saved metrics are with only axis==3, as the foreground dice.
+
 
                 df.to_csv(Path(self.save_dir, self.metricname.replace('.csv', f'_{s}.csv')), float_format="%.4f",
                           index_label="epoch")
@@ -159,7 +160,7 @@ class CoTrainer(Trainer):
         n_img = max(map_(lambda x: len(x.dataset), labeled_dataloaders))
         n_batch = max(map_(len, self.labeled_dataloaders))
         S = len(self.segmentators)
-        # S labeled dataset + 1 unlabeled dataset
+
         n_unlab_img = n_batch * unlabeled_dataloader.batch_size
 
         coef_dice = torch.zeros(n_img, S, self.C)
@@ -213,6 +214,7 @@ class CoTrainer(Trainer):
             loss_log[batch_num] = torch.cat([x.unsqueeze(0) for x in sup_losses], dim=0)
             lab_done += lab_B
 
+
             if train_jsd:
                 ## for unlabeled data update
                 [[unlab_img, unlab_gt], _, path] = fake_unlabeled_iterator.__next__()
@@ -223,28 +225,29 @@ class CoTrainer(Trainer):
 
                 c_dices = map_(lambda x: dice_coef(*self.toOneHot(x, unlab_gt)), unlab_preds)
                 batch_slice = slice(unlab_done, unlab_done + unlab_B)
-                ## record unlabeled data
+                # ## record unlabeled data
                 unlabel_coef_dice[batch_slice] = torch.cat([x.unsqueeze(1) for x in c_dices], dim=1)
-
-                ## function for JSD
+                #
+                # ## function for JSD
                 jsdloss_2D = self.criterions.get('jsd')(unlab_preds)
                 assert jsdloss_2D.shape == unlab_img.squeeze(1).shape
                 jsdloss = jsdloss_2D.mean()
                 unlab_done += unlab_B
-
+                #
                 if save:
                     [save_images(probs2class(prob), names=path, root=self.save_dir, mode='unlab',
                                  iter=epoch, seg_num=str(i)) for i, prob in enumerate(unlab_preds)]
 
-                ## backward and update
-                # zero grad
-                map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
-                loss = jsdloss * self.cot_scheduler.value
-                loss.backward()
-                map_(lambda x: x.optimizer.step(), self.segmentators)
+                if self.cot_scheduler.value!=0:
+                    # this is for avoiding accumulation of 0 gradients for adam.
+                    map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
+                    loss = jsdloss * self.cot_scheduler.value
+                    loss.backward()
+                    map_(lambda x: x.optimizer.step(), self.segmentators)
+                else:
+                    loss = jsdloss * self.cot_scheduler.value
 
             ## adversarial loss:
-
             if train_adv:
                 choice = np.random.choice(list(range(S)), 2, replace=False).tolist()
 
@@ -252,11 +255,14 @@ class CoTrainer(Trainer):
                                               lab_data_iterators=itemgetter(*choice)(fake_labeled_iterators_adv),
                                               unlab_data_iterator=fake_unlabeled_iterator_adv,
                                               eplision=0.005)
+                if self.adv_scheduler.value!=0:
 
-                map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
-                adv_loss *= self.adv_scheduler.value
-                adv_loss.backward()
-                map_(lambda x: x.optimizer.step(), self.segmentators)
+                    map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
+                    adv_loss *= self.adv_scheduler.value
+                    adv_loss.backward()
+                    map_(lambda x: x.optimizer.step(), self.segmentators)
+                else:
+                    adv_loss *= self.adv_scheduler.value
 
             lab_big_slice = slice(0, lab_done)
             unlab_big_slice = slice(0, unlab_done)
@@ -283,7 +289,7 @@ class CoTrainer(Trainer):
             n_batch_iter.set_postfix({f'{k}_{k_}': f'{v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()})
             n_batch_iter.set_description(
                 report_status + ': ' + ','.join([f'{k}:{v:.3f}' for k, v in loss_dict.items()]))
-            #
+
         self.upload_dicts('labeled dataset', lab_dsc_dict, epoch)
         self.upload_dicts('unlabeled dataset', unlab_dsc_dict, epoch)
 

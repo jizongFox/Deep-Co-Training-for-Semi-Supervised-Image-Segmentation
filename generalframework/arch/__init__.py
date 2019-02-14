@@ -1,6 +1,6 @@
 """ Define the architecture. Modified from torchvision
 """
-from .network import FCN8, FCN16, FCN32, UNet, SegNet, PSPNet
+from .network import FCN8, FCN16, FCN32, UNet, SegNet, PSPNet,UNet_bn
 from .enet import Enet
 from .deeplab import DeepLabV2, DeepLabV3, DeepLabV3Plus
 from .joseent import ENet as JEnet
@@ -38,6 +38,7 @@ _register_arch('fcn8', FCN8)
 _register_arch('fcn16', FCN16)
 _register_arch('fcn32', FCN32)
 _register_arch('unet', UNet)
+_register_arch('unet_bn', UNet_bn)
 _register_arch('segnet', SegNet)
 _register_arch('enet', Enet)
 _register_arch('jenet', JEnet)

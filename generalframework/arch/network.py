@@ -1,16 +1,15 @@
-#coding=utf8
+# coding=utf8
 import torch
 import torch.nn as nn
-import torch.nn.init as init
 import torch.nn.functional as F
 
-from torch.utils import model_zoo
 from torchvision import models
+
 
 class FCN8(nn.Module):
 
     def __init__(self, num_classes):
-        super(FCN8,self).__init__()
+        super(FCN8, self).__init__()
 
         feats = list(models.vgg16(pretrained=True).features.children())
 
@@ -57,7 +56,7 @@ class FCN8(nn.Module):
 class FCN16(nn.Module):
 
     def __init__(self, num_classes):
-        super(FCN16,self).__init__()
+        super(FCN16, self).__init__()
 
         feats = list(models.vgg16(pretrained=True).features.children())
         self.feats = nn.Sequential(*feats[0:16])
@@ -92,7 +91,7 @@ class FCN16(nn.Module):
 class FCN32(nn.Module):
 
     def __init__(self, num_classes):
-        super(FCN32,self).__init__()
+        super(FCN32, self).__init__()
 
         self.feats = models.vgg16(pretrained=True).features
         self.fconn = nn.Sequential(
@@ -113,10 +112,10 @@ class FCN32(nn.Module):
         return F.upsample_bilinear(score, x.size()[2:])
 
 
-class UNetEnc(nn.Module): # 从representation到图片
+class UNetEnc(nn.Module):  # 从representation到图片
 
     def __init__(self, in_channels, features, out_channels):
-        super(UNetEnc,self).__init__()
+        super(UNetEnc, self).__init__()
 
         self.up = nn.Sequential(
             nn.Conv2d(in_channels, features, 3),
@@ -131,10 +130,30 @@ class UNetEnc(nn.Module): # 从representation到图片
         return self.up(x)
 
 
-class UNetDec(nn.Module): # 从图片到representation
+class UNetEnc_bn(nn.Module):  # 从representation到图片
+
+    def __init__(self, in_channels, features, out_channels):
+        super(UNetEnc_bn, self).__init__()
+
+        self.up = nn.Sequential(
+            nn.Conv2d(in_channels, features, 3),
+            nn.BatchNorm2d(features),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(features, features, 3),
+            nn.BatchNorm2d(features),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(features, out_channels, 2, stride=2),
+            nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x):
+        return self.up(x)
+
+
+class UNetDec(nn.Module):  # 从图片到representation
 
     def __init__(self, in_channels, out_channels, dropout=False):
-        super(UNetDec,self).__init__()
+        super(UNetDec, self).__init__()
 
         layers = [
             nn.Conv2d(in_channels, out_channels, 3),
@@ -152,10 +171,32 @@ class UNetDec(nn.Module): # 从图片到representation
         return self.down(x)
 
 
+class UNetDec_bn(nn.Module):  # 从图片到representation
+
+    def __init__(self, in_channels, out_channels, dropout=False):
+        super(UNetDec_bn, self).__init__()
+
+        layers = [
+            nn.Conv2d(in_channels, out_channels, 3),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, 3),
+            nn.ReLU(inplace=True),
+        ]
+        if dropout:
+            layers += [nn.Dropout(.5)]
+        layers += [nn.MaxPool2d(2, stride=2, ceil_mode=True)]
+
+        self.down = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.down(x)
+
+
 class UNet(nn.Module):
 
     def __init__(self, in_channels=1, num_classes=2):
-        super(UNet,self).__init__()
+        super(UNet, self).__init__()
 
         self.dec1 = UNetDec(in_channels, 64)
         self.dec2 = UNetDec(64, 128)
@@ -199,10 +240,60 @@ class UNet(nn.Module):
         return F.upsample_bilinear(self.final(enc1), x.size()[2:])
 
 
+class UNet_bn(nn.Module):
+
+    def __init__(self, in_channels=1, num_classes=2):
+        super(UNet_bn, self).__init__()
+
+        self.dec1 = UNetDec_bn(in_channels, 64)
+        self.dec2 = UNetDec_bn(64, 128)
+        self.dec3 = UNetDec_bn(128, 256)
+        self.dec4 = UNetDec_bn(256, 512, dropout=True)
+        self.center = nn.Sequential(
+            nn.Conv2d(512, 1024, 3),
+            nn.BatchNorm2d(1024),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(1024, 1024, 3),
+            nn.BatchNorm2d(1024),
+            nn.ReLU(inplace=True),
+            nn.Dropout(),
+            nn.ConvTranspose2d(1024, 512, 2, stride=2),
+            nn.ReLU(inplace=True),
+        )
+        self.enc4 = UNetEnc_bn(1024, 512, 256)
+        self.enc3 = UNetEnc_bn(512, 256, 128)
+        self.enc2 = UNetEnc_bn(256, 128, 64)
+        self.enc1 = nn.Sequential(
+            nn.Conv2d(128, 64, 3),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(64, 64, 3),
+            nn.ReLU(inplace=True),
+        )
+        self.final = nn.Conv2d(64, num_classes, 1)
+
+    def forward(self, x):
+        dec1 = self.dec1(x)
+        dec2 = self.dec2(dec1)
+        dec3 = self.dec3(dec2)
+        dec4 = self.dec4(dec3)
+        center = self.center(dec4)
+        enc4 = self.enc4(torch.cat([
+            center, F.upsample_bilinear(dec4, center.size()[2:])], 1))
+        enc3 = self.enc3(torch.cat([
+            enc4, F.upsample_bilinear(dec3, enc4.size()[2:])], 1))
+        enc2 = self.enc2(torch.cat([
+            enc3, F.upsample_bilinear(dec2, enc3.size()[2:])], 1))
+        enc1 = self.enc1(torch.cat([
+            enc2, F.upsample_bilinear(dec1, enc2.size()[2:])], 1))
+
+        return F.upsample_bilinear(self.final(enc1), x.size()[2:])
+
+
 class SegNetEnc(nn.Module):
 
     def __init__(self, in_channels, out_channels, num_layers):
-        super(SegNetEnc,self).__init__()
+        super(SegNetEnc, self).__init__()
 
         layers = [
             nn.UpsamplingBilinear2d(scale_factor=2),
@@ -211,10 +302,10 @@ class SegNetEnc(nn.Module):
             nn.ReLU(inplace=True),
         ]
         layers += [
-            nn.Conv2d(in_channels // 2, in_channels // 2, 3, padding=1),
-            nn.BatchNorm2d(in_channels // 2),
-            nn.ReLU(inplace=True),
-        ] * num_layers
+                      nn.Conv2d(in_channels // 2, in_channels // 2, 3, padding=1),
+                      nn.BatchNorm2d(in_channels // 2),
+                      nn.ReLU(inplace=True),
+                  ] * num_layers
         layers += [
             nn.Conv2d(in_channels // 2, out_channels, 3, padding=1),
             nn.BatchNorm2d(out_channels),
@@ -225,11 +316,12 @@ class SegNetEnc(nn.Module):
     def forward(self, x):
         return self.encode(x)
 
+
 # this is not the right implementation of using index of maxpooling
 class SegNet(nn.Module):
 
     def __init__(self, num_classes):
-        super(SegNet,self).__init__()
+        super(SegNet, self).__init__()
 
         # should be vgg16bn but at the moment we have no pretrained bn deeplab
         decoders = list(models.vgg16(pretrained=True).features.children())
@@ -276,7 +368,7 @@ class SegNet(nn.Module):
 class PSPDec(nn.Module):
 
     def __init__(self, in_features, out_features, downsize, upsize=60):
-        super(PSPDec,self).__init__()
+        super(PSPDec, self).__init__()
 
         self.features = nn.Sequential(
             nn.AvgPool2d(downsize, stride=downsize),
@@ -293,7 +385,7 @@ class PSPDec(nn.Module):
 class PSPNet(nn.Module):
 
     def __init__(self, num_classes):
-        super(PSPNet,self).__init__()
+        super(PSPNet, self).__init__()
 
         '''
         self.conv1 = nn.Sequential(
