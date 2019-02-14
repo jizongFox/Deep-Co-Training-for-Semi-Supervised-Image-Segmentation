@@ -15,7 +15,6 @@ from generalframework.utils import yaml_parser, dict_merge
 
 warnings.filterwarnings('ignore')
 
-
 def fix_seed(seed):
     random.seed(seed)
     torch.manual_seed(seed)
@@ -24,7 +23,6 @@ def fix_seed(seed):
     os.environ['PYTHONHASHSEED'] = str(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
 
 fix_seed(1234)
 

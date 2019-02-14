@@ -5,10 +5,10 @@ time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
-max_peoch=150
+max_peoch=200
 data_aug=None
 net=enet
-logdir=cardiac/$net"_2modelbaselinecheck_totalloss"
+logdir=cardiac/$net"_2modelbaseline_samepartitions"
 
 
 FS(){
@@ -32,7 +32,7 @@ rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,41],[21,61]]" Lab_Partitions.unlabel="[61,101]" \
+Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
 Arch.name=$net
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -60,7 +60,7 @@ rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=True \
-Lab_Partitions.label="[[1,41],[21,61]]" Lab_Partitions.unlabel="[61,101]" \
+Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
 Arch.name=$net
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -73,7 +73,7 @@ rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,41],[21,61]]" Lab_Partitions.unlabel="[61,101]" \
+Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
 Arch.name=$net
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -86,7 +86,7 @@ rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=True \
-Lab_Partitions.label="[[1,41],[21,61]]" Lab_Partitions.unlabel="[61,101]" \
+Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
 Arch.name=$net
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -103,7 +103,7 @@ mkdir -p archives/$logdir
 
 FS 2
 Partial 2
-Partial_alldata 2
+#Partial_alldata 2
 JSD 2
 ADV 2
 JSD_ADV 2
@@ -120,7 +120,7 @@ archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/  --file v
 
 Summary FS 2
 Summary PS 2
-Summary PS_alldata 2
+#Summary PS_alldata 2
 Summary JSD 2
 Summary ADV 2
 Summary JSD_ADV 2

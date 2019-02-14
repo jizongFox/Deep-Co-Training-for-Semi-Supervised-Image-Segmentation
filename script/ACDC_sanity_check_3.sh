@@ -5,9 +5,9 @@ time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
-max_peoch=75
+max_peoch=300
 data_aug=None
-net=unet
+net=enet
 logdir=cardiac/$net"_cotraining2models_test3"
 
 
@@ -37,7 +37,6 @@ Arch.name=$net
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
-
 
 
 Partial_alldata(){
@@ -101,32 +100,31 @@ CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir archives/$logdir/$subfol
 
 mkdir -p archives/$logdir
 
-#FS 1
-Partial 1
-#Partial_alldata 1
-JSD 1
-ADV 1
+FS 1 &
+Partial 1 &
+Partial_alldata 1
+JSD 1 &
+ADV 1 &
 JSD_ADV 1
 rm -rf runs/$logdir
 
-
-#python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
-#archives/$logdir/PS_alldata/ archives/$logdir/PS/ \
-#archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/ --file val_dice.npy --axis 1 2 3 --postfix=model0 --seg_id=0 --y_lim 0.3 0.9
-
-python generalframework/postprocessing/plot.py --folders archives/$logdir/PS/ \
+python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
+archives/$logdir/PS_alldata/ archives/$logdir/PS/ \
 archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/ --file val_dice.npy --axis 1 2 3 --postfix=model0 --seg_id=0 --y_lim 0.3 0.9
 
-#python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
-#archives/$logdir/PS_alldata/ archives/$logdir/PS/ \
-#archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/  --file val_dice.npy --axis 1 2 3 --postfix=model1 --seg_id=1 --y_lim 0.3 0.9
+python generalframework/postprocessing/plot.py --folders archives/$logdir/PS/ \
+archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/ --file val_dice.npy --axis 1 2 3 --postfix=model1 --seg_id=1 --y_lim 0.3 0.9
+
+python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
+archives/$logdir/PS_alldata/ archives/$logdir/PS/ \
+archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/  --file val_dice.npy --axis 1 2 3 --postfix=model2 --seg_id=2 --y_lim 0.3 0.9
 
 python generalframework/postprocessing/plot.py --folders archives/$logdir/PS/ \
-archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/  --file val_dice.npy --axis 1 2 3 --postfix=model1 --seg_id=1 --y_lim 0.3 0.9
+archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/  --file val_dice.npy --axis 1 2 3 --postfix=model3 --seg_id=3 --y_lim 0.3 0.9
 
-#Summary FS 1
+Summary FS 1
 Summary PS 1
-#Summary PS_alldata 1
+Summary PS_alldata 1
 Summary JSD 1
 Summary ADV 1
 Summary JSD_ADV 1
