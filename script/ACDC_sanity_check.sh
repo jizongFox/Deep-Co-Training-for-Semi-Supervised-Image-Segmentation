@@ -9,6 +9,7 @@ max_peoch=3
 data_aug=None
 net=enet
 logdir=cardiac/$net"_2modelbaseline_samepartitions"
+FAIL=0
 
 
 FS(){
@@ -98,8 +99,10 @@ echo CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir archives/$logdir/$s
 CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir archives/$logdir/$subfolder
 }
 
+rm -rf archives/$logdir
 mkdir -p archives/$logdir
-rm -rf achives/$logdir
+rm -rf runs/$logdir
+mkdir -p runs/$logdir
 
 
 FS 0 &
@@ -107,6 +110,21 @@ Partial 0 &
 JSD 0 &
 ADV 0 &
 JSD_ADV 0
+
+for job in `jobs -p`
+do
+echo $job
+    wait $job || let "FAIL+=1"
+done
+
+echo $FAIL
+
+if [ "$FAIL" == "0" ];
+then
+echo "YAY!"
+else
+echo "FAIL! ($FAIL)"
+fi
 
 
 python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
