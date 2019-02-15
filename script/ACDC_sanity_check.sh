@@ -100,10 +100,10 @@ CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir archives/$logdir/$subfol
 
 mkdir -p archives/$logdir
 
-FS 0
-Partial 0
-JSD 0
-ADV 0
+FS 0 &
+Partial 0 &
+JSD 0 &
+ADV 0 &
 JSD_ADV 0
 rm -rf runs/$logdir
 
