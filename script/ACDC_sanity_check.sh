@@ -99,13 +99,14 @@ CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir archives/$logdir/$subfol
 }
 
 mkdir -p archives/$logdir
+rm -rf achives/$logdir
+
 
 FS 0 &
 Partial 0 &
 JSD 0 &
 ADV 0 &
 JSD_ADV 0
-rm -rf runs/$logdir
 
 
 python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
@@ -125,3 +126,4 @@ Summary JSD_ADV 0
 python generalframework/postprocessing/report.py --folder=archives/$logdir/ --file=summary.csv
 
 zip -rq archives/$logdir"_"$time"_"$gitcommit_number".zip" archives/$logdir
+rm -rf runs/$logdir

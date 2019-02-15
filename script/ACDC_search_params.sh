@@ -109,8 +109,5 @@ JSD_ADV 0 1 30 80 1 30 80 &
 JSD_ADV 0 1 50 80 1 50 80 &
 JSD_ADV 1 1 100 80 1 100 80
 
-
-rm -rf runs/$logdir
-
-
 zip -rq archives/$logdir"_"$time"_"$gitcommit_number".zip" archives/$logdir
+rm -rf runs/$logdir
