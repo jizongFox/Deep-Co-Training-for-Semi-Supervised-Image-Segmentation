@@ -101,29 +101,27 @@ CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir archives/$logdir/$subfol
 
 mkdir -p archives/$logdir
 
-FS 2
-Partial 2
-#Partial_alldata 2
-JSD 2
-ADV 2
-JSD_ADV 2
+FS 0
+Partial 0
+JSD 0
+ADV 0
+JSD_ADV 0
 rm -rf runs/$logdir
 
 
 python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
-archives/$logdir/PS_alldata/ archives/$logdir/PS/ \
+ archives/$logdir/PS/ \
 archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/ --file val_dice.npy --axis 1 2 3 --postfix=model0 --seg_id=0 --y_lim 0.3 0.9
 
 python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
-archives/$logdir/PS_alldata/ archives/$logdir/PS/ \
+ archives/$logdir/PS/ \
 archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/  --file val_dice.npy --axis 1 2 3 --postfix=model1 --seg_id=1 --y_lim 0.3 0.9
 
-Summary FS 2
-Summary PS 2
-#Summary PS_alldata 2
-Summary JSD 2
-Summary ADV 2
-Summary JSD_ADV 2
+Summary FS 0
+Summary PS 0
+Summary JSD 0
+Summary ADV 0
+Summary JSD_ADV 0
 
 python generalframework/postprocessing/report.py --folder=archives/$logdir/ --file=summary.csv
 

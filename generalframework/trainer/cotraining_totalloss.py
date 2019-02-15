@@ -1,5 +1,5 @@
-from operator import itemgetter
 import random
+from operator import itemgetter
 from typing import Dict
 
 import pandas as pd
@@ -11,8 +11,8 @@ from .trainer import Trainer
 from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
 from ..models import Segmentator
 from ..utils.AEGenerator import *
-from ..scheduler import *
 from ..utils.utils import *
+from ..scheduler import *
 
 
 def fix_seed(seed):
@@ -87,11 +87,13 @@ class CoTrainer(Trainer):
                        augment_labeled_data=False, augment_unlabeled_data=False):
         ## prepare for something:
         S = len(self.segmentators)
-        n_img = max(map_(lambda x: len(x.dataset), self.labeled_dataloaders))
         n_batch = max(map_(len, self.labeled_dataloaders))
+        n_img = n_batch * self.labeled_dataloaders[0].batch_size if self.labeled_dataloaders[0].drop_last else \
+            max(map_(lambda x: len(x.dataset), self.labeled_dataloaders))
         n_unlab_img = n_batch * self.unlabeled_dataloader.batch_size
 
-        val_n_img = len(self.val_dataloader.dataset)
+        val_n_img = len(
+            self.val_dataloader.dataset) if not self.val_dataloader.drop_last else self.val_dataloader.__len__() * self.val_dataloader.batch_size
 
         metrics = {'train_dice': torch.zeros(self.max_epoch, n_img, S, self.C, dtype=torch.float),
                    'train_unlab_dice': torch.zeros(self.max_epoch, n_unlab_img, S, self.C, dtype=torch.float),
@@ -165,8 +167,10 @@ class CoTrainer(Trainer):
 
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
         # Here the concept of epoch is defined as the epoch
-        n_img = max(map_(lambda x: len(x.dataset), labeled_dataloaders))
         n_batch = max(map_(len, self.labeled_dataloaders))
+        n_img = max(map_(lambda x: len(x.dataset), labeled_dataloaders)) if not labeled_dataloaders[0].drop_last else \
+            n_batch * labeled_dataloaders[0].batch_size
+
         S = len(self.segmentators)
 
         n_unlab_img = n_batch * unlabeled_dataloader.batch_size
@@ -229,7 +233,7 @@ class CoTrainer(Trainer):
             # highlight
             supervisedLoss = sum(sup_losses)
 
-            if train_jsd:
+            if train_jsd and self.cot_scheduler.value > 0:
                 ## for unlabeled data update
                 [[unlab_img, unlab_gt], _, path] = fake_unlabeled_iterator.__next__()
                 unlab_B = unlab_img.shape[0]
@@ -263,7 +267,7 @@ class CoTrainer(Trainer):
                 #     loss = jsdloss * self.cot_scheduler.value
 
             ## adversarial loss:
-            if train_adv:
+            if train_adv and self.adv_scheduler.value > 0:
                 choice = np.random.choice(list(range(S)), 2, replace=False).tolist()
                 # highlight
                 advLoss = self._adv_training(segmentators=itemgetter(*choice)(self.segmentators),
@@ -332,8 +336,9 @@ class CoTrainer(Trainer):
         assert self.segmentators[0].training == False
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
         S = self.segmentators.__len__()
-        n_img = len(val_dataloader.dataset)
         n_batch = len(val_dataloader)
+        n_img = len(val_dataloader.dataset) if not val_dataloader.drop_last else n_batch * val_dataloader.batch_size
+
         coef_dice = torch.zeros(n_img, S, self.C)
         batch_dice = torch.zeros(n_batch, S, self.C)
         loss_log = torch.zeros(n_batch, S)
