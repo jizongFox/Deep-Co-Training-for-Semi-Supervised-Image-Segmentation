@@ -19,7 +19,7 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
 Lab_Partitions.label="[[1,101],[1,101]]" \
-Arch.name=$net
+Arch.name=$net Trainer.use_tqdm=False
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
@@ -28,12 +28,11 @@ Partial(){
 gpu=$1
 currentfoldername=PS
 rm -rf runs/$logdir/$currentfoldername
-
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
 Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
-Arch.name=$net
+Arch.name=$net Trainer.use_tqdm=False
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
@@ -48,7 +47,7 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
 Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
-Arch.name=$net
+Arch.name=$net Trainer.use_tqdm=False
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
@@ -61,7 +60,7 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=True \
 Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
-Arch.name=$net
+Arch.name=$net Trainer.use_tqdm=False
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
@@ -74,7 +73,7 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=False \
 Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
-Arch.name=$net
+Arch.name=$net Trainer.use_tqdm=False
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
@@ -87,7 +86,7 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=True \
 Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
-Arch.name=$net
+Arch.name=$net Trainer.use_tqdm=False
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }

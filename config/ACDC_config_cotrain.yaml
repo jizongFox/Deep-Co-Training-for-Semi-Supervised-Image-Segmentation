@@ -50,6 +50,7 @@ Trainer:
   device: cuda:0
   axises: [1,2,3]
   metricname: metrics.csv
+  use_tqdm: True
 
 Cot_Scheduler:
   name: RampScheduler

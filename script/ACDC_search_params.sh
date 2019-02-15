@@ -26,7 +26,7 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
 Lab_Partitions.label="[[1,101],[1,101]]" \
-Arch.name=$net
+Arch.name=$net Trainer.use_tqdm=False
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -40,7 +40,7 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
 Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
-Arch.name=$net
+Arch.name=$net Trainer.use_tqdm=False
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -66,7 +66,8 @@ Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" Arch.na
 Cot_Scheduler.begin_epoch=$Cot_beg_epoch Cot_Scheduler.max_epoch=$Cot_max_epoch Cot_Scheduler.max_value=$Cot_max_value \
 Cot_Scheduler.ramp_mult=$ramp_mult \
 Adv_Scheduler.begin_epoch=$Adv_beg_epoch Adv_Scheduler.max_epoch=$Adv_max_epoch Adv_Scheduler.max_value=$Adv_max_value \
-Adv_Scheduler.ramp_mult=$ramp_mult
+Adv_Scheduler.ramp_mult=$ramp_mult \
+Trainer.use_tqdm=False
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -88,7 +89,6 @@ JSD_ADV 0 1 1 80 1 0.1 80 &
 JSD_ADV 0 1 1 80 50 0.1 80
 JSD_ADV 0 1 1 80 10 0.001 80 &
 JSD_ADV 0 1 1 80 10 0.01 80
-
 
 
 rm -rf runs/$logdir

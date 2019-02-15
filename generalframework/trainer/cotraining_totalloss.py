@@ -12,7 +12,7 @@ from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
 from ..models import Segmentator
 from ..utils.AEGenerator import *
 from ..utils.utils import *
-from ..scheduler import *
+from ..scheduler  import *
 
 
 def fix_seed(seed):
@@ -29,6 +29,7 @@ class CoTrainer(Trainer):
                  metricname: str = 'metrics.csv',
                  adv_scheduler_dict: dict = None,
                  cot_scheduler_dict: dict = None,
+                 use_tqdm: bool = True,
                  whole_config=None) -> None:
 
         self.max_epoch = max_epoch
@@ -78,6 +79,7 @@ class CoTrainer(Trainer):
             self._load_checkpoint(checkpoint)
 
         self.to(self.device)
+        self.use_tqdm = use_tqdm
 
     def to(self, device: torch.device):
         [segmentator.to(device) for segmentator in self.segmentators]
@@ -191,7 +193,7 @@ class CoTrainer(Trainer):
         report_iterator = iterator_(['label', 'unlab'])
         report_status = 'label'
 
-        n_batch_iter = tqdm_(range(n_batch))
+        n_batch_iter = tqdm_(range(n_batch)) if self.use_tqdm else range(n_batch)
 
         lab_dsc_dict = {}
         lab_mean_dict = {}
@@ -257,15 +259,6 @@ class CoTrainer(Trainer):
                     [save_images(probs2class(prob), names=path, root=self.save_dir, mode='unlab',
                                  iter=epoch, seg_num=str(i)) for i, prob in enumerate(unlab_preds)]
 
-                # if self.cot_scheduler.value!=0:
-                #     # this is for avoiding accumulation of 0 gradients for adam.
-                #     map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
-                #     loss = jsdloss * self.cot_scheduler.value
-                #     loss.backward()
-                #     map_(lambda x: x.optimizer.step(), self.segmentators)
-                # else:
-                #     loss = jsdloss * self.cot_scheduler.value
-
             ## adversarial loss:
             if train_adv and self.adv_scheduler.value > 0:
                 choice = np.random.choice(list(range(S)), 2, replace=False).tolist()
@@ -274,14 +267,6 @@ class CoTrainer(Trainer):
                                              lab_data_iterators=itemgetter(*choice)(fake_labeled_iterators_adv),
                                              unlab_data_iterator=fake_unlabeled_iterator_adv,
                                              eplision=0.005)
-                # if self.adv_scheduler.value != 0:
-                #
-                #     map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
-                #     adv_loss *= self.adv_scheduler.value
-                #     adv_loss.backward()
-                #     map_(lambda x: x.optimizer.step(), self.segmentators)
-                # else:
-                #     adv_loss *= self.adv_scheduler.value
 
             ## update parameters
             map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
@@ -312,9 +297,10 @@ class CoTrainer(Trainer):
             nice_dict = dict_merge(lab_dsc_dict, lab_mean_dict, re=True) if report_status == 'label' else dict_merge(
                 unlab_dsc_dict, unlab_mean_dict, re=True)
 
-            n_batch_iter.set_postfix({f'{k}_{k_}': f'{v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()})
-            n_batch_iter.set_description(
-                report_status + ': ' + ','.join([f'{k}:{v:.3f}' for k, v in loss_dict.items()]))
+            if self.use_tqdm:
+                n_batch_iter.set_postfix({f'{k}_{k_}': f'{v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()})
+                n_batch_iter.set_description(
+                    report_status + ': ' + ','.join([f'{k}:{v:.3f}' for k, v in loss_dict.items()]))
 
         self.upload_dicts('labeled dataset', lab_dsc_dict, epoch)
         self.upload_dicts('unlabeled dataset', unlab_dsc_dict, epoch)
@@ -342,7 +328,7 @@ class CoTrainer(Trainer):
         coef_dice = torch.zeros(n_img, S, self.C)
         batch_dice = torch.zeros(n_batch, S, self.C)
         loss_log = torch.zeros(n_batch, S)
-        val_dataloader = tqdm_(val_dataloader)
+        val_dataloader = tqdm_(val_dataloader) if self.use_tqdm else val_dataloader
         done = 0
 
         dsc_dict = {}
@@ -379,9 +365,12 @@ class CoTrainer(Trainer):
             nice_dict = dict_merge(dsc_dict, mean_dict, True)
 
             loss_dict = {f'L{i}': loss_log[0:batch_num, i].mean().item() for i in range(len(self.segmentators))}
-            val_dataloader.set_description('val: ' + ','.join([f'{k}:{v:.3f}' for k, v in loss_dict.items()]))
 
-            val_dataloader.set_postfix({f'{k}_{k_}': f'{v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()})
+            if self.use_tqdm:
+                val_dataloader.set_description('val: ' + ','.join([f'{k}:{v:.3f}' for k, v in loss_dict.items()]))
+
+                val_dataloader.set_postfix(
+                    {f'{k}_{k_}': f'{v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()})
 
         self.upload_dicts('val_data', dsc_dict, epoch)
 
