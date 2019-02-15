@@ -43,10 +43,10 @@ class RampScheduler(Scheduler):
 
     def __init__(self, begin_epoch, max_epoch, max_value, ramp_mult):
         super().__init__()
-        self.begin_epoch = begin_epoch
-        self.max_epoch = max_epoch
-        self.max_value = max_value
-        self.mult = ramp_mult
+        self.begin_epoch = int(begin_epoch)
+        self.max_epoch = int(max_epoch)
+        self.max_value = float(max_value)
+        self.mult = float(ramp_mult)
         self.epoch = 0
 
     def step(self):
@@ -69,8 +69,8 @@ class ConstantScheduler(Scheduler):
 
     def __init__(self, begin_epoch, max_value=1.0):
         super().__init__()
-        self.begin_epoch = begin_epoch
-        self.max_value = max_value
+        self.begin_epoch = int(begin_epoch)
+        self.max_value = float(max_value)
         self.epoch = 0
 
     def step(self):
@@ -92,12 +92,12 @@ class RampDownScheduler(Scheduler):
 
     def __init__(self, max_epoch, max_value, ramp_mult, min_val, cutoff):
         super().__init__()
-        self.max_epoch = max_epoch
-        self.max_value = max_value
-        self.mult = ramp_mult
+        self.max_epoch = int(max_epoch)
+        self.max_value = float(max_value)
+        self.mult = float(ramp_mult)
         self.epoch = 0
-        self.min_val = min_val
-        self.cutoff = cutoff
+        self.min_val = float(min_val)
+        self.cutoff = int(cutoff)
 
     def step(self):
         self.epoch += 1
