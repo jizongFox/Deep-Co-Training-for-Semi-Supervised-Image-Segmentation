@@ -12,6 +12,24 @@ logdir=cardiac/$net"_2modelbaseline_samepartitions"
 FAIL=0
 
 
+wait_scritp(){
+for job in `jobs -p`
+do
+echo $job
+    wait $job || let "FAIL+=1"
+done
+
+echo $FAIL
+
+if [ "$FAIL" == "0" ];
+then
+echo "YAY!"
+else
+echo "FAIL! ($FAIL)"
+fi
+}
+
+
 FS(){
 gpu=$1
 currentfoldername=FS
@@ -111,21 +129,7 @@ JSD 0 &
 ADV 0 &
 JSD_ADV 0
 
-for job in `jobs -p`
-do
-echo $job
-    wait $job || let "FAIL+=1"
-done
-
-echo $FAIL
-
-if [ "$FAIL" == "0" ];
-then
-echo "YAY!"
-else
-echo "FAIL! ($FAIL)"
-fi
-
+wait_scritp
 
 python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
  archives/$logdir/PS/ \
