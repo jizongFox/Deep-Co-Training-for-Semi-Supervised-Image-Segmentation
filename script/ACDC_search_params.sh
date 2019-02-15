@@ -9,7 +9,7 @@ max_peoch=100
 data_aug=None
 net=enet
 logdir=cardiac/$net"_cotraining2models_search"
-
+FAIL=0
 
 Summary(){
 subfolder=$1
@@ -73,10 +73,10 @@ rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
-
+rm -rf archives/$logdir
 mkdir -p archives/$logdir
 rm -rf runs/$logdir
-
+mkdir -p runs/$logdir
 #FS 0 &
 #Partial 0
 #JSD_ADV 0 1 1 80 10 0.1 80  &
@@ -95,19 +95,35 @@ Partial 1
 
 JSD_ADV 0 1 1 80 1 0.001 80  &
 JSD_ADV 0 1 1 80 1 0.01 80 &
-JSD_ADV 1 1 1 80 1 0.1 80 &
-JSD_ADV 1 1 1 80 1 0.5 80
+JSD_ADV 0 1 1 80 1 0.1 80 &
+JSD_ADV 0 1 1 80 1 0.5 80
 JSD_ADV 0 1 1 80 1 1 80 &
 JSD_ADV 0 1 0.1 80 1 0.1 80  &
-JSD_ADV 1 1 0.01 80 1 0.1 80 &
-JSD_ADV 1 1 1 80 1 0.1 80 
+JSD_ADV 0 1 0.01 80 1 0.1 80 &
+JSD_ADV 0 1 1 80 1 0.1 80
 JSD_ADV 0 1 5 80 1 0.1 80 &
 JSD_ADV 0 1 10 80 1 0.1 80 &
-JSD_ADV 1 1 5 80 1 5 80 &
-JSD_ADV 1 1 10 80 1 10 80 
+JSD_ADV 0 1 5 80 1 5 80 &
+JSD_ADV 0 1 10 80 1 10 80
 JSD_ADV 0 1 30 80 1 30 80 &
 JSD_ADV 0 1 50 80 1 50 80 &
-JSD_ADV 1 1 100 80 1 100 80
+JSD_ADV 0 1 100 80 1 100 80
+
+
+for job in `jobs -p`
+do
+echo $job
+    wait $job || let "FAIL+=1"
+done
+
+echo $FAIL
+
+if [ "$FAIL" == "0" ];
+then
+echo "YAY!"
+else
+echo "FAIL! ($FAIL)"
+fi
 
 zip -rq archives/$logdir"_"$time"_"$gitcommit_number".zip" archives/$logdir
 rm -rf runs/$logdir
