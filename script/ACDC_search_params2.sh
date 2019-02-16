@@ -95,18 +95,18 @@ mkdir -p archives/$logdir
 #rm -rf runs/$logdir
 mkdir -p runs/$logdir
 
-FS 0 &
-Partial 0
+#FS 0 &
+#Partial 0
+#
+#wait_scritp
+
+JSD_ADV 0 1 1 80 1 0.001 80  &
+JSD_ADV 0 1 1 80 1 0.01 80 &
+JSD_ADV 0 1 1 80 1 0.1 80 &
+JSD_ADV 0 1 1 80 1 0.5 80
 
 wait_scritp
-#
-#JSD_ADV 0 1 1 80 1 0.001 80  &
-#JSD_ADV 0 1 1 80 1 0.01 80 &
-#JSD_ADV 0 1 1 80 1 0.1 80 &
-#JSD_ADV 0 1 1 80 1 0.5 80
 
-#wait_scritp
-#
 #JSD_ADV 0 1 1 80 1 1 80 &
 #JSD_ADV 0 1 0.1 80 1 0.1 80  &
 #JSD_ADV 0 1 0.01 80 1 0.1 80 &
@@ -128,5 +128,5 @@ wait_scritp
 #wait_scritp
 
 
-#zip -rq archives/$logdir"_"$time"_"$gitcommit_number".zip" archives/$logdir
-#rm -rf runs/$logdir
+zip -rq archives/$logdir"_"$time"_"$gitcommit_number".zip" archives/$logdir
+rm -rf runs/$logdir
