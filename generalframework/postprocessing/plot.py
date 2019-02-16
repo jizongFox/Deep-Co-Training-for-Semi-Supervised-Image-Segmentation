@@ -1,14 +1,16 @@
 ## todo write this report script to integrate all functions together.
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.interpolate import spline
-from pathlib import Path
-import os, sys
 import argparse
+import os
+import sys
+from pathlib import Path
+
 import matplotlib
+import numpy as np
+import pandas as pd
+from scipy.interpolate import spline
 
 matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 
 def main(args: argparse.Namespace) -> None:
@@ -39,10 +41,10 @@ def main(args: argparse.Namespace) -> None:
             if args.seg_id in segs:
                 segs = [args.seg_id]
                 value_name = build_plot(plt, axis_, segs, metrics_file, filepath, folername_,
-                                               args.interpolate, s)
+                                        args.interpolate, s)
             else:
                 value_name = build_plot(plt, axis_, segs, metrics_file, filepath, folername_,
-                                               args.interpolate, s)
+                                        args.interpolate, s)
 
         if not args.draw_all:
             plt.title(file + ' ' + value_name)
