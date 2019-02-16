@@ -8,7 +8,7 @@ gitcommit_number=${gitcommit_number:0:8}
 max_peoch=120
 data_aug=None
 net=enet
-logdir=cardiac/$net"_cotraining2models_search"
+logdir=cardiac/$net"_cotraining2models_search_vat_axis=123"
 FAIL=0
 
 wait_scritp(){

@@ -396,7 +396,7 @@ class CoTrainer(Trainer):
         else:
             [[img, _], _, _] = unlab_data_iterator.__next__()
             img = img.to(self.device)
-            img_adv, _ = VATGenerator(self.segmentators[0].torchnet, eplision=eplision, axises=[0, 1, 2, 3])(dcopy(img))
+            img_adv, _ = VATGenerator(self.segmentators[0].torchnet, eplision=eplision, axises=[1, 2, 3])(dcopy(img))
         assert img.shape == img_adv.shape
         adv_pred = segmentators[1].predict(img_adv, logit=False)
         real_pred = segmentators[0].predict(img, logit=False)
@@ -410,7 +410,7 @@ class CoTrainer(Trainer):
         else:
             [[img, _], _, _] = unlab_data_iterator.__next__()
             img = img.to(self.device)
-            img_adv, _ = VATGenerator(self.segmentators[1].torchnet, eplision=eplision, axises=[0, 1, 2, 3])(dcopy(img))
+            img_adv, _ = VATGenerator(self.segmentators[1].torchnet, eplision=eplision, axises=[1, 2, 3])(dcopy(img))
 
         adv_pred = segmentators[0].predict(img_adv, logit=False)
         real_pred = segmentators[1].predict(img, logit=False)
