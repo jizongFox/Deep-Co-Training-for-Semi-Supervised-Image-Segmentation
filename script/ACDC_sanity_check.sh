@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-set -e
+#set -e
 cd ..
 time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
-max_peoch=3
+max_peoch=2
 data_aug=None
 net=enet
-logdir=cardiac/$net"_2modelbaseline_samepartitions"
+logdir=cardiac/$net"_refactor_test"
 FAIL=0
 
 
@@ -123,11 +123,11 @@ rm -rf runs/$logdir
 mkdir -p runs/$logdir
 
 
-FS 0 &
-Partial 0 &
-JSD 0 &
-ADV 0 &
-JSD_ADV 0
+FS 1 &
+Partial 2 &
+JSD 3 &
+ADV 1 &
+JSD_ADV 2 &
 
 wait_scritp
 
@@ -139,11 +139,11 @@ python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
  archives/$logdir/PS/ \
 archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/  --file val_dice.npy --axis 1 2 3 --postfix=model1 --seg_id=1 --y_lim 0.3 0.9
 
-Summary FS 0
-Summary PS 0
-Summary JSD 0
-Summary ADV 0
-Summary JSD_ADV 0
+Summary FS 1
+Summary PS 1
+Summary JSD 1
+Summary ADV 1
+Summary JSD_ADV 1
 
 python generalframework/postprocessing/report.py --folder=archives/$logdir/ --file=summary.csv
 

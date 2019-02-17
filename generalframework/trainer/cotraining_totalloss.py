@@ -12,7 +12,8 @@ from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
 from ..models import Segmentator
 from ..utils.AEGenerator import *
 from ..utils.utils import *
-from ..scheduler  import *
+from ..scheduler import *
+from ..metrics import DiceMeter, AverageValueMeter
 
 
 def fix_seed(seed):
@@ -97,11 +98,10 @@ class CoTrainer(Trainer):
         val_n_img = len(
             self.val_dataloader.dataset) if not self.val_dataloader.drop_last else self.val_dataloader.__len__() * self.val_dataloader.batch_size
 
-        metrics = {'train_dice': torch.zeros(self.max_epoch, n_img, S, self.C, dtype=torch.float),
-                   'train_unlab_dice': torch.zeros(self.max_epoch, n_unlab_img, S, self.C, dtype=torch.float),
-                   'val_dice': torch.zeros(self.max_epoch, val_n_img, S, self.C, dtype=torch.float),
-                   'val_batch_dice': torch.zeros(self.max_epoch, len(self.val_dataloader), S, self.C,
-                                                 dtype=torch.float)}
+        metrics = {'train_dice': torch.zeros(self.max_epoch, S, self.C, 2, dtype=torch.float),
+                   'train_unlab_dice': torch.zeros(self.max_epoch, S, self.C, 2, dtype=torch.float),
+                   'val_dice': torch.zeros(self.max_epoch, S, self.C, 2, dtype=torch.float),
+                   'val_batch_dice': torch.zeros(self.max_epoch, S, self.C, 2, dtype=torch.float)}
 
         for epoch in range(self.start_epoch, self.max_epoch):
 
@@ -116,8 +116,6 @@ class CoTrainer(Trainer):
                                                             augment_unlabeled_data=augment_unlabeled_data
                                                             )
 
-            # print(f'epoch: {epoch}, {list(self.segmentators[0].torchnet.parameters())[0].sum()}')
-
             with torch.no_grad():
                 val_dice, val_batch_dice = self._eval_loop(val_dataloader=self.val_dataloader,
                                                            epoch=epoch,
@@ -127,6 +125,7 @@ class CoTrainer(Trainer):
             self.schedulerStep()
 
             for k, v in metrics.items():
+                assert v[epoch].shape == eval(k).shape
                 v[epoch] = eval(k)
 
             for k, v in metrics.items():
@@ -136,11 +135,11 @@ class CoTrainer(Trainer):
             for s in range(self.segmentators.__len__()):
                 df = pd.DataFrame(
                     {
-                        **{f"train_dice_{i}": metrics["train_dice"].mean(1)[:, s, i] for i in self.axises},
-                        **{f"train_unlab_dice_{i}": metrics["train_unlab_dice"].mean(1)[:, s, i] for i in
+                        **{f"train_dice_{i}": metrics["train_dice"][:, s, i, 0] for i in self.axises},
+                        **{f"train_unlab_dice_{i}": metrics["train_unlab_dice"][:, s, i, 0] for i in
                            self.axises},
-                        **{f"val_dice_{i}": metrics["val_dice"].mean(1)[:, s, i] for i in self.axises},
-                        **{f"val_batch_dice_{i}": metrics["val_batch_dice"].mean(1)[:, s, i] for i in self.axises}
+                        **{f"val_dice_{i}": metrics["val_dice"][:, s, i, 0] for i in self.axises},
+                        **{f"val_batch_dice_{i}": metrics["val_batch_dice"][:, s, i, 0] for i in self.axises}
                     })
 
                 df.to_csv(Path(self.save_dir, self.metricname.replace('.csv', f'_{s}.csv')), float_format="%.4f",
@@ -149,7 +148,7 @@ class CoTrainer(Trainer):
                             float_format="%.4f")
             writer.save()
             writer.close()
-            current_metric = val_dice[:, :, self.axises].mean([0, 2])
+            current_metric = val_dice[:,self.axises,0].mean(1)
             self.checkpoint(current_metric, epoch)
 
     def _train_loop(self, labeled_dataloaders: List[DataLoader], unlabeled_dataloader: DataLoader, epoch: int,
@@ -157,6 +156,14 @@ class CoTrainer(Trainer):
                     train_jsd=False, train_adv=False):
 
         fix_seed(epoch)
+        diceMeters = [DiceMeter(report_axises=self.axises, method='2d', C=4) for _ in
+                      range(self.segmentators.__len__())]
+        unlabdiceMeters = [DiceMeter(report_axises=self.axises, method='2d', C=4) for _ in
+                           range(self.segmentators.__len__())]
+        suplossMeters = [AverageValueMeter() for _ in range(self.segmentators.__len__())]
+        jsdlossMeter = AverageValueMeter()
+        advlossMeter = AverageValueMeter()
+
         [segmentator.set_mode(mode) for segmentator in self.segmentators]
         for l_dataloader in labeled_dataloaders:
             l_dataloader.dataset.set_mode(ModelMode.TRAIN if augment_labeled_data else ModelMode.EVAL)
@@ -170,19 +177,7 @@ class CoTrainer(Trainer):
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
         # Here the concept of epoch is defined as the epoch
         n_batch = max(map_(len, self.labeled_dataloaders))
-        n_img = max(map_(lambda x: len(x.dataset), labeled_dataloaders)) if not labeled_dataloaders[0].drop_last else \
-            n_batch * labeled_dataloaders[0].batch_size
-
         S = len(self.segmentators)
-
-        n_unlab_img = n_batch * unlabeled_dataloader.batch_size
-
-        coef_dice = torch.zeros(n_img, S, self.C)
-        unlabel_coef_dice = torch.zeros(n_unlab_img, S, self.C)
-        loss_log = torch.zeros(n_batch, S)
-
-        lab_done = 0
-        unlab_done = 0
 
         ## build fake_iterator
         fake_labeled_iterators = [iterator_(dcopy(x)) for x in labeled_dataloaders]
@@ -195,65 +190,36 @@ class CoTrainer(Trainer):
 
         n_batch_iter = tqdm_(range(n_batch)) if self.use_tqdm else range(n_batch)
 
-        lab_dsc_dict = {}
-        lab_mean_dict = {}
-        unlab_dsc_dict = {}
-
         for batch_num in n_batch_iter:
-            if batch_num % 30 == 0 and train_jsd:
+            if batch_num % 30 == 0 and train_jsd and self.cot_scheduler.value>0:
                 report_status = report_iterator.__next__()
 
             supervisedLoss, jsdLoss, advLoss = 0, 0, 0
-            preds, c_dices, sup_losses = [], [], []
 
             ## for labeled data update
             for enu_lab in range(len(fake_labeled_iterators)):
                 [[img, gt], _, path] = fake_labeled_iterators[enu_lab].__next__()
                 img, gt = img.to(self.device), gt.to(self.device)
-                lab_B = img.shape[0]
-                ## backward and update when the mode = ModelMode.TRAIN
-                # pred, sup_loss = self.segmentators[enu_lab].update(img, gt, criterion=self.criterions.get('sup'),
-                #                                                    mode=ModelMode.TRAIN)
                 pred = self.segmentators[enu_lab].predict(img, logit=True)
                 sup_loss = self.criterions.get('sup')(pred, gt.squeeze(1))
-                c_dice = dice_coef(*self.toOneHot(pred, gt))  # shape: B, axises
-                c_dices.append(c_dice)
-                sup_losses.append(sup_loss)
-                preds.append(pred)
+                diceMeters[enu_lab].add(pred, gt)
+                suplossMeters[enu_lab].add(sup_loss.detach().data.cpu())
 
                 if save:
                     save_images(pred2class(pred), names=path, root=self.save_dir, mode='train', iter=epoch,
                                 seg_num=str(enu_lab))
 
-            batch_slice = slice(lab_done, lab_done + lab_B)
-            ## record supervised data
-            coef_dice[batch_slice] = torch.cat([x.unsqueeze(1) for x in c_dices], dim=1)
-            loss_log[batch_num] = torch.cat([x.detach().unsqueeze(0) for x in sup_losses], dim=0)
-            lab_done += lab_B
-            # print(f'batch:{batch_num},{list(self.segmentators[0].torchnet.parameters())[0].sum()},{path}')
-
-            # highlight
-            supervisedLoss = sum(sup_losses)
+                supervisedLoss += sup_loss
 
             if train_jsd and self.cot_scheduler.value > 0:
                 ## for unlabeled data update
                 [[unlab_img, unlab_gt], _, path] = fake_unlabeled_iterator.__next__()
-                unlab_B = unlab_img.shape[0]
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
                 unlab_preds: List[Tensor] = map_(lambda x: x.predict(unlab_img, logit=False), self.segmentators)
-                assert unlab_preds.__len__() == self.segmentators.__len__()
-
-                c_dices = map_(lambda x: dice_coef(*self.toOneHot(x, unlab_gt)), unlab_preds)
-                batch_slice = slice(unlab_done, unlab_done + unlab_B)
-                # ## record unlabeled data
-                unlabel_coef_dice[batch_slice] = torch.cat([x.unsqueeze(1) for x in c_dices], dim=1)
-                #
-                # ## function for JSD
+                list(map(lambda x, y: x.add(y, gt), unlabdiceMeters, unlab_preds))
                 jsdloss_2D = self.criterions.get('jsd')(unlab_preds)
-                assert jsdloss_2D.shape == unlab_img.squeeze(1).shape
-                # highlight
                 jsdLoss = jsdloss_2D.mean()
-                unlab_done += unlab_B
+                jsdlossMeter.add(jsdLoss.detach().data.cpu())
                 #
                 if save:
                     [save_images(probs2class(prob), names=path, root=self.save_dir, mode='unlab',
@@ -267,6 +233,7 @@ class CoTrainer(Trainer):
                                              lab_data_iterators=itemgetter(*choice)(fake_labeled_iterators_adv),
                                              unlab_data_iterator=fake_unlabeled_iterator_adv,
                                              eplision=0.005)
+                advlossMeter.add(advLoss.detach().data.cpu())
 
             ## update parameters
             map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
@@ -275,24 +242,20 @@ class CoTrainer(Trainer):
             totalLoss.backward()
             map_(lambda x: x.optimizer.step(), self.segmentators)
 
-            lab_big_slice = slice(0, lab_done)
-            unlab_big_slice = slice(0, unlab_done)
-
-            lab_dsc_dict = {f"S{i}": {f"DSC{n}": coef_dice[lab_big_slice, i, n].mean().item() for n in self.axises} for
-                            i in
-                            range(len(self.segmentators))}
-            unlab_dsc_dict = {f"S{i}": {f"DSC{n}": unlabel_coef_dice[unlab_big_slice, i, n].mean().item() \
+            ## for recording
+            lab_dsc_dict = {f"S{i}": {f"DSC{n}": diceMeters[i].value()[1][0][n] for n in self.axises} \
+                            for i in range(len(self.segmentators))}
+            unlab_dsc_dict = {f"S{i}": {f"DSC{n}": unlabdiceMeters[i].value()[1][0][n] \
                                         for n in self.axises} for i in range(len(self.segmentators))}
 
-            lab_mean_dict = {f"S{i}": {"DSC": coef_dice[lab_big_slice, i, self.axises].mean().item()} for i in
-                             range(len(self.segmentators))}
+            lab_mean_dict = {f"S{i}": {"DSC": diceMeters[i].value()[0][0]} for i in range(len(self.segmentators))}
 
-            unlab_mean_dict = {f"S{i}": {"DSC": unlabel_coef_dice[lab_big_slice, i, self.axises].mean().item()} for i in
+            unlab_mean_dict = {f"S{i}": {"DSC": unlabdiceMeters[i].value()[0][0]} for i in
                                range(len(self.segmentators))}
 
             # the general shape of the dict to save upload
 
-            loss_dict = {f'L{i}': loss_log[:batch_num + 1, i].mean().item() for i in range(len(self.segmentators))}
+            loss_dict = {f'L{i}': suplossMeters[i].value()[0] for i in range(len(self.segmentators))}
 
             nice_dict = dict_merge(lab_dsc_dict, lab_mean_dict, re=True) if report_status == 'label' else dict_merge(
                 unlab_dsc_dict, unlab_mean_dict, re=True)
@@ -308,9 +271,12 @@ class CoTrainer(Trainer):
         ## make sure that the nice dict is for labeled dataset
         nice_dict = dict_merge(lab_dsc_dict, lab_mean_dict, re=True)
         print(
-            f"{desc} " + ', '.join([f'{k}_{k_}: {v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()])
+            f"{desc} " + ', '.join([f'{k}_{k_}:{v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()])
         )
-        return coef_dice, unlabel_coef_dice
+        return torch.stack([torch.stack(diceMeters[i].value()[1], dim=1) for i in range(S)]), torch.stack(
+            [torch.stack(unlabdiceMeters[i].value()[1], dim=1) for i in range(S)])
+
+    # torch.zeros( S, self.C, 2,dtype=torch.float)
 
     def _eval_loop(self, val_dataloader: DataLoader,
                    epoch: int,
@@ -320,51 +286,37 @@ class CoTrainer(Trainer):
         [segmentator.set_mode(mode) for segmentator in self.segmentators]
         val_dataloader.dataset.set_mode(ModelMode.EVAL)
         assert self.segmentators[0].training == False
-        desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
+        desc = f">> Validating   ({epoch})"
         S = self.segmentators.__len__()
-        n_batch = len(val_dataloader)
-        n_img = len(val_dataloader.dataset) if not val_dataloader.drop_last else n_batch * val_dataloader.batch_size
 
-        coef_dice = torch.zeros(n_img, S, self.C)
-        batch_dice = torch.zeros(n_batch, S, self.C)
-        loss_log = torch.zeros(n_batch, S)
+        coefdiceMeters = [DiceMeter(report_axises=self.axises, method='2d', C=4) for _ in range(S)]
+        batchdiceMeters = [DiceMeter(report_axises=self.axises, method='3d', C=4) for _ in range(S)]
+        vallossMeters = [AverageValueMeter() for _ in range(self.segmentators.__len__())]
+
         val_dataloader = tqdm_(val_dataloader) if self.use_tqdm else val_dataloader
-        done = 0
-
-        dsc_dict = {}
-        nice_dict = {}
 
         for batch_num, [(img, gt), _, path] in enumerate(val_dataloader):
             img, gt = img.to(self.device), gt.to(self.device)
-            B = img.shape[0]
             preds = map_(lambda x: x.predict(img, logit=True), self.segmentators)
             loss = map_(lambda pred: self.criterions.get('sup')(pred, gt.squeeze(1)), preds)
-            c_dices = map_(lambda x: dice_coef(*self.toOneHot(x, gt)), preds)  # shape: B, axises
-            b_dices = map_(lambda x: dice_batch(*self.toOneHot(x, gt)), preds)
-            batch_slice = slice(done, done + B)
-            coef_dice[batch_slice] = torch.cat([x.unsqueeze(1) for x in c_dices], dim=1)
-            batch_dice[batch_num] = torch.cat([x.unsqueeze(0) for x in b_dices], dim=0)
-            loss_log[batch_num] = torch.stack(loss)
-            done += B
+            list(map(lambda x, y: x.add(y, gt), coefdiceMeters, preds))
+            list(map(lambda x, y: x.add(y, gt), batchdiceMeters, preds))
+            list(map(lambda x, y: x.add(y.detach().data.cpu()), vallossMeters, loss))
 
             if save:
                 [save_images(pred2class(pred), names=path, root=self.save_dir, mode='eval', seg_num=str(i), iter=epoch)
                  for i, pred in enumerate(preds)]
 
-            big_slice = slice(0, done)
+            dsc_dict = {f"S{i}": {f"DSC{n}": coefdiceMeters[i].value()[1][0][n] for n in self.axises} \
+                        for i in range(S)}
+            b_dsc_dict = {f"S{i}": {f"bDSC{n}": batchdiceMeters[i].value()[1][0][n] for n in self.axises} \
+                          for i in range(S)}
 
-            dsc_dict = {f"S{i}": {f"DSC{n}": coef_dice[big_slice, i, n].mean().item() for n in self.axises} \
-                        for i in range(len(self.segmentators))}
-
-            # b_dsc_dict = {f"S{i}": {f"bDSC{n}": batch_dice[big_slice, i, n].mean().item() for n in self.axises} \
-            #               for i in range(len(self.segmentators))}
-
-            mean_dict = {f"S{i}": {"DSC": coef_dice[big_slice, i, self.axises].mean().item()} for i in
-                         range(len(self.segmentators))}
+            mean_dict = {f"S{i}": {"DSC": coefdiceMeters[i].value()[0][0]} for i in range(S)}
 
             nice_dict = dict_merge(dsc_dict, mean_dict, True)
 
-            loss_dict = {f'L{i}': loss_log[0:batch_num, i].mean().item() for i in range(len(self.segmentators))}
+            loss_dict = {f'L{i}': vallossMeters[i].value()[0] for i in range(S)}
 
             if self.use_tqdm:
                 val_dataloader.set_description('val: ' + ','.join([f'{k}:{v:.3f}' for k, v in loss_dict.items()]))
@@ -377,7 +329,8 @@ class CoTrainer(Trainer):
         print(
             f"{desc} " + ', '.join([f'{k}_{k_}: {v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()])
         )
-        return coef_dice, batch_dice
+        return torch.stack([torch.stack(coefdiceMeters[i].value()[1], dim=1) for i in range(S)]), torch.stack(
+            [torch.stack(batchdiceMeters[i].value()[1], dim=1) for i in range(S)])
 
     def _adv_training(self, segmentators: List[Segmentator],
                       lab_data_iterators: List[iterator_], unlab_data_iterator: iterator_,
