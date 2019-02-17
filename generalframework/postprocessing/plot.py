@@ -74,8 +74,10 @@ def main(args: argparse.Namespace) -> None:
 
 def build_plot(plt, axis_, seg_lst, metrics_file, filepath, folername_, interpolate, style, quite=False):
     for seg in seg_lst:
+        # import ipdb
+        # ipdb.set_trace()
         x = np.arange(0, metrics_file.shape[0])
-        value = metrics_file[:, :, seg, axis_].mean(1)
+        value = metrics_file[:, seg, axis_,0 ]
         value_name = f'DSC{axis_}'
         if interpolate:
             new_x = np.linspace(0, len(x) - 1, (len(x) - 1) * 8)

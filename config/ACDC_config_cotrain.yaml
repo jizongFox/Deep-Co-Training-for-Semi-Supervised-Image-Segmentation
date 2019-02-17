@@ -4,7 +4,7 @@ Arch:
 
 Optim:
   name: Adam
-  lr: 0.005
+  lr: 0.002
 #  weight_decay: 0.00002
 
 Scheduler:
@@ -31,8 +31,7 @@ Lab_Dataloader:
 
 Lab_Partitions:
   label: [[1,101],[1,101]]
-  unlabel: [50,100]
-
+  unlabel: [61,100]
 
 Unlab_Dataloader:
   pin_memory: False
@@ -49,14 +48,9 @@ Trainer:
   metricname: metrics.csv
   use_tqdm: True
 
-Adv_Training:
-  eplision:  0.001
-  fsgm_ratio: 1
-  axises: [0,1,2,3]
-
 Cot_Scheduler:
   name: RampScheduler
-  begin_epoch: 0
+  begin_epoch: 5
   max_epoch: 80
   max_value: 1.0
   ramp_mult: -5
@@ -67,6 +61,11 @@ Adv_Scheduler:
   max_epoch: 80
   max_value: 0.5
   ramp_mult: -5
+
+Adv_Training:
+  eplision:  0.001
+  fsgm_ratio: 0.5
+  axises: [0,1,2,3]
 
 Loss:
   name: cross_entropy

@@ -23,10 +23,16 @@ def fix_seed(seed):
 
 class CoTrainer(Trainer):
 
-    def __init__(self, segmentators: List[Segmentator], labeled_dataloaders: List[DataLoader],
-                 unlabeled_dataloader: DataLoader, val_dataloader: DataLoader, criterions: Dict[str, nn.Module],
-                 max_epoch: int = 100, save_dir: str = 'tmp', device: str = 'cpu',
-                 axises: List[int] = [1, 2, 3], checkpoint: Union[List[str], None] = None,
+    def __init__(self, segmentators: List[Segmentator],
+                 labeled_dataloaders: List[DataLoader],
+                 unlabeled_dataloader: DataLoader,
+                 val_dataloader: DataLoader,
+                 criterions: Dict[str, nn.Module],
+                 max_epoch: int = 100,
+                 save_dir: str = 'tmp',
+                 device: str = 'cpu',
+                 axises: List[int] = [1, 2, 3],
+                 checkpoint: Union[List[str], None] = None,
                  metricname: str = 'metrics.csv',
                  adv_scheduler_dict: dict = None,
                  cot_scheduler_dict: dict = None,
@@ -47,8 +53,8 @@ class CoTrainer(Trainer):
         ## the sgementators and dataloaders must be different instance
         assert set(map_(id, self.segmentators)).__len__() == self.segmentators.__len__()
         assert set(map_(id, self.labeled_dataloaders)).__len__() == self.segmentators.__len__()
-        ## labeled_dataloaders should have the same number of images
-        # assert set(map_(lambda x: len(x.dataset), self.labeled_dataloaders)).__len__() == 1
+        ## labeled_dataloaders should have the same batch number
+        assert set(map_(lambda x: x.batch_size, self.labeled_dataloaders)).__len__() == 1
         # assert set(map_(lambda x: len(x), self.labeled_dataloaders)).__len__() == 1
 
         self.criterions = criterions
@@ -89,9 +95,13 @@ class CoTrainer(Trainer):
         [segmentator.to(device) for segmentator in self.segmentators]
         [criterion.to(device) for _, criterion in self.criterions.items()]
 
-    def start_training(self, train_jsd=False, train_adv=False, save_train=False, save_val=False,
-                       augment_labeled_data=False, augment_unlabeled_data=False):
-        ## prepare for something:
+    def start_training(self,
+                       train_jsd=False,
+                       train_adv=False,
+                       save_train=False,
+                       save_val=False,
+                       augment_labeled_data=False,
+                       augment_unlabeled_data=False):
         S = len(self.segmentators)
         metrics = {'train_dice': torch.zeros(self.max_epoch, S, self.C, 2, dtype=torch.float),
                    'train_unlab_dice': torch.zeros(self.max_epoch, S, self.C, 2, dtype=torch.float),
@@ -110,19 +120,15 @@ class CoTrainer(Trainer):
                                                             augment_labeled_data=augment_labeled_data,
                                                             augment_unlabeled_data=augment_unlabeled_data
                                                             )
-
             with torch.no_grad():
                 val_dice, val_batch_dice = self._eval_loop(val_dataloader=self.val_dataloader,
                                                            epoch=epoch,
                                                            mode=ModelMode.EVAL,
                                                            save=save_val)
-
             self.schedulerStep()
-
             for k, v in metrics.items():
                 assert v[epoch].shape == eval(k).shape
                 v[epoch] = eval(k)
-
             for k, v in metrics.items():
                 np.save(self.save_dir / f'{k}.npy', v.data.numpy())
 
@@ -136,19 +142,26 @@ class CoTrainer(Trainer):
                         **{f"val_dice_{i}": metrics["val_dice"][:, s, i, 0] for i in self.axises},
                         **{f"val_batch_dice_{i}": metrics["val_batch_dice"][:, s, i, 0] for i in self.axises}
                     })
-
                 df.to_csv(Path(self.save_dir, self.metricname.replace('.csv', f'_{s}.csv')), float_format="%.4f",
                           index_label="epoch")
                 df.to_excel(excel_writer=writer, sheet_name=f'Seg_{s}', encoding="utf-8", index_label='epoch',
                             float_format="%.4f")
             writer.save()
             writer.close()
+
             current_metric = val_dice[:, self.axises, 0].mean(1)
             self.checkpoint(current_metric, epoch)
 
-    def _train_loop(self, labeled_dataloaders: List[DataLoader], unlabeled_dataloader: DataLoader, epoch: int,
-                    mode: ModelMode, save: bool, augment_labeled_data=False, augment_unlabeled_data=False,
-                    train_jsd=False, train_adv=False):
+    def _train_loop(self,
+                    labeled_dataloaders: List[DataLoader],
+                    unlabeled_dataloader: DataLoader,
+                    epoch: int,
+                    mode: ModelMode,
+                    save: bool,
+                    augment_labeled_data=False,
+                    augment_unlabeled_data=False,
+                    train_jsd=False,
+                    train_adv=False):
 
         fix_seed(epoch)
         diceMeters = [DiceMeter(report_axises=self.axises, method='2d', C=self.C) for _ in
@@ -190,8 +203,6 @@ class CoTrainer(Trainer):
                 report_status = report_iterator.__next__()
 
             supervisedLoss, jsdLoss, advLoss = 0, 0, 0
-
-            ## for labeled data update
             for enu_lab in range(len(fake_labeled_iterators)):
                 [[img, gt], _, path] = fake_labeled_iterators[enu_lab].__next__()
                 img, gt = img.to(self.device), gt.to(self.device)
@@ -199,13 +210,10 @@ class CoTrainer(Trainer):
                 sup_loss = self.criterions.get('sup')(pred, gt.squeeze(1))
                 diceMeters[enu_lab].add(pred, gt)
                 suplossMeters[enu_lab].add(sup_loss.detach().data.cpu())
-
                 if save:
                     save_images(pred2class(pred), names=path, root=self.save_dir, mode='train', iter=epoch,
                                 seg_num=str(enu_lab))
-
                 supervisedLoss += sup_loss
-
             if train_jsd and self.cot_scheduler.value > 0:
                 ## for unlabeled data update
                 [[unlab_img, unlab_gt], _, path] = fake_unlabeled_iterator.__next__()
@@ -219,24 +227,17 @@ class CoTrainer(Trainer):
                 if save:
                     [save_images(probs2class(prob), names=path, root=self.save_dir, mode='unlab',
                                  iter=epoch, seg_num=str(i)) for i, prob in enumerate(unlab_preds)]
-
-            ## adversarial loss:
             if train_adv and self.adv_scheduler.value > 0:
                 choice = np.random.choice(list(range(S)), 2, replace=False).tolist()
-                # highlight
                 advLoss = self._adv_training(segmentators=itemgetter(*choice)(self.segmentators),
                                              lab_data_iterators=itemgetter(*choice)(fake_labeled_iterators_adv),
                                              unlab_data_iterator=fake_unlabeled_iterator_adv,
                                              **self.adv_training_dict)
                 advlossMeter.add(advLoss.detach().data.cpu())
-
-            ## update parameters
             map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
-            # highlight
             totalLoss = supervisedLoss + self.cot_scheduler.value * jsdLoss + self.adv_scheduler.value * advLoss
             totalLoss.backward()
             map_(lambda x: x.optimizer.step(), self.segmentators)
-
             ## for recording
             lab_dsc_dict = {f"S{i}": {f"DSC{n}": diceMeters[i].value()[1][0][n] for n in self.axises} \
                             for i in range(len(self.segmentators))}
@@ -245,7 +246,6 @@ class CoTrainer(Trainer):
             lab_mean_dict = {f"S{i}": {"DSC": diceMeters[i].value()[0][0]} for i in range(len(self.segmentators))}
             unlab_mean_dict = {f"S{i}": {"DSC": unlabdiceMeters[i].value()[0][0]} for i in
                                range(len(self.segmentators))}
-            # the general shape of the dict to save upload
             loss_dict = {f'L{i}': suplossMeters[i].value()[0] for i in range(len(self.segmentators))}
             nice_dict = dict_merge(lab_dsc_dict, lab_mean_dict, re=True) if report_status == 'label' else dict_merge(
                 unlab_dsc_dict, unlab_mean_dict, re=True)
@@ -256,16 +256,13 @@ class CoTrainer(Trainer):
 
         self.upload_dicts('labeled dataset', lab_dsc_dict, epoch)
         self.upload_dicts('unlabeled dataset', unlab_dsc_dict, epoch)
-
-        ## make sure that the nice dict is for labeled dataset
         nice_dict = dict_merge(lab_dsc_dict, lab_mean_dict, re=True)
-        print(
-            f"{desc} " + ', '.join([f'{k}_{k_}:{v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()])
-        )
+        print(f"{desc} " + ', '.join([f'{k}_{k_}:{v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()]))
         return torch.stack([torch.stack(diceMeters[i].value()[1], dim=1) for i in range(S)]), torch.stack(
             [torch.stack(unlabdiceMeters[i].value()[1], dim=1) for i in range(S)])
 
-    def _eval_loop(self, val_dataloader: DataLoader,
+    def _eval_loop(self,
+                   val_dataloader: DataLoader,
                    epoch: int,
                    mode: ModelMode = ModelMode.EVAL,
                    save: bool = False
@@ -311,8 +308,11 @@ class CoTrainer(Trainer):
             [torch.stack(batchdiceMeters[i].value()[1], dim=1) for i in range(S)])
 
     def _adv_training(self, segmentators: List[Segmentator],
-                      lab_data_iterators: List[iterator_], unlab_data_iterator: iterator_,
-                      eplision: float = 0.05, fsgm_ratio=0.5, axises=[0, 1, 2, 3]):
+                      lab_data_iterators: List[iterator_],
+                      unlab_data_iterator: iterator_,
+                      eplision: float = 0.05,
+                      fsgm_ratio=0.5,
+                      axises=[0, 1, 2, 3]):
         assert segmentators.__len__() == 2, 'only implemented for 2 segmentators'
         adv_losses = []
         ## draw first term from labeled1 or unlabeled

@@ -27,7 +27,6 @@ def fix_seed(seed):
 
 
 fix_seed(1234)
-
 parser_args = yaml_parser()
 print('->>Input args:')
 pprint(parser_args)

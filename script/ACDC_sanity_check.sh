@@ -5,11 +5,11 @@ time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
-max_peoch=5
+max_peoch=100
 data_aug=None
 net=enet
 logdir=cardiac/$net"_refactor_test"
-tqdm=True
+tqdm=False
 FAIL=0
 
 
@@ -127,11 +127,10 @@ mkdir -p runs/$logdir
 FS 0 &
 Partial 0 &
 JSD 0
-
 wait_script
+
 ADV 0 &
 JSD_ADV 0 &
-
 wait_script
 
 python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
