@@ -30,6 +30,7 @@ class CoTrainer(Trainer):
                  metricname: str = 'metrics.csv',
                  adv_scheduler_dict: dict = None,
                  cot_scheduler_dict: dict = None,
+                 adv_training_dict: dict = {},
                  use_tqdm: bool = True,
                  whole_config=None) -> None:
 
@@ -74,6 +75,8 @@ class CoTrainer(Trainer):
             **{k: v for k, v in cot_scheduler_dict.items() if k != 'name'})
         self.adv_scheduler = eval(adv_scheduler_dict['name'])(
             **{k: v for k, v in adv_scheduler_dict.items() if k != 'name'})
+
+        self.adv_training_dict = adv_training_dict
 
         if checkpoint is not None:
             # todo
@@ -145,12 +148,12 @@ class CoTrainer(Trainer):
 
     def _train_loop(self, labeled_dataloaders: List[DataLoader], unlabeled_dataloader: DataLoader, epoch: int,
                     mode: ModelMode, save: bool, augment_labeled_data=False, augment_unlabeled_data=False,
-                    train_jsd=False, train_adv=False, Adv_Training_dict={}):
+                    train_jsd=False, train_adv=False):
 
         fix_seed(epoch)
-        diceMeters = [DiceMeter(report_axises=self.axises, method='2d', C=4) for _ in
+        diceMeters = [DiceMeter(report_axises=self.axises, method='2d', C=self.C) for _ in
                       range(self.segmentators.__len__())]
-        unlabdiceMeters = [DiceMeter(report_axises=self.axises, method='2d', C=4) for _ in
+        unlabdiceMeters = [DiceMeter(report_axises=self.axises, method='2d', C=self.C) for _ in
                            range(self.segmentators.__len__())]
         suplossMeters = [AverageValueMeter() for _ in range(self.segmentators.__len__())]
         jsdlossMeter = AverageValueMeter()
@@ -224,7 +227,7 @@ class CoTrainer(Trainer):
                 advLoss = self._adv_training(segmentators=itemgetter(*choice)(self.segmentators),
                                              lab_data_iterators=itemgetter(*choice)(fake_labeled_iterators_adv),
                                              unlab_data_iterator=fake_unlabeled_iterator_adv,
-                                             **Adv_Training_dict)
+                                             **self.adv_training_dict)
                 advlossMeter.add(advLoss.detach().data.cpu())
 
             ## update parameters
@@ -239,19 +242,13 @@ class CoTrainer(Trainer):
                             for i in range(len(self.segmentators))}
             unlab_dsc_dict = {f"S{i}": {f"DSC{n}": unlabdiceMeters[i].value()[1][0][n] \
                                         for n in self.axises} for i in range(len(self.segmentators))}
-
             lab_mean_dict = {f"S{i}": {"DSC": diceMeters[i].value()[0][0]} for i in range(len(self.segmentators))}
-
             unlab_mean_dict = {f"S{i}": {"DSC": unlabdiceMeters[i].value()[0][0]} for i in
                                range(len(self.segmentators))}
-
             # the general shape of the dict to save upload
-
             loss_dict = {f'L{i}': suplossMeters[i].value()[0] for i in range(len(self.segmentators))}
-
             nice_dict = dict_merge(lab_dsc_dict, lab_mean_dict, re=True) if report_status == 'label' else dict_merge(
                 unlab_dsc_dict, unlab_mean_dict, re=True)
-
             if self.use_tqdm:
                 n_batch_iter.set_postfix({f'{k}_{k_}': f'{v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()})
                 n_batch_iter.set_description(
@@ -267,8 +264,6 @@ class CoTrainer(Trainer):
         )
         return torch.stack([torch.stack(diceMeters[i].value()[1], dim=1) for i in range(S)]), torch.stack(
             [torch.stack(unlabdiceMeters[i].value()[1], dim=1) for i in range(S)])
-
-    # torch.zeros( S, self.C, 2,dtype=torch.float)
 
     def _eval_loop(self, val_dataloader: DataLoader,
                    epoch: int,
@@ -299,28 +294,19 @@ class CoTrainer(Trainer):
                 [save_images(pred2class(pred), names=path, root=self.save_dir, mode='eval', seg_num=str(i), iter=epoch)
                  for i, pred in enumerate(preds)]
 
-            dsc_dict = {f"S{i}": {f"DSC{n}": coefdiceMeters[i].value()[1][0][n] for n in self.axises} \
-                        for i in range(S)}
-            b_dsc_dict = {f"S{i}": {f"bDSC{n}": batchdiceMeters[i].value()[1][0][n] for n in self.axises} \
-                          for i in range(S)}
-
+            dsc_dict = {f"S{i}": {f"DSC{n}": coefdiceMeters[i].value()[1][0][n] for n in self.axises} for i in range(S)}
             mean_dict = {f"S{i}": {"DSC": coefdiceMeters[i].value()[0][0]} for i in range(S)}
-
             nice_dict = dict_merge(dsc_dict, mean_dict, True)
-
             loss_dict = {f'L{i}': vallossMeters[i].value()[0] for i in range(S)}
 
             if self.use_tqdm:
                 val_dataloader.set_description('val: ' + ','.join([f'{k}:{v:.3f}' for k, v in loss_dict.items()]))
-
                 val_dataloader.set_postfix(
                     {f'{k}_{k_}': f'{v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()})
 
         self.upload_dicts('val_data', dsc_dict, epoch)
 
-        print(
-            f"{desc} " + ', '.join([f'{k}_{k_}: {v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()])
-        )
+        print(f"{desc} " + ', '.join([f'{k}_{k_}: {v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()]))
         return torch.stack([torch.stack(coefdiceMeters[i].value()[1], dim=1) for i in range(S)]), torch.stack(
             [torch.stack(batchdiceMeters[i].value()[1], dim=1) for i in range(S)])
 
@@ -331,7 +317,7 @@ class CoTrainer(Trainer):
         adv_losses = []
         ## draw first term from labeled1 or unlabeled
         img, img_adv = None, None
-        if random.random() > fsgm_ratio:
+        if random.random() <= fsgm_ratio:
             [[img, gt], _, _] = lab_data_iterators[0].__next__()
             img, gt = img.to(self.device), gt.to(self.device)
             with warnings.catch_warnings():
@@ -345,9 +331,8 @@ class CoTrainer(Trainer):
         assert img.shape == img_adv.shape
         adv_pred = segmentators[1].predict(img_adv, logit=False)
         real_pred = segmentators[0].predict(img, logit=False)
-        adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred))
-
-        if random.random() > fsgm_ratio:
+        adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()))
+        if random.random() <= fsgm_ratio:
             [[img, gt], _, _] = lab_data_iterators[1].__next__()
             img, gt = img.to(self.device), gt.to(self.device)
             img_adv, _ = FSGMGenerator(self.segmentators[1].torchnet, eplision=eplision) \
@@ -360,9 +345,7 @@ class CoTrainer(Trainer):
         adv_pred = segmentators[0].predict(img_adv, logit=False)
         real_pred = segmentators[1].predict(img, logit=False)
         adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()))
-
         adv_loss = sum(adv_losses) / adv_losses.__len__()
-
         return adv_loss
 
     def upload_dicts(self, name, dicts, epoch):
@@ -380,17 +363,18 @@ class CoTrainer(Trainer):
         self.adv_scheduler.step()
 
     def _load_checkpoint(self, checkpoint):
+        if isinstance(checkpoint, str):
+            checkpoint = eval(checkpoint)
         assert isinstance(checkpoint, list), 'checkpoint should be provided as a list.'
         for i, cp in enumerate(checkpoint):
             cp = Path(cp)
             assert cp.exists(), cp
             state_dict = torch.load(cp, map_location=torch.device('cpu'))
             self.segmentators[i].load_state_dict(state_dict['segmentator'])
-            self.best_score[i] = state_dict['best_score']
-            self.start_epoch = max(state_dict['best_epoch'], self.start_epoch)
-            print(
-                f'>>>  {cp} has been loaded successfully. \
-                Best score {self.best_score:.3f} @ {state_dict["best_epoch"]}.')
+            self.best_scores[i] = state_dict['best_score']
+            # self.start_epoch = max(state_dict['best_epoch'], self.start_epoch)
+            print(f'>>>  {cp} has been loaded successfully. \
+                Best score {self.best_scores[i]:.3f} @ {state_dict["best_epoch"]}.')
             self.segmentators[i].train()
 
     def checkpoint(self, metric, epoch, filename='best.pth'):

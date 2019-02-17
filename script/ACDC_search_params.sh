@@ -7,7 +7,7 @@ time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
-max_peoch=100
+max_peoch=80
 data_aug=None
 net=enet
 logdir=cardiac/$net"_search"
@@ -67,7 +67,6 @@ rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
-## Define parameters for RampScheduler
 
 ADV(){
 set -e
