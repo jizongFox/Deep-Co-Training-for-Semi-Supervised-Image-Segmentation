@@ -90,14 +90,6 @@ class CoTrainer(Trainer):
                        augment_labeled_data=False, augment_unlabeled_data=False):
         ## prepare for something:
         S = len(self.segmentators)
-        n_batch = max(map_(len, self.labeled_dataloaders))
-        n_img = n_batch * self.labeled_dataloaders[0].batch_size if self.labeled_dataloaders[0].drop_last else \
-            max(map_(lambda x: len(x.dataset), self.labeled_dataloaders))
-        n_unlab_img = n_batch * self.unlabeled_dataloader.batch_size
-
-        val_n_img = len(
-            self.val_dataloader.dataset) if not self.val_dataloader.drop_last else self.val_dataloader.__len__() * self.val_dataloader.batch_size
-
         metrics = {'train_dice': torch.zeros(self.max_epoch, S, self.C, 2, dtype=torch.float),
                    'train_unlab_dice': torch.zeros(self.max_epoch, S, self.C, 2, dtype=torch.float),
                    'val_dice': torch.zeros(self.max_epoch, S, self.C, 2, dtype=torch.float),
@@ -148,12 +140,12 @@ class CoTrainer(Trainer):
                             float_format="%.4f")
             writer.save()
             writer.close()
-            current_metric = val_dice[:,self.axises,0].mean(1)
+            current_metric = val_dice[:, self.axises, 0].mean(1)
             self.checkpoint(current_metric, epoch)
 
     def _train_loop(self, labeled_dataloaders: List[DataLoader], unlabeled_dataloader: DataLoader, epoch: int,
                     mode: ModelMode, save: bool, augment_labeled_data=False, augment_unlabeled_data=False,
-                    train_jsd=False, train_adv=False):
+                    train_jsd=False, train_adv=False, Adv_Training_dict={}):
 
         fix_seed(epoch)
         diceMeters = [DiceMeter(report_axises=self.axises, method='2d', C=4) for _ in
@@ -191,7 +183,7 @@ class CoTrainer(Trainer):
         n_batch_iter = tqdm_(range(n_batch)) if self.use_tqdm else range(n_batch)
 
         for batch_num in n_batch_iter:
-            if batch_num % 30 == 0 and train_jsd and self.cot_scheduler.value>0:
+            if batch_num % 30 == 0 and train_jsd and self.cot_scheduler.value > 0:
                 report_status = report_iterator.__next__()
 
             supervisedLoss, jsdLoss, advLoss = 0, 0, 0
@@ -232,7 +224,7 @@ class CoTrainer(Trainer):
                 advLoss = self._adv_training(segmentators=itemgetter(*choice)(self.segmentators),
                                              lab_data_iterators=itemgetter(*choice)(fake_labeled_iterators_adv),
                                              unlab_data_iterator=fake_unlabeled_iterator_adv,
-                                             eplision=0.005)
+                                             **Adv_Training_dict)
                 advlossMeter.add(advLoss.detach().data.cpu())
 
             ## update parameters
@@ -334,12 +326,12 @@ class CoTrainer(Trainer):
 
     def _adv_training(self, segmentators: List[Segmentator],
                       lab_data_iterators: List[iterator_], unlab_data_iterator: iterator_,
-                      eplision: float = 0.05):
+                      eplision: float = 0.05, fsgm_ratio=0.5, axises=[0, 1, 2, 3]):
         assert segmentators.__len__() == 2, 'only implemented for 2 segmentators'
         adv_losses = []
         ## draw first term from labeled1 or unlabeled
         img, img_adv = None, None
-        if random.random() > 0.5:
+        if random.random() > fsgm_ratio:
             [[img, gt], _, _] = lab_data_iterators[0].__next__()
             img, gt = img.to(self.device), gt.to(self.device)
             with warnings.catch_warnings():
@@ -349,13 +341,13 @@ class CoTrainer(Trainer):
         else:
             [[img, _], _, _] = unlab_data_iterator.__next__()
             img = img.to(self.device)
-            img_adv, _ = VATGenerator(self.segmentators[0].torchnet, eplision=eplision, axises=[1, 2, 3])(dcopy(img))
+            img_adv, _ = VATGenerator(self.segmentators[0].torchnet, eplision=eplision, axises=axises)(dcopy(img))
         assert img.shape == img_adv.shape
         adv_pred = segmentators[1].predict(img_adv, logit=False)
         real_pred = segmentators[0].predict(img, logit=False)
         adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred))
 
-        if random.random() > 0.5:
+        if random.random() > fsgm_ratio:
             [[img, gt], _, _] = lab_data_iterators[1].__next__()
             img, gt = img.to(self.device), gt.to(self.device)
             img_adv, _ = FSGMGenerator(self.segmentators[1].torchnet, eplision=eplision) \
@@ -363,7 +355,7 @@ class CoTrainer(Trainer):
         else:
             [[img, _], _, _] = unlab_data_iterator.__next__()
             img = img.to(self.device)
-            img_adv, _ = VATGenerator(self.segmentators[1].torchnet, eplision=eplision, axises=[1, 2, 3])(dcopy(img))
+            img_adv, _ = VATGenerator(self.segmentators[1].torchnet, eplision=eplision, axises=axises)(dcopy(img))
 
         adv_pred = segmentators[0].predict(img_adv, logit=False)
         real_pred = segmentators[1].predict(img, logit=False)
