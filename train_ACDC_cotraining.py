@@ -15,6 +15,7 @@ from generalframework.utils import yaml_parser, dict_merge
 
 warnings.filterwarnings('ignore')
 
+
 def fix_seed(seed):
     random.seed(seed)
     torch.manual_seed(seed)
@@ -24,8 +25,8 @@ def fix_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-fix_seed(1234)
 
+fix_seed(1234)
 parser_args = yaml_parser()
 print('->>Input args:')
 pprint(parser_args)
@@ -72,6 +73,7 @@ cotrainner = CoTrainer(segmentators=segmentators,
                        criterions=criterions,
                        adv_scheduler_dict=config['Adv_Scheduler'],
                        cot_scheduler_dict=config['Cot_Scheduler'],
+                       adv_training_dict=config['Adv_Training'],
                        **config['Trainer'],
                        whole_config=config)
 

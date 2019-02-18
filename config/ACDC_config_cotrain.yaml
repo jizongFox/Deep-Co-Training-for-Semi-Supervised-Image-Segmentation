@@ -4,15 +4,12 @@ Arch:
 
 Optim:
   name: Adam
-  lr: 0.005
+  lr: 0.002
 #  weight_decay: 0.00002
 
 Scheduler:
-#  name: MultiStepLR
-#  milestones: [10, 20, 30, 40, 50, 60, 70, 90, 120, 150]
-#  gamma: 0.7
   name: StepLR
-  step_size: 50
+  step_size: 30
   gamma: 0.1
 
 
@@ -34,8 +31,7 @@ Lab_Dataloader:
 
 Lab_Partitions:
   label: [[1,101],[1,101]]
-  unlabel: [50,100]
-
+  unlabel: [61,100]
 
 Unlab_Dataloader:
   pin_memory: False
@@ -54,7 +50,7 @@ Trainer:
 
 Cot_Scheduler:
   name: RampScheduler
-  begin_epoch: 10
+  begin_epoch: 5
   max_epoch: 80
   max_value: 1.0
   ramp_mult: -5
@@ -62,9 +58,14 @@ Cot_Scheduler:
 Adv_Scheduler:
   name: RampScheduler
   begin_epoch: 10
-  max_epoch: 100
+  max_epoch: 80
   max_value: 0.5
   ramp_mult: -5
+
+Adv_Training:
+  eplision:  0.001
+  fsgm_ratio: 0.5
+  axises: [0,1,2,3]
 
 Loss:
   name: cross_entropy
