@@ -10,7 +10,7 @@ gitcommit_number=${gitcommit_number:0:8}
 
 data_aug=None
 net=enet
-logdir=cardiac/${net}"_search"${groupname}
+logdir=cardiac/${net}"_search_"${groupname}
 FAIL=0
 
 echo "Experiment Summary:"
@@ -136,7 +136,6 @@ FS 0 &
 Partial 0
 }
 
-#
 group2(){
 ADV 0 0 1 80 10 0.001 80  &
 JSD_ADV 0 0 1 80 10 0.001 80
@@ -161,6 +160,7 @@ group6(){
 ADV 0 0 1 80 10 0.8 80 &
 JSD_ADV 0 0 1 80 10 0.8 80
 }
+
 group7(){
 ADV 0 0 1 80 10 1 80 &
 JSD_ADV 0 0 1 80 10 1 80
