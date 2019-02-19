@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 groupname=$1
+max_epoch=$2
 
 set -e
 cd ..
@@ -7,7 +8,6 @@ time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
-max_epoch=$2
 data_aug=None
 net=enet
 logdir=cardiac/${net}"_search"${groupname}
