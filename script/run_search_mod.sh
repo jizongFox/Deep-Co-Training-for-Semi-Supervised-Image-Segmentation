@@ -14,5 +14,5 @@ echo "Running: ${jobname}"
 module load python/3.6
 source $HOME/torchenv36/bin/activate
 module load scipy-stack
-time bash ACDC_search_params.sh $jobname
+time bash ACDC_search_params.sh $jobname $max_epoch
 
