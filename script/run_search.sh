@@ -2,9 +2,9 @@
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
 #SBATCH --job-name="acdc_search"
-#SBATCH --cpus-per-task=12
+#SBATCH --cpus-per-task=6
 #SBATCH --mem=32000M
-#SBATCH --time=0-36:00
+#SBATCH --time=0-18:00
 #SBATCH --account=def-chdesa
 #SBATCH --mail-user=jizong.peng.1@etsmtl.net
 #SBATCH --mail-type=ALL
