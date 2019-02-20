@@ -21,9 +21,12 @@ class VatTrainer(Trainer):
     def __init__(self, segmentator: Segmentator, dataloaders: Dict[str, DataLoader], criterion: nn.Module,
                  max_epoch: int = 100,
                  save_dir: str = 'tmp',
-                 device: str = 'cpu', axises: List[int] = [1, 2, 3],
-                 checkpoint: str = None, metricname: str = 'metrics.csv', whole_config=None,
-                 adv_scheduler_dict: list = None) -> None:
+                 device: str = 'cpu',
+                 axises: List[int] = [1, 2, 3],
+                 checkpoint: str = None,
+                 metricname: str = 'metrics.csv',
+                 whole_config=None,
+                 adv_scheduler_dict: dict = None) -> None:
         super().__init__(segmentator=segmentator, dataloaders=dataloaders, criterion=criterion,
                          max_epoch=max_epoch, save_dir=save_dir,
                          device=device, axises=axises, checkpoint=checkpoint, metricname=metricname,
@@ -133,7 +136,7 @@ class VatTrainer(Trainer):
             if save:
                 save_images(pred2class(pred), names=path, root=self.save_dir, mode='train', iter=epoch)
             adv_loss = 0
-            if train_adv:
+            if train_adv and self.adv_scheduler.value > 0:
                 [[unlab_img, unlab_gt], _, path] = fake_unlabeled_iterator.__next__()
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
                 unlab_img_adv, noise = VATGenerator(self.segmentator.torchnet, ip=ip, eplision=eplision,

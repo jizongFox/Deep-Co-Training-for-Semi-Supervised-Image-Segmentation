@@ -110,7 +110,7 @@ for i, (model, state_dict) in enumerate(zip(models, state_dicts)):
 
 with torch.no_grad():
     done = 0
-    for i, ((img, gt), _, filename) in tqdm(enumerate(dataloaders['val'])):
+    for i, ((img, gt), _, filename) in enumerate(dataloaders['val']):
         img, gt = img.to(device), gt.to(device)
         b = filename.__len__()
         preds = [model.predict(img, logit=False) for model in models]
@@ -125,7 +125,15 @@ with torch.no_grad():
         f'model_{i}': {f'DSC{j}': coef_dice[:, i, j].mean().item() for j in range(config['Arch']['num_classes'])} for i
         in
         range(models.__len__())}
+    individual_std_dict = {
+        f'model_{i}': {f'DSC{j}': coef_dice[:, i, j].std().item() for j in range(config['Arch']['num_classes'])} for i
+        in
+        range(models.__len__())}
     ensemble_result_dict = {
         f'ensemble': {f'DSC{i}': coef_dice[:, -1, i].mean().item() for i in range(config['Arch']['num_classes'])}}
+    ensemble_std_dict = {
+        f'ensemble': {f'DSC{i}': coef_dice[:, -1, i].std().item() for i in range(config['Arch']['num_classes'])}}
     summary = pd.DataFrame({**ensemble_result_dict, **individual_result_dict})
+    summary_std = pd.DataFrame({**ensemble_std_dict, **individual_std_dict})
     summary.to_csv(Path(args.input_dir) / 'summary.csv')
+    summary_std.to_csv(Path(args.input_dir) / 'summary_std.csv')
