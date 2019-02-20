@@ -70,8 +70,7 @@ class VATGenerator(object):
         # return torch.from_numpy(d)
         d_reshaped = d.view(d.shape[0], -1, *(1 for _ in range(d.dim() - 2)))
         d /= torch.norm(d_reshaped, dim=1, keepdim=True) + 1e-16
-        assert torch.allclose(d.view(d.shape[0], -1).norm(dim=1), torch.ones(d.shape[0]).to(d.device))
-
+        assert torch.allclose(d.view(d.shape[0], -1).norm(dim=1), torch.ones(d.shape[0]).to(d.device), rtol=1e-3)
         return d
 
     @staticmethod
