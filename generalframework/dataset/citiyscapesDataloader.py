@@ -90,7 +90,7 @@ class CityscapesDataset(Dataset):
                             "vegetation", "terrain", "sky", "person", "rider", "car", "truck", "bus", "train",
                             "motorcycle",
                             "bicycle", ]
-        self.ignore_index = 255
+        self.ignore_index = 250
         self.class_map = dict(zip(self.valid_classes, range(19)))
 
         if self.files[mode].__len__() == 0:
