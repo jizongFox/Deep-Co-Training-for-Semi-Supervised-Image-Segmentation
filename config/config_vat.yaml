@@ -37,11 +37,9 @@ Unlab_Dataloader:
 Trainer:
   max_epoch: 100
   save_dir: tmp/vat
-  device: cuda
+  device: cuda:0
   axises: [1,2,3]
   metricname: metrics.csv
-  adv_scheduler: [RampScheduler,{max_epoch: 80, max_value: 0.05, ramp_mult: -0.5}]
-#  adv_scheduler: [ ConstantScheduler, {max_value: 1} ]
 
 
 Loss:
@@ -49,11 +47,24 @@ Loss:
   weight: [1, 1, 1, 1]
 
 StartTraining:
-  train_adv: False
+  train_adv: True
   save_train: False
   save_val: False
-  adv_config:
-    vat_axises:  [0, 1, 2, 3]
-    vat_lossname:  kl
-    eplision: 0.05
-    ip: 1
+  use_tqdm: True
+
+Adv_Scheduler:
+  name: RampScheduler
+  begin_epoch: 10
+  max_epoch: 80
+  max_value: 0.5
+  ramp_mult: -5
+
+Adv_Training:
+  eplision:  0.001
+  vat_axises: [0,1,2,3]
+  vat_lossname: kl
+  ip: 1
+
+Lab_Partitions:
+  label: [[1,61]]
+  unlabel: [61,100]
