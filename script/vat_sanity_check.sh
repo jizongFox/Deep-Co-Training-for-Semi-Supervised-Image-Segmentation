@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 cd ..
-max_peoch=3
+max_peoch=10
 data_aug=None
 net=enet
 logdir=cardiac/$net"_VAT"
@@ -75,8 +75,8 @@ PS 0 &
 ADV 0 &
 wait_script
 
-python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ archives/$logdir/PS/ archives/$logdir/ADV/  --file val_dice.npy --axis 1 2 3 --postfix=test
-python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ archives/$logdir/FS/ archives/$logdir/ADV/  --file val_batch_dice.npy --axis 1 2 3 --postfix=test
+python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ archives/$logdir/PS/ archives/$logdir/ADV/  --file val_dice.npy --axis 1 2 3 --postfix=test --seg_id=0
+python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ archives/$logdir/FS/ archives/$logdir/ADV/  --file val_batch_dice.npy --axis 1 2 3 --postfix=test --seg_id=0
 
 python generalframework/postprocessing/report.py --folder=archives/$logdir/ --file=summary.csv
 rm -rf runs/$logdir

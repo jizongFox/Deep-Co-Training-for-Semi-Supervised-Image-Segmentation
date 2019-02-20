@@ -37,7 +37,6 @@ def get_dataloders(config):
     val_dataloader = dataloders['val']
     return labeled_dataloaders, unlab_dataloader, val_dataloader
 
-
 fix_seed(1234)
 
 parser_args = yaml_parser()

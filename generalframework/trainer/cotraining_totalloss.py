@@ -341,7 +341,6 @@ class CoTrainer(Trainer):
             [[img, _], _, _] = unlab_data_iterator.__next__()
             img = img.to(self.device)
             img_adv, _ = VATGenerator(segmentators[1].torchnet, eplision=eplision, axises=axises)(dcopy(img))
-
         adv_pred = segmentators[0].predict(img_adv, logit=False)
         real_pred = segmentators[1].predict(img, logit=False)
         adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()))
