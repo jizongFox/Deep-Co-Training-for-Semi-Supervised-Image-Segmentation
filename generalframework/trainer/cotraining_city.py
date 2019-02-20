@@ -15,14 +15,28 @@ from ..utils.AEGenerator import *
 from ..utils.utils import *
 
 
+def fix_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+
 class CoTrainer_City(Trainer):
 
-    def __init__(self, segmentators: List[Segmentator], labeled_dataloaders: List[DataLoader],
-                 unlabeled_dataloader: DataLoader, val_dataloader: DataLoader, criterions: Dict[str, nn.Module],
-                 max_epoch: int = 100, save_dir: str = 'tmp', device: str = 'cpu',
-                 axises: List[int] = None, checkpoint: str = None, metricname: str = 'metrics.csv',
+    def __init__(self, segmentators: List[Segmentator],
+                 labeled_dataloaders: List[DataLoader],
+                 unlabeled_dataloader: DataLoader,
+                 val_dataloader: DataLoader,
+                 criterions: Dict[str, nn.Module],
+                 max_epoch: int = 100,
+                 save_dir: str = 'tmp',
+                 device: str = 'cpu',
+                 axises: List[int] = None,
+                 checkpoint: Union[List[str], None] = None,
+                 metricname: str = 'metrics.csv',
                  adv_scheduler_dict: dict = None,
                  cot_scheduler_dict: dict = None,
+                 adv_training_dict: dict = {},
+                 use_tqdm: bool = True,
                  whole_config=None) -> None:
 
         self.max_epoch = max_epoch
@@ -39,9 +53,8 @@ class CoTrainer_City(Trainer):
         assert set(map_(id, self.segmentators)).__len__() == self.segmentators.__len__()
         assert set(map_(id, self.labeled_dataloaders)).__len__() == self.segmentators.__len__()
 
-        # labeled_dataloaders should have the same number of images
-        # assert set(map_(lambda x: len(x.dataset), self.labeled_dataloaders)).__len__() == 1
-        # assert set(map_(lambda x: len(x), self.labeled_dataloaders)).__len__() == 1
+        ## labeled_dataloaders should have the same batch number
+        assert set(map_(lambda x: x.batch_size, self.labeled_dataloaders)).__len__() == 1
 
         self.criterions = criterions
         assert set(self.criterions.keys()) == set(['jsd', 'sup', 'adv'])
@@ -69,32 +82,26 @@ class CoTrainer_City(Trainer):
             **{k: v for k, v in cot_scheduler_dict.items() if k != 'name'})
         self.adv_scheduler = eval(adv_scheduler_dict['name'])(
             **{k: v for k, v in adv_scheduler_dict.items() if k != 'name'})
+
+        self.adv_training_dict = adv_training_dict
+
         if checkpoint is not None:
             # todo
             self._load_checkpoint(checkpoint)
 
         self.to(self.device)
-
-    def _load_checkpoint(self, checkpoint):
-        assert isinstance(checkpoint, list), 'checkpoint should be provided as a list.'
-        for i, cp in enumerate(checkpoint):
-            cp = Path(cp)
-            assert cp.exists(), cp
-            state_dict = torch.load(cp, map_location=torch.device('cpu'))
-            self.segmentators[i].load_state_dict(state_dict['segmentator'])
-            self.best_score[i] = state_dict['best_score']
-            self.start_epoch = max(state_dict['best_epoch'], self.start_epoch)
-            print(
-                f'>>>  {cp} has been loaded successfully. \
-                Best score {self.best_score:.3f} @ {state_dict["best_epoch"]}.')
-            self.segmentators[i].train()
+        self.use_tqdm = use_tqdm
 
     def to(self, device: torch.device):
         [segmentator.to(device) for segmentator in self.segmentators]
         [criterion.to(device) for _, criterion in self.criterions.items()]
 
-    def start_training(self, train_jsd=False, train_adv=False, save_train=False, save_val=False,
-                       augment_labeled_data=False, augment_unlabeled_data=False):
+    def start_training(self, train_jsd=False,
+                       train_adv=False,
+                       save_train=False,
+                       save_val=False,
+                       augment_labeled_data=False,
+                       augment_unlabeled_data=False):
         # prepare for something:
         S = len(self.segmentators)
         train_b = max(map_(len, self.labeled_dataloaders))
@@ -145,38 +152,57 @@ class CoTrainer_City(Trainer):
             self.schedulerStep()
 
             for k, v in metrics.items():
-                try:
-                    v[epoch] = eval(k) if torch.is_tensor(eval(k)) else torch.Tensor(eval(k))
-                except:
-                    v[epoch] = torch.stack(eval(k))
-
+                # try:
+                #     v[epoch] = eval(k) if torch.is_tensor(eval(k)) else torch.Tensor(eval(k))
+                # except:
+                #     v[epoch] = torch.stack(eval(k))
+                assert v[epoch].shape == eval(k).shape
+                v[epoch] = eval(k)
             for k, v in metrics.items():
                 np.save(self.save_dir / f'{k}.npy', v.data.cpu().numpy())
+            writer = pd.ExcelWriter(Path(self.save_dir, self.metricname.replace('csv', 'xlsx')), engine='openpyxl')
+            for s in range(self.segmentators.__len__()):
+                df = pd.DataFrame(
+                    {
+                        **{f"train_loss_{i}": metrics["train_loss"].mean(1)[:, i].cpu() for i in range(S)},
+                        **{f"train_jsd_loss": metrics["train_jsd_loss"].mean(1).cpu()},
+                        **{f"train_adv_loss": metrics["train_adv_loss"].mean(1).cpu()},
+                        **{f"train_mean_IoU_{i}": metrics["train_mean_IoU"][:, i].cpu() for i in range(S)},
+                        **{f"val_loss_{i}": metrics["val_loss"].mean(1)[:, i].cpu() for i in range(S)},
+                        **{f"val_mean_IoU_{i}": metrics["train_mean_IoU"][:, i].cpu() for i in range(S)},
+                    })
 
-            df = pd.DataFrame(
-                {
-                    **{f"train_loss_{i}": metrics["train_loss"].mean(1)[:, i].cpu() for i in range(S)},
-                    **{f"train_jsd_loss": metrics["train_jsd_loss"].mean(1).cpu()},
-                    **{f"train_adv_loss": metrics["train_adv_loss"].mean(1).cpu()},
-                    **{f"train_mean_IoU_{i}": metrics["train_mean_IoU"][:, i].cpu() for i in range(S)},
-                    **{f"val_loss_{i}": metrics["val_loss"].mean(1)[:, i].cpu() for i in range(S)},
-                    **{f"val_mean_IoU_{i}": metrics["train_mean_IoU"][:, i].cpu() for i in range(S)},
-                })
-
-            df.to_csv(Path(self.save_dir, self.metricname), float_format="%.4f", index_label="epoch")
+                df.to_csv(Path(self.save_dir, self.metricname.replace('.csv', f'_{s}.csv')), float_format="%.4f",
+                          index_label="epoch")
+                df.to_excel(excel_writer=writer, sheet_name=f'Seg_{s}', encoding="utf-8", index_label='epoch',
+                            float_format="%.4f")
+            writer.save()
+            writer.close()
 
             current_metric = Tensor(val_mean_IoU)
             self.checkpoint(current_metric, epoch)
 
-    def _train_loop(self, labeled_dataloaders: List[DataLoader], unlabeled_dataloader: DataLoader, epoch: int,
-                    mode: ModelMode, save: bool, augment_labeled_data=False, augment_unlabeled_data=False,
-                    train_jsd=False, train_adv=False):
+    def _train_loop(self, labeled_dataloaders: List[DataLoader],
+                    unlabeled_dataloader: DataLoader,
+                    epoch: int,
+                    mode: ModelMode,
+                    save: bool,
+                    augment_labeled_data=False,
+                    augment_unlabeled_data=False,
+                    train_jsd=False,
+                    train_adv=False):
+
+        fix_seed(epoch)
+        suplossMeters = [AverageValueMeter() for _ in range(self.segmentators.__len__())]
+        jsdlossMeter = AverageValueMeter()
+        advlossMeter = AverageValueMeter()
+
         [segmentator.set_mode(mode) for segmentator in self.segmentators]
         for l_dataloader in labeled_dataloaders:
             l_dataloader.dataset.set_mode(ModelMode.TRAIN)
         unlabeled_dataloader.dataset.training = ModelMode.TRAIN if augment_unlabeled_data else ModelMode.EVAL
 
-        assert self.segmentators[0].training
+        assert self.segmentators[0].training == True
         assert self.labeled_dataloaders[0].dataset.training == ModelMode.TRAIN \
             if augment_labeled_data else ModelMode.EVAL
         assert self.unlabeled_dataloader.dataset.training == ModelMode.TRAIN \
@@ -186,7 +212,7 @@ class CoTrainer_City(Trainer):
         # Here the concept of epoch is defined as the epoch
         n_batch = max(map_(len, self.labeled_dataloaders))
         S = len(self.segmentators)
-        metrics = [IoU(self.C, ignore_index=255) for _ in range(S)]
+        metrics = [IoU(self.C, ignore_index=250) for _ in range(S)]
         sup_loss_log = torch.zeros(n_batch, S)
         jsd_loss_log = torch.zeros(n_batch)
         adv_loss_log = torch.zeros(n_batch)
@@ -197,10 +223,16 @@ class CoTrainer_City(Trainer):
 
         fake_unlabeled_iterator = iterator_(dcopy(unlabeled_dataloader))
         fake_unlabeled_iterator_adv = iterator_(dcopy(unlabeled_dataloader))
+        report_iterator = iterator_(['label', 'unlab'])
+        report_status = 'label'
 
-        n_batch_iter = tqdm_(range(n_batch))
+        n_batch_iter = tqdm_(range(n_batch)) if self.use_tqdm else range(n_batch)
 
         for batch_num in n_batch_iter:
+            if batch_num % 30 == 0 and train_jsd and self.cot_scheduler.value > 0:
+                report_status = report_iterator.__next__()
+
+            supervisedLoss, jsdLoss, advLoss = 0, 0, 0
             # for labeled data update
             for enu_lab in range(len(fake_labeled_iterators)):
                 [[img, gt], _, path] = fake_labeled_iterators[enu_lab].__next__()
@@ -209,64 +241,53 @@ class CoTrainer_City(Trainer):
                 pred, sup_loss = self.segmentators[enu_lab].update(img, gt, criterion=self.criterions.get('sup'),
                                                                    mode=ModelMode.TRAIN)
 
-                metrics[enu_lab].add(predicted=pred, target=gt)
-
-                sup_loss_log[batch_num] = sup_loss.detach()
-
+                pred = self.segmentators[enu_lab].predict(img, logit=True)
+                sup_loss = self.criterions.get('sup')(pred, gt.squeeze(1))
+                suplossMeters[enu_lab].add(sup_loss.detach().data.cpu())
                 if save:
                     save_images(pred2class(pred),
-                                names=map_(lambda x: Path(x).name, path),
+                                names=path,
                                 root=self.save_dir,
                                 mode='train',
                                 iter=epoch,
                                 seg_num=str(enu_lab))
+                supervisedLoss += sup_loss
+                # metrics[enu_lab].add(predicted=pred, target=gt)
 
+            # compute jsd loss
             if train_jsd:
                 # for unlabeled data update
                 [[unlab_img, unlab_gt], _, path] = fake_unlabeled_iterator.__next__()
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
                 unlab_preds: List[Tensor] = map_(lambda x: x.predict(unlab_img, logit=False), self.segmentators)
-                assert unlab_preds.__len__() == self.segmentators.__len__()
-
-                # function for JSD
                 jsdloss_2D = self.criterions.get('jsd')(unlab_preds)
-                assert jsdloss_2D.shape[0] == unlab_img.shape[0]
-                assert jsdloss_2D.shape[1] == unlab_img.shape[2]
-                assert jsdloss_2D.shape[2] == unlab_img.shape[3]
-                jsdloss = jsdloss_2D.mean()
-                jsd_loss_log[batch_num] = jsdloss.detach()
+                jsdLoss = jsdloss_2D.mean()
+                jsdlossMeter.add(jsdLoss.detach().data.cpu())
 
                 if save:
                     [save_images(probs2class(prob),
-                                 names=map_(lambda x: Path(x).name, path),
+                                 names=path,
                                  root=self.save_dir,
                                  mode='unlab',
                                  iter=epoch,
                                  seg_num=str(i))
                      for i, prob in enumerate(unlab_preds)]
 
-                # zero grad
-                map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
-                loss = jsdloss * self.cot_scheduler.value
-                loss.backward()
-                map_(lambda x: x.optimizer.step(), self.segmentators)
-
-            # adversarial loss:
-            if train_adv:
+            # compute adversarial loss
+            if train_adv and self.adv_scheduler.value > 0:
                 choice = np.random.choice(list(range(S)), 2, replace=False).tolist()
-
-                adv_loss = self._adv_training(segmentators=itemgetter(*choice)(self.segmentators),
-                                              lab_data_iterators=itemgetter(*choice)(fake_labeled_iterators_adv),
-                                              unlab_data_iterator=fake_unlabeled_iterator_adv,
-                                              eplision=0.005)
-                map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
-                loss = adv_loss * self.adv_scheduler.value
-                loss.backward()
-                map_(lambda x: x.optimizer.step(), self.segmentators)
-                adv_loss_log[batch_num] = adv_loss.detach()
+                advLoss = self._adv_training(segmentators=itemgetter(*choice)(self.segmentators),
+                                             lab_data_iterators=itemgetter(*choice)(fake_labeled_iterators_adv),
+                                             unlab_data_iterator=fake_unlabeled_iterator_adv,
+                                             **self.adv_training_dict)
+                advlossMeter.add(advLoss.detach().data.cpu())
+            map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
+            # compute total loss
+            totalLoss = supervisedLoss + self.cot_scheduler.value * jsdLoss + self.adv_scheduler.value * advLoss
+            totalLoss.backward()
+            map_(lambda x: x.optimizer.step(), self.segmentators)
 
             mean_iou_dict = {f'{i}_mIoU': metrics[i].value()['Mean_IoU'] for i in range(S)}
-
             stat_dict = {
                 **mean_iou_dict,
                 **{f'{i}_supls': sup_loss_log[:batch_num + 1, i].mean().item() for i in range(S)},
@@ -282,8 +303,7 @@ class CoTrainer_City(Trainer):
         for s in range(S):
             self.upload_dict(f'train_{s}', {k: v for k, v in metrics[s].value().items() if k != 'Class_IoU'}, epoch)
 
-        print(f"{desc} " + ', '.join(f"{k}:{v}" for (k, v) in nice_dict.items()))
-
+        print(f"{desc} " + ', '.join([f'{k}_{k_}:{v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()]))
         return map_(lambda x: x.value()["Mean_Acc"], metrics), map_(lambda x: x.value()["FreqW_Acc"], metrics), map_(
             lambda x: x.value()["Mean_IoU"], metrics), map_(lambda x: x.value()["Class_IoU"],
                                                             metrics), sup_loss_log, jsd_loss_log, adv_loss_log
@@ -296,84 +316,94 @@ class CoTrainer_City(Trainer):
         [segmentator.set_mode(mode) for segmentator in self.segmentators]
         val_dataloader.dataset.set_mode(ModelMode.EVAL)
         assert self.segmentators[0].training == False
-        desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
+        desc = f">> Validating   ({epoch})"
         S = self.segmentators.__len__()
+
+        vallossMeters = [AverageValueMeter() for _ in range(self.segmentators.__len__())]
+
         n_batch = len(val_dataloader)
         loss_log = torch.zeros(n_batch, S)
-        val_dataloader = tqdm_(val_dataloader)
+        val_dataloader = tqdm_(val_dataloader) if self.use_tqdm else val_dataloader
         metrics = [IoU(self.C, ignore_index=255) for _ in range(S)]
         nice_dict = {}
 
         for batch_num, [(img, gt), _, path] in enumerate(val_dataloader):
             img, gt = img.to(self.device), gt.to(self.device)
             preds = map_(lambda x: x.predict(img, logit=True), self.segmentators)
-            sup_loss = map_(lambda x: self.criterions.get('sup')(x, gt.squeeze(1)), preds)
-            for i in range(len(preds)):
-                metrics[i].add(predicted=preds[i], target=gt)
-                loss_log[batch_num][i] = sup_loss[i].detach()
+            # sup_loss = map_(lambda x: self.criterions.get('sup')(x, gt.squeeze(1)), preds)
+
+            loss = map_(lambda pred: self.criterions.get('sup')(pred, gt.squeeze(1)), preds)
+            list(map(lambda x, y: x.add(y.detach().data.cpu()), vallossMeters, loss))
 
             if save:
-                [save_images(pred2class(pred), names=path, root=self.save_dir, mode='eval', seg_num=str(i), iter=epoch)
+                [save_images(pred2class(pred),
+                             names=path,
+                             root=self.save_dir,
+                             mode='eval',
+                             seg_num=str(i),
+                             iter=epoch)
                  for i, pred in enumerate(preds)]
+            loss_dict = {f'L{i}': vallossMeters[i].value()[0] for i in range(S)}
 
             mean_iou_dict = {f'{i}_mIoU': metrics[i].value()['Mean_IoU'] for i in range(S)}
-
             stat_dict = {**mean_iou_dict}
             # to delete null dicts
             nice_dict = {k: f"{v:.2f}" for (k, v) in stat_dict.items() if v != 0 or v != float(np.nan)}
-            val_dataloader.set_description(
-                f'{"tls" if mode == ModelMode.TRAIN else "vlos"}')
-            val_dataloader.set_postfix(nice_dict)  # using average value of the dict
+            if self.use_tqdm:
+                val_dataloader.set_description(
+                    f'{"tls" if mode == ModelMode.TRAIN else "vlos"}')
+                val_dataloader.set_postfix(nice_dict)  # using average value of the dict
 
         # self.upload_dicts('val_data', dsc_dict, epoch)
         for s in range(S):
             self.upload_dict(f'eval_{s}', {k: v for k, v in metrics[s].value().items() if k != 'Class_IoU'}, epoch)
 
-        print(f"{desc} " + ', '.join(f"{k}:{v}" for (k, v) in nice_dict.items()))
+        print(f"{desc} " + ', '.join([f'{k}_{k_}: {v[k_]:.2f}' for k, v in nice_dict.items() for k_ in v.keys()]))
 
         return map_(lambda x: x.value()["Mean_Acc"], metrics), map_(lambda x: x.value()["FreqW_Acc"], metrics), map_(
             lambda x: x.value()["Mean_IoU"], metrics), map_(lambda x: x.value()["Class_IoU"],
                                                             metrics), loss_log
 
     def _adv_training(self, segmentators: List[Segmentator],
-                      lab_data_iterators: List[iterator_], unlab_data_iterator: iterator_,
-                      eplision: float = 0.05):
+                      lab_data_iterators: List[iterator_],
+                      unlab_data_iterator: iterator_,
+                      eplision: float = 0.05,
+                      fsgm_ratio=0.5):
         assert segmentators.__len__() == 2, 'only implemented for 2 segmentators'
+        axises = range(self.C)
         adv_losses = []
         ## draw first term from labeled1 or unlabeled
         img, img_adv = None, None
-        if random() > 0.5:
+        if random.random() <= fsgm_ratio:
             [[img, gt], _, _] = lab_data_iterators[0].__next__()
             img, gt = img.to(self.device), gt.to(self.device)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                img_adv, _ = FSGMGenerator(self.segmentators[0].torchnet, eplision=eplision) \
+                img_adv, _ = FSGMGenerator(segmentators[0].torchnet, eplision=eplision) \
                     (dcopy(img), gt, criterion=self.criterions['sup'])
         else:
             [[img, _], _, _] = unlab_data_iterator.__next__()
             img = img.to(self.device)
-            img_adv, _ = VATGenerator(self.segmentators[0].torchnet, eplision=eplision)(dcopy(img))
+            img_adv, _ = VATGenerator(segmentators[0].torchnet, eplision=eplision, axises=axises)(dcopy(img))
         assert img.shape == img_adv.shape
         adv_pred = segmentators[1].predict(img_adv, logit=False)
         real_pred = segmentators[0].predict(img, logit=False)
-        adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred))
+        adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()))
 
-        if random() > 0.5:
+        if random.random() <= fsgm_ratio:
             [[img, gt], _, _] = lab_data_iterators[1].__next__()
             img, gt = img.to(self.device), gt.to(self.device)
-            img_adv, _ = FSGMGenerator(self.segmentators[1].torchnet, eplision=eplision) \
+            img_adv, _ = FSGMGenerator(segmentators[1].torchnet, eplision=eplision) \
                 (img, gt, criterion=CrossEntropyLoss2d())
         else:
             [[img, _], _, _] = unlab_data_iterator.__next__()
             img = img.to(self.device)
-            img_adv, _ = VATGenerator(self.segmentators[1].torchnet, eplision=eplision)(img)
+            img_adv, _ = VATGenerator(segmentators[1].torchnet, eplision=eplision, axises=axises)(dcopy(img))
 
         adv_pred = segmentators[0].predict(img_adv, logit=False)
         real_pred = segmentators[1].predict(img, logit=False)
         adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()))
-
         adv_loss = sum(adv_losses) / adv_losses.__len__()
-
         return adv_loss
 
     def upload_dicts(self, name, dicts, epoch):
@@ -390,6 +420,22 @@ class CoTrainer_City(Trainer):
         self.cot_scheduler.step()
         self.adv_scheduler.step()
 
+    def _load_checkpoint(self, checkpoint):
+        if isinstance(checkpoint, str):
+            checkpoint = eval(checkpoint)
+        assert isinstance(checkpoint, list), 'checkpoint should be provided as a list.'
+        for i, cp in enumerate(checkpoint):
+            cp = Path(cp)
+            assert cp.exists(), cp
+            state_dict = torch.load(cp, map_location=torch.device('cpu'))
+            self.segmentators[i].load_state_dict(state_dict['segmentator'])
+            self.best_score[i] = state_dict['best_score']
+            # self.start_epoch = max(state_dict['best_epoch'], self.start_epoch)
+            print(
+                f'>>>  {cp} has been loaded successfully. \
+                Best score {self.best_score:.3f} @ {state_dict["best_epoch"]}.')
+            self.segmentators[i].train()
+
     def checkpoint(self, metric, epoch, filename='best.pth'):
         assert isinstance(metric, Tensor)
         assert metric.__len__() == self.segmentators.__len__()
@@ -399,3 +445,4 @@ class CoTrainer_City(Trainer):
             self.segmentator = self.segmentators[i]
             super().checkpoint(score, epoch, filename=f'best_{i}.pth')
             self.best_scores[i] = self.best_score
+
