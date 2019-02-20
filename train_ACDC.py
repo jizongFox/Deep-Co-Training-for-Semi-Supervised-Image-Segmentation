@@ -7,21 +7,38 @@ import random
 import torch
 import yaml
 
-from generalframework.dataset import get_ACDC_dataloaders
+from generalframework.dataset import get_ACDC_dataloaders, extract_patients
 from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
 from generalframework.trainer import Trainer
 from generalframework.utils import yaml_parser, dict_merge
 
-seed = 1234
-random.seed(seed)
-torch.manual_seed(seed)
-torch.cuda.manual_seed_all(seed)
-np.random.seed(seed)
-os.environ['PYTHONHASHSEED'] = str(seed)
-torch.backends.cudnn.deterministic = True
-
 warnings.filterwarnings('ignore')
+
+
+def fix_seed(seed):
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
+def get_dataloders(config):
+    dataloders = get_ACDC_dataloaders(config['Dataset'], config['Lab_Dataloader'])
+    labeled_dataloaders = []
+    for i in config['Lab_Partitions']['label']:
+        labeled_dataloaders.append(extract_patients(dataloders['train'], [str(x) for x in range(*i)]))
+
+    unlab_dataloader = get_ACDC_dataloaders(config['Dataset'], config['Unlab_Dataloader'], quite=True)['train']
+    unlab_dataloader = extract_patients(unlab_dataloader, [str(x) for x in range(*config['Lab_Partitions']['unlabel'])])
+    val_dataloader = dataloders['val']
+    return labeled_dataloaders, unlab_dataloader, val_dataloader
+
+
+fix_seed(1234)
 
 parser_args = yaml_parser()
 print('->>Input args:')
@@ -32,7 +49,10 @@ print('->> Merged Config:')
 config = dict_merge(config, parser_args, True)
 pprint(config)
 
-dataloders = get_ACDC_dataloaders(config['Dataset'], config['Dataloader'])
+labeled_dataloaders, unlab_dataloader, val_dataloader = get_dataloders(config)
+dataloaders = {'label': labeled_dataloaders,
+               'unlabel': unlab_dataloader,
+               'val': val_dataloader}
 
 model = Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
 
@@ -41,7 +61,7 @@ with warnings.catch_warnings():
     criterion = get_loss_fn(config['Loss'].get('name'), **{k: v for k, v in config['Loss'].items() if k != 'name'})
 
 trainer = Trainer(segmentator=model,
-                  dataloaders=dataloders,
+                  dataloaders=dataloaders,
                   criterion=criterion,
                   **config['Trainer'],
                   whole_config=config)

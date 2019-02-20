@@ -379,12 +379,12 @@ class CoTrainer_City(Trainer):
             img, gt = img.to(self.device), gt.to(self.device)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                img_adv, _ = FSGMGenerator(self.segmentators[0].torchnet, eplision=eplision) \
+                img_adv, _ = FSGMGenerator(segmentators[0].torchnet, eplision=eplision) \
                     (dcopy(img), gt, criterion=self.criterions['sup'])
         else:
             [[img, _], _, _] = unlab_data_iterator.__next__()
             img = img.to(self.device)
-            img_adv, _ = VATGenerator(self.segmentators[0].torchnet, eplision=eplision, axises=axises)(dcopy(img))
+            img_adv, _ = VATGenerator(segmentators[0].torchnet, eplision=eplision, axises=axises)(dcopy(img))
         assert img.shape == img_adv.shape
         adv_pred = segmentators[1].predict(img_adv, logit=False)
         real_pred = segmentators[0].predict(img, logit=False)
@@ -393,12 +393,12 @@ class CoTrainer_City(Trainer):
         if random.random() <= fsgm_ratio:
             [[img, gt], _, _] = lab_data_iterators[1].__next__()
             img, gt = img.to(self.device), gt.to(self.device)
-            img_adv, _ = FSGMGenerator(self.segmentators[1].torchnet, eplision=eplision) \
+            img_adv, _ = FSGMGenerator(segmentators[1].torchnet, eplision=eplision) \
                 (img, gt, criterion=CrossEntropyLoss2d())
         else:
             [[img, _], _, _] = unlab_data_iterator.__next__()
             img = img.to(self.device)
-            img_adv, _ = VATGenerator(self.segmentators[1].torchnet, eplision=eplision, axises=axises)(dcopy(img))
+            img_adv, _ = VATGenerator(segmentators[1].torchnet, eplision=eplision, axises=axises)(dcopy(img))
 
         adv_pred = segmentators[0].predict(img_adv, logit=False)
         real_pred = segmentators[1].predict(img, logit=False)
