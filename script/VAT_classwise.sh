@@ -15,9 +15,7 @@ do
 echo $job
     wait $job || let "FAIL+=1"
 done
-
 echo $FAIL
-
 if [ "$FAIL" == "0" ];
 then
 echo "YAY!"

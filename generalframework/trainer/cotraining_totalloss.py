@@ -13,6 +13,7 @@ from ..models import Segmentator
 from ..utils.AEGenerator import *
 from ..utils.utils import *
 from ..metrics import DiceMeter, AverageValueMeter
+from ..scheduler import *
 
 
 def fix_seed(seed):

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
+#!/usr/bin/env bash
+num_model=$1
 set -e
-cd ..
 time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
@@ -8,10 +9,12 @@ gitcommit_number=${gitcommit_number:0:8}
 max_peoch=100
 data_aug=None
 net=enet
-logdir=cardiac/$net"_refactor_test"
+logdir=cardiac/task_5_multiple_view
 tqdm=False
 
 source ./utils.sh
+cd ..
+
 Summary(){
 subfolder=$1
 gpu=$2
@@ -36,22 +39,6 @@ mv -f runs/$logdir/$currentfoldername archives/$logdir
 Partial(){
 gpu=$1
 currentfoldername=PS
-rm -rf runs/$logdir/$currentfoldername
-CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
-Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
-StartTraining.train_adv=False StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
-Arch.name=$net Trainer.use_tqdm=$tqdm
-Summary $currentfoldername $gpu
-rm -rf archives/$logdir/$currentfoldername
-mv -f runs/$logdir/$currentfoldername archives/$logdir
-}
-
-
-
-Partial_alldata(){
-gpu=$1
-currentfoldername=PS_alldata
 rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
@@ -105,7 +92,6 @@ rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
-
 rm -rf archives/$logdir
 mkdir -p archives/$logdir
 rm -rf runs/$logdir
@@ -114,7 +100,7 @@ mkdir -p runs/$logdir
 
 FS 0 &
 Partial 0 &
-JSD 0
+JSD 0 &
 wait_script
 
 ADV 0 &

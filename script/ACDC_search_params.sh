@@ -18,22 +18,7 @@ echo "Group name to run: "${groupname}
 echo "Net:: "${net}
 echo "Save dir: ${logdir}"
 
-wait_script(){
-for job in `jobs -p`
-do
-echo $job
-    wait $job || let "FAIL+=1"
-done
-
-echo $FAIL
-
-if [ "$FAIL" == "0" ];
-then
-echo "YAY!"
-else
-echo "FAIL! ($FAIL)"
-fi
-}
+source ./utils.sh
 
 Summary(){
 subfolder=$1
