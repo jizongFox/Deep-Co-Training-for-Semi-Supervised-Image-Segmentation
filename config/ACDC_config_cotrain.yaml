@@ -5,7 +5,6 @@ Arch:
 Optim:
   name: Adam
   lr: 0.002
-#  weight_decay: 0.00002
 
 Scheduler:
   name: StepLR
@@ -29,10 +28,10 @@ Lab_Dataloader:
                   {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
 
 Lab_Partitions:
-  label: [[1,101],[1,101]]
-  unlabel: [61,100]
-  partition_sets: 0.6
-  partition_overlap: 0
+  label: [[1,1],[1,1]]
+  unlabel: [1,1]
+  partition_sets: 0.5
+  partition_overlap: 1
 
 Unlab_Dataloader:
   pin_memory: False
