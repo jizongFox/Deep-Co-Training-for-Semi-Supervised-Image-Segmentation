@@ -66,6 +66,7 @@ Adv_Training:
   eplision:  0.001
   fsgm_ratio: 0.5
   axises: [0,1,2,3]
+  use_fsgm: True
 
 Loss:
   name: cross_entropy
