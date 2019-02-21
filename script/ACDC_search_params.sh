@@ -36,7 +36,7 @@ rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
 Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=1 Lab_Partitions.partition_overlap=0 \
+Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=1 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Trainer.use_tqdm=False
 Summary ${currentfoldername} $gpu
 rm -rf archives/${logdir}/${currentfoldername}
@@ -51,7 +51,7 @@ rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
 Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=0.6 Lab_Partitions.partition_overlap=0 \
+Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=0.5 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Trainer.use_tqdm=False
 Summary ${currentfoldername} $gpu
 rm -rf archives/${logdir}/${currentfoldername}
@@ -73,7 +73,7 @@ rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
 Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=True \
-Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=0.6 Lab_Partitions.partition_overlap=0 \
+Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=0.5 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net \
 Cot_Scheduler.begin_epoch=$Cot_beg_epoch Cot_Scheduler.max_epoch=$Cot_max_epoch Cot_Scheduler.max_value=$Cot_max_value \
 Cot_Scheduler.ramp_mult=$ramp_mult \
@@ -101,7 +101,7 @@ rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
 Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=0.6 Lab_Partitions.partition_overlap=0 \
+Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=0.5 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net \
 Cot_Scheduler.begin_epoch=$Cot_beg_epoch Cot_Scheduler.max_epoch=$Cot_max_epoch Cot_Scheduler.max_value=$Cot_max_value \
 Cot_Scheduler.ramp_mult=$ramp_mult \
@@ -129,7 +129,7 @@ rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
 Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=True \
-Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=0.6 Lab_Partitions.partition_overlap=0 \
+Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=0.5 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net \
 Cot_Scheduler.begin_epoch=$Cot_beg_epoch Cot_Scheduler.max_epoch=$Cot_max_epoch Cot_Scheduler.max_value=$Cot_max_value \
 Cot_Scheduler.ramp_mult=$ramp_mult \
