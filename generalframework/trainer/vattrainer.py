@@ -1,16 +1,15 @@
 from typing import Dict
 
 import pandas as pd
-
 from generalframework import ModelMode
+
 from .trainer import Trainer
 from ..loss import KL_Divergence_2D
+from ..metrics import DiceMeter, AverageValueMeter
 from ..models import Segmentator
 from ..utils import *
-from ..scheduler import *
-from ..metrics import DiceMeter, AverageValueMeter
 from ..utils.AEGenerator import VATGenerator
-
+from ..scheduler import *
 
 def fix_seed(seed):
     torch.manual_seed(seed)
@@ -38,12 +37,12 @@ class VatTrainer(Trainer):
                        use_tqdm=True):
         n_class: int = self.C
 
-        metrics = {"val_dice": torch.zeros((self.max_epoch,1, n_class, 2), device=self.device).type(torch.float32),
-                   "val_batch_dice": torch.zeros((self.max_epoch,1, n_class, 2), device=self.device).type(
+        metrics = {"val_dice": torch.zeros((self.max_epoch, 1, n_class, 2), device=self.device).type(torch.float32),
+                   "val_batch_dice": torch.zeros((self.max_epoch, 1, n_class, 2), device=self.device).type(
                        torch.float32),
-                   "train_dice": torch.zeros((self.max_epoch, 1,n_class, 2), device=self.device).type(
+                   "train_dice": torch.zeros((self.max_epoch, 1, n_class, 2), device=self.device).type(
                        torch.float32),
-                   "train_unlab_dice": torch.zeros((self.max_epoch,1,  n_class, 2), device=self.device).type(
+                   "train_unlab_dice": torch.zeros((self.max_epoch, 1, n_class, 2), device=self.device).type(
                        torch.float32),
                    "train_loss": torch.zeros((self.max_epoch), device=self.device).type(torch.float32),
                    "adv_loss": torch.zeros((self.max_epoch), device=self.device).type(torch.float32)}
@@ -64,7 +63,8 @@ class VatTrainer(Trainer):
             with torch.no_grad():
                 val_dice, val_batch_dice = self._evaluate_loop(val_dataloader=self.dataloaders['val'],
                                                                epoch=epoch, mode=ModelMode.EVAL,
-                                                               save=save_val)
+                                                               save=save_val,
+                                                               use_tqdm=use_tqdm)
             self.schedulerStep()
 
             for k in metrics.keys():
@@ -75,16 +75,16 @@ class VatTrainer(Trainer):
 
             df = pd.DataFrame(
                 {
-                    **{f"train_dice_{i}": metrics["train_dice"][:, 0,i, 0].cpu() for i in self.axises},
-                    **{f"train_unlab_dice_{i}": metrics["train_unlab_dice"][:,0, i, 0].cpu() for i in
+                    **{f"train_dice_{i}": metrics["train_dice"][:, 0, i, 0].cpu() for i in self.axises},
+                    **{f"train_unlab_dice_{i}": metrics["train_unlab_dice"][:, 0, i, 0].cpu() for i in
                        self.axises},
-                    **{f"val_dice_{i}": metrics["val_dice"][:,0, i, 0].cpu() for i in self.axises},
-                    **{f"val_batch_dice_{i}": metrics["val_batch_dice"][:, 0,i, 0].cpu() for i in self.axises}
+                    **{f"val_dice_{i}": metrics["val_dice"][:, 0, i, 0].cpu() for i in self.axises},
+                    **{f"val_batch_dice_{i}": metrics["val_batch_dice"][:, 0, i, 0].cpu() for i in self.axises}
                 })
 
             df.to_csv(Path(self.save_dir, self.metricname), float_format="%.4f", index_label="epoch")
 
-            current_metric = val_dice[0,self.axises, 0].mean()
+            current_metric = val_dice[0, self.axises, 0].mean()
             self.checkpoint(current_metric, epoch)
 
     def _train_loop(self,
@@ -173,8 +173,10 @@ class VatTrainer(Trainer):
         print(
             f"{desc} " + ', '.join([f'{k}:{float(v):.3f}' for k, v in nice_dict.items()])
         )
-        return torch.stack(supdiceMeter.value()[1], dim=1).unsqueeze(0), torch.stack(advdiceMeter.value()[1], dim=1).unsqueeze(0), \
-               suplossMeter.value()[0], advlossMeter.value()[0] if train_adv and self.adv_scheduler.value>0 else torch.tensor(0)
+        return torch.stack(supdiceMeter.value()[1], dim=1).unsqueeze(0), torch.stack(advdiceMeter.value()[1],
+                                                                                     dim=1).unsqueeze(0), \
+               suplossMeter.value()[0], advlossMeter.value()[
+                   0] if train_adv and self.adv_scheduler.value > 0 else torch.tensor(0)
 
     def _evaluate_loop(self, val_dataloader: DataLoader, epoch: int, mode: ModelMode = ModelMode.EVAL,
                        save: bool = True, use_tqdm=True):
@@ -205,13 +207,15 @@ class VatTrainer(Trainer):
             stat_dict = {**dsc_dict, **mean_dict, **bdsc_dict}
 
             nice_dict = {k: f"{v:.3f}" for (k, v) in stat_dict.items() if v != 0}
+            if use_tqdm:
 
-            val_dataloader.set_postfix(nice_dict)
+                val_dataloader.set_postfix(nice_dict)
 
         print(
             f"{desc} " + ', '.join([f'{k}:{float(v):.3f}' for k, v in nice_dict.items()])
         )
-        return torch.stack(valdiceMeter.value()[1], dim=1).unsqueeze(0), torch.stack(valbdiceMeter.value()[1], dim=1).unsqueeze(0)
+        return torch.stack(valdiceMeter.value()[1], dim=1).unsqueeze(0), torch.stack(valbdiceMeter.value()[1],
+                                                                                     dim=1).unsqueeze(0)
 
     def schedulerStep(self):
         super().schedulerStep()

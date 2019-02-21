@@ -10,7 +10,6 @@ import torch
 import torch.nn.functional as F
 import yaml
 from torch import Tensor
-from tqdm import tqdm
 
 from generalframework.dataset import get_ACDC_dataloaders
 from generalframework.models import Segmentator

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -e
 cd ..
-max_peoch=3
+max_peoch=1
 data_aug=None
 net=enet
 use_tqdm=False
-logdir=cardiac/$net"_VAT"_epsilions_scheduler
+logdir=cardiac/$net"_VAT"_classwiseNoise
 mkdir -p archives/$logdir
 
 FAIL=0
@@ -25,6 +25,7 @@ else
 echo "FAIL! ($FAIL)"
 fi
 }
+
 Summary(){
 subfolder=$1
 gpu=$2
@@ -32,15 +33,27 @@ echo CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir runs/${logdir}/$sub
 CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir runs/${logdir}/$subfolder
 }
 
+FS(){
+currentfoldername=FS
+gpu=$1
+rm -rf runs/$logdir/$currentfoldername
+CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_vat.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
+Dataset.augment=$data_aug  StartTraining.train_adv=False  Arch.name=$net Lab_Partitions.label=[[1,101]]
+Summary  $currentfoldername $gpu
+rm -rf archives/$logdir/$currentfoldername
+mv -f runs/$logdir/$currentfoldername archives/$logdir
+}
 
 ADV(){
+set -e
 gpu=$1
 lmax=$2
-currentfoldername=adv_{$lmax}
+axises=$3
+currentfoldername=adv_${lmax}_${axises}
 rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_vat.py Trainer.save_dir=runs/$logdir/$currentfoldername Trainer.max_epoch=$max_peoch \
 Dataset.augment=$data_aug StartTraining.train_adv=True  Arch.name=$net Lab_Partitions.label=[[1,61]] Lab_Partitions.unlabel=[61,101] \
-Adv_Scheduler.max_value=$lmax StartTraining.use_tqdm=$use_tqdm
+Adv_Scheduler.max_value=$lmax StartTraining.use_tqdm=$use_tqdm  Adv_Training.vat_axises=$axises
 Summary  $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -49,13 +62,12 @@ mv -f runs/$logdir/$currentfoldername archives/$logdir
 rm -rf archives/$logdir
 mkdir -p archives/$logdir
 rm -rf runs/$logdir
-ADV 1 0.001 &
-ADV 2 0.005 &
-ADV 1 0.01 &
-ADV 2 0.05 &
-ADV 1 0.1 &
-ADV 2 0.5 &
-ADV 1 1 &
+ADV 0 0.01 [1] &
+ADV 0 0.01 [2] &
+ADV 0 0.01 [3] &
+ADV 0 0.01 [0] &
+ADV 0 0.01 [1,2,3] &
 wait_script
 
+python generalframework/postprocessing/report.py --folder=archives/$logdir/ --file=summary.csv
 
