@@ -3,7 +3,6 @@ groupname=$1
 max_epoch=$2
 
 set -e
-cd ..
 time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
@@ -19,6 +18,8 @@ echo "Net:: "${net}
 echo "Save dir: ${logdir}"
 
 source ./utils.sh
+cd ..
+
 
 Summary(){
 subfolder=$1
@@ -35,7 +36,7 @@ rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
 Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,101],[1,101]]" \
+Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=1 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Trainer.use_tqdm=False
 Summary ${currentfoldername} $gpu
 rm -rf archives/${logdir}/${currentfoldername}
@@ -50,8 +51,35 @@ rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
 Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
+Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=0.5 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Trainer.use_tqdm=False
+Summary ${currentfoldername} $gpu
+rm -rf archives/${logdir}/${currentfoldername}
+mv -f runs/${logdir}/${currentfoldername} archives/${logdir}
+}
+
+JSD(){
+set -e
+gpu=$1
+Cot_beg_epoch=$2
+Cot_max_value=$3
+Cot_max_epoch=$4
+Adv_beg_epoch=$5
+Adv_max_value=$6
+Adv_max_epoch=$7
+currentfoldername="JSD"$Cot_max_value""$Cot_max_epoch""$Cot_beg_epoch
+ramp_mult=-5
+rm -rf runs/${logdir}/${currentfoldername}
+CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
+Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
+StartTraining.train_adv=False StartTraining.train_jsd=True \
+Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=0.5 Lab_Partitions.partition_overlap=1 \
+Arch.name=$net \
+Cot_Scheduler.begin_epoch=$Cot_beg_epoch Cot_Scheduler.max_epoch=$Cot_max_epoch Cot_Scheduler.max_value=$Cot_max_value \
+Cot_Scheduler.ramp_mult=$ramp_mult \
+Adv_Scheduler.begin_epoch=$Adv_beg_epoch Adv_Scheduler.max_epoch=$Adv_max_epoch Adv_Scheduler.max_value=$Adv_max_value \
+Adv_Scheduler.ramp_mult=$ramp_mult \
+Trainer.use_tqdm=False
 Summary ${currentfoldername} $gpu
 rm -rf archives/${logdir}/${currentfoldername}
 mv -f runs/${logdir}/${currentfoldername} archives/${logdir}
@@ -73,7 +101,8 @@ rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
 Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" Arch.name=$net \
+Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=0.5 Lab_Partitions.partition_overlap=1 \
+Arch.name=$net \
 Cot_Scheduler.begin_epoch=$Cot_beg_epoch Cot_Scheduler.max_epoch=$Cot_max_epoch Cot_Scheduler.max_value=$Cot_max_value \
 Cot_Scheduler.ramp_mult=$ramp_mult \
 Adv_Scheduler.begin_epoch=$Adv_beg_epoch Adv_Scheduler.max_epoch=$Adv_max_epoch Adv_Scheduler.max_value=$Adv_max_value \
@@ -100,7 +129,8 @@ rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
 Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=True \
-Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" Arch.name=$net \
+Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=0.5 Lab_Partitions.partition_overlap=1 \
+Arch.name=$net \
 Cot_Scheduler.begin_epoch=$Cot_beg_epoch Cot_Scheduler.max_epoch=$Cot_max_epoch Cot_Scheduler.max_value=$Cot_max_value \
 Cot_Scheduler.ramp_mult=$ramp_mult \
 Adv_Scheduler.begin_epoch=$Adv_beg_epoch Adv_Scheduler.max_epoch=$Adv_max_epoch Adv_Scheduler.max_value=$Adv_max_value \
@@ -117,8 +147,9 @@ mkdir -p archives/${logdir}
 mkdir -p runs/${logdir}
 
 group1(){
-FS 0 &
-Partial 0
+#FS 0 &
+Partial 0 &
+#JSD 0 &
 }
 
 group2(){
@@ -127,28 +158,28 @@ JSD_ADV 0 0 1 80 10 0.001 80
 }
 
 group3(){
+ADV 0 0 1 80 10 0.005 80 &
+JSD_ADV 0 0 1 80 10 0.005 80
+}
+
+group4(){
 ADV 0 0 1 80 10 0.01 80 &
 JSD_ADV 0 0 1 80 10 0.01 80
 }
 
-group4(){
+group5(){
+ADV 0 0 1 80 10 0.05 80 &
+JSD_ADV 0 0 1 80 10 0.05 80
+}
+
+group6(){
 ADV 0 0 1 80 10 0.1 80 &
 JSD_ADV 0 0 1 80 10 0.1 80
 }
 
-group5(){
+group7(){
 ADV 0 0 1 80 10 0.5 80 &
 JSD_ADV 0 0 1 80 10 0.5 80
-}
-
-group6(){
-ADV 0 0 1 80 10 0.8 80 &
-JSD_ADV 0 0 1 80 10 0.8 80
-}
-
-group7(){
-ADV 0 0 1 80 10 1 80 &
-JSD_ADV 0 0 1 80 10 1 80
 }
 
 ## execute
@@ -157,5 +188,4 @@ $groupname
 wait_script
 
 
-#zip -rq archives/${logdir}"_"${time}"_"${gitcommit_number}".zip" archives/${logdir}
-#rm -rf runs/${logdir}
+
