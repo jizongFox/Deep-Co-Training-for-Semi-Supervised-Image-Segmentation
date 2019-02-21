@@ -32,6 +32,8 @@ Lab_Dataloader:
 Lab_Partitions:
   label: [[1,101],[1,101]]
   unlabel: [61,100]
+  partition_sets: 60
+  partition_diversity: 25
 
 Unlab_Dataloader:
   pin_memory: False
@@ -43,7 +45,7 @@ Unlab_Dataloader:
 Trainer:
   max_epoch: 75
   save_dir: tmp/ACDC_cotraining
-  device: cuda:0
+  device: cpu  # cuda:0
   axises: [1,2,3]
   metricname: metrics.csv
   use_tqdm: True

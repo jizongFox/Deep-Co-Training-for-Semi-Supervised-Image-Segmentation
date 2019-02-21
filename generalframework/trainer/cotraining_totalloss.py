@@ -7,6 +7,7 @@ import yaml
 from tensorboardX import SummaryWriter
 
 from generalframework import ModelMode
+from generalframework.scheduler import RampScheduler
 from .trainer import Trainer
 from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
 from ..models import Segmentator
@@ -14,6 +15,7 @@ from ..utils.AEGenerator import *
 from ..utils.utils import *
 from ..metrics import DiceMeter, AverageValueMeter
 from ..scheduler import *
+
 
 
 def fix_seed(seed):
