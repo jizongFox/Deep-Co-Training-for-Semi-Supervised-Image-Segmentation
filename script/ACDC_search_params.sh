@@ -147,9 +147,9 @@ mkdir -p archives/${logdir}
 mkdir -p runs/${logdir}
 
 group1(){
-#FS 0 &
+FS 0 &
 Partial 0 &
-#JSD 0 &
+JSD 0 &
 }
 
 group2(){
