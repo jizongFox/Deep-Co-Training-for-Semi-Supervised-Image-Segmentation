@@ -314,19 +314,23 @@ class CoTrainer(Trainer):
                       lab_data_iterators: List[iterator_],
                       unlab_data_iterator: iterator_,
                       eplision: float = 0.05,
-                      fsgm_ratio=0.5,
-                      axises=[0, 1, 2, 3]):
+                      label_data_ratio=0.5,
+                      axises=[0, 1, 2, 3],
+                      use_fsgm=True):
         assert segmentators.__len__() == 2, 'only implemented for 2 segmentators'
         adv_losses = []
         ## draw first term from labeled1 or unlabeled
         img, img_adv = None, None
-        if random.random() <= fsgm_ratio:
+        if random.random() <= label_data_ratio:
             [[img, gt], _, _] = lab_data_iterators[0].__next__()
             img, gt = img.to(self.device), gt.to(self.device)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                img_adv, _ = FSGMGenerator(segmentators[0].torchnet, eplision=eplision) \
-                    (dcopy(img), gt, criterion=self.criterions['sup'])
+                if use_fsgm:
+                    img_adv, _ = FSGMGenerator(segmentators[0].torchnet, eplision=eplision) \
+                        (dcopy(img), gt, criterion=self.criterions['sup'])
+                else:
+                    img_adv, _ = VATGenerator(segmentators[0].torchnet, eplision=eplision, axises=axises)(dcopy(img))
         else:
             [[img, _], _, _] = unlab_data_iterator.__next__()
             img = img.to(self.device)
@@ -335,11 +339,14 @@ class CoTrainer(Trainer):
         adv_pred = segmentators[1].predict(img_adv, logit=False)
         real_pred = segmentators[0].predict(img, logit=False)
         adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()))
-        if random.random() <= fsgm_ratio:
+        if random.random() <= label_data_ratio:
             [[img, gt], _, _] = lab_data_iterators[1].__next__()
             img, gt = img.to(self.device), gt.to(self.device)
-            img_adv, _ = FSGMGenerator(segmentators[1].torchnet, eplision=eplision) \
-                (img, gt, criterion=CrossEntropyLoss2d())
+            if use_fsgm:
+                img_adv, _ = FSGMGenerator(segmentators[1].torchnet, eplision=eplision) \
+                    (img, gt, criterion=CrossEntropyLoss2d())
+            else:
+                img_adv, _ = VATGenerator(segmentators[1].torchnet, eplision=eplision, axises=axises)(dcopy(img))
         else:
             [[img, _], _, _] = unlab_data_iterator.__next__()
             img = img.to(self.device)
