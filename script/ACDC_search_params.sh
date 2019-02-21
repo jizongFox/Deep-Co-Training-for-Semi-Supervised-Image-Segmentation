@@ -72,7 +72,7 @@ ramp_mult=-5
 rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
 Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
-StartTraining.train_adv=True StartTraining.train_jsd=True \
+StartTraining.train_adv=True StartTraining.train_jsd=False \
 Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" Arch.name=$net \
 Cot_Scheduler.begin_epoch=$Cot_beg_epoch Cot_Scheduler.max_epoch=$Cot_max_epoch Cot_Scheduler.max_value=$Cot_max_value \
 Cot_Scheduler.ramp_mult=$ramp_mult \
