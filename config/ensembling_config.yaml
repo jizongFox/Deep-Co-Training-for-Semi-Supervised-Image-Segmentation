@@ -27,9 +27,9 @@ Dataset:
 
 Dataloader:
   pin_memory: False
-  batch_size: 2
+  batch_size: 1
   num_workers: 2
   shuffle: True
   drop_last: True
-#  batch_sampler: [PatientSampler,
-#                  {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
+  batch_sampler: [PatientSampler,
+                  {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
