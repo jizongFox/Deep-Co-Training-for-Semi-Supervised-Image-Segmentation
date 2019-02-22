@@ -71,7 +71,7 @@ mv -f runs/$logdir/$currentfoldername archives/$logdir
 
 #rm -rf archives/$logdir
 mkdir -p archives/$logdir
-rm -rf runs/$logdir
+#rm -rf runs/$logdir
 FS 0 &
 ADV 0 0.01 [1] &
 ADV 0 0.01 [2] &
@@ -79,6 +79,7 @@ ADV 0 0.01 [3] &
 ADV 0 0.01 [0] &
 ADV 0 0.01 [1,2,3] &
 ADV 0 0.01 [0,1,2,3] &
+PS 0
 wait_script
 
 python generalframework/postprocessing/report.py --folder=archives/$logdir/ --file=summary.csv

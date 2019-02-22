@@ -48,7 +48,6 @@ mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
 
-
 Partial_alldata(){
 gpu=$1
 currentfoldername=PS_alldata

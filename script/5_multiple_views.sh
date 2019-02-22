@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 #!/usr/bin/env bash
 num_model=$1
+max_peoch=$2
+
 set -e
 time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
-max_peoch=$2
 data_aug=None
 net=enet
 logdir=cardiac/task_5_multiple_view_${num_model}
@@ -109,16 +110,18 @@ rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
-#rm -rf archives/$logdir
+rm -rf archives/$logdir
 mkdir -p archives/$logdir
-#rm -rf runs/$logdir
+rm -rf runs/$logdir
 mkdir -p runs/$logdir
 
 
 FS 0 &
 Partial 0 &
 JSD 0 &
+wait_script
 ADV 0 &
+wait_script
 JSD_ADV 0 &
 wait_script
 

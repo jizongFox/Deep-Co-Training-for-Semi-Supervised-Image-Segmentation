@@ -35,7 +35,7 @@ print('->> Merged Config:')
 config = dict_merge(config, parser_args, True)
 pprint(config)
 
-fix_seed(int(config['seed']))
+fix_seed(int(config['Seed']))
 
 def get_models(config):
     num_models = config['Lab_Partitions']['label'].__len__()

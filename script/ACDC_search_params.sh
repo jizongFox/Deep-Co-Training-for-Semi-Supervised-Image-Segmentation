@@ -10,13 +10,12 @@ gitcommit_number=${gitcommit_number:0:8}
 data_aug=None
 net=enet
 logdir=cardiac/${net}"_search_"${groupname}
-FAIL=0
-
+random_seed=1
 echo "Experiment Summary:"
 echo "Group name to run: "${groupname}
 echo "Net:: "${net}
 echo "Save dir: ${logdir}"
-
+echo "randon seed:${random_seed}"
 source ./utils.sh
 cd ..
 
@@ -149,7 +148,7 @@ mkdir -p runs/${logdir}
 group1(){
 FS 0 &
 Partial 0 &
-JSD 0 &
+JSD 0 0 10 80 10 0.5 80
 }
 
 group2(){

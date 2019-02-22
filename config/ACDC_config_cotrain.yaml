@@ -50,7 +50,7 @@ Trainer:
 
 Cot_Scheduler:
   name: RampScheduler
-  begin_epoch: 0
+  begin_epoch: 10
   max_epoch: 80
   max_value: 1.0
   ramp_mult: -5
@@ -64,7 +64,7 @@ Adv_Scheduler:
 
 Adv_Training:
   eplision:  0.001
-  fsgm_ratio: 0.5
+  label_data_ratio: 0.5
   axises: [0,1,2,3]
   use_fsgm: True
 

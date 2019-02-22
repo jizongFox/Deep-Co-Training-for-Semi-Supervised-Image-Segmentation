@@ -152,10 +152,6 @@ class CoTrainer_City(Trainer):
             self.schedulerStep()
 
             for k, v in metrics.items():
-                # try:
-                #     v[epoch] = eval(k) if torch.is_tensor(eval(k)) else torch.Tensor(eval(k))
-                # except:
-                #     v[epoch] = torch.stack(eval(k))
                 assert v[epoch].shape == eval(k).shape
                 v[epoch] = eval(k)
             for k, v in metrics.items():
@@ -212,7 +208,8 @@ class CoTrainer_City(Trainer):
         # Here the concept of epoch is defined as the epoch
         n_batch = max(map_(len, self.labeled_dataloaders))
         S = len(self.segmentators)
-        metrics = [IoU(self.C, ignore_index=250) for _ in range(S)]
+
+        metrics = [IoU(self.C, ignore_index=255) for _ in range(S)]
         sup_loss_log = torch.zeros(n_batch, S)
         jsd_loss_log = torch.zeros(n_batch)
         adv_loss_log = torch.zeros(n_batch)
@@ -237,13 +234,10 @@ class CoTrainer_City(Trainer):
             for enu_lab in range(len(fake_labeled_iterators)):
                 [[img, gt], _, path] = fake_labeled_iterators[enu_lab].__next__()
                 img, gt = img.to(self.device), gt.to(self.device)
-                # backward and update when the mode = ModelMode.TRAIN
-                pred, sup_loss = self.segmentators[enu_lab].update(img, gt, criterion=self.criterions.get('sup'),
-                                                                   mode=ModelMode.TRAIN)
-
                 pred = self.segmentators[enu_lab].predict(img, logit=True)
                 sup_loss = self.criterions.get('sup')(pred, gt.squeeze(1))
                 suplossMeters[enu_lab].add(sup_loss.detach().data.cpu())
+                metrics[enu_lab].add(predicted=pred, target=gt)
                 if save:
                     save_images(pred2class(pred),
                                 names=path,
@@ -252,7 +246,6 @@ class CoTrainer_City(Trainer):
                                 iter=epoch,
                                 seg_num=str(enu_lab))
                 supervisedLoss += sup_loss
-                # metrics[enu_lab].add(predicted=pred, target=gt)
 
             # compute jsd loss
             if train_jsd:
@@ -445,4 +438,3 @@ class CoTrainer_City(Trainer):
             self.segmentator = self.segmentators[i]
             super().checkpoint(score, epoch, filename=f'best_{i}.pth')
             self.best_scores[i] = self.best_score
-

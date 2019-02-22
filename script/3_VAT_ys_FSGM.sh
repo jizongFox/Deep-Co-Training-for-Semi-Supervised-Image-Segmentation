@@ -28,7 +28,7 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=True \
 Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=0.5 Lab_Partitions.partition_overlap=1 \
-Arch.name=$net Trainer.use_tqdm=$tqdm Adv_Training.fsgm_ratio=$fsgm_ratio Adv_Training.use_fsgm=$use_fsgm
+Arch.name=$net Trainer.use_tqdm=$tqdm Adv_Training.label_data_ratio=$fsgm_ratio Adv_Training.use_fsgm=$use_fsgm
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
