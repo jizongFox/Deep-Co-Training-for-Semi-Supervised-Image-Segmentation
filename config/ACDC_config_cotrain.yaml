@@ -50,7 +50,7 @@ Trainer:
 
 Cot_Scheduler:
   name: RampScheduler
-  begin_epoch: 5
+  begin_epoch: 0
   max_epoch: 80
   max_value: 1.0
   ramp_mult: -5
@@ -59,7 +59,7 @@ Adv_Scheduler:
   name: RampScheduler
   begin_epoch: 10
   max_epoch: 80
-  max_value: 0.5
+  max_value: 0.01
   ramp_mult: -5
 
 Adv_Training:
