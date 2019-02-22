@@ -79,3 +79,5 @@ StartTraining:
   save_val: False
   augment_labeled_data: False
   augment_unlabeled_data: False
+
+Seed: 1

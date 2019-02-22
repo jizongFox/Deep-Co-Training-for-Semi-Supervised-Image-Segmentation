@@ -26,7 +26,6 @@ def fix_seed(seed):
     torch.backends.cudnn.benchmark = False
 
 
-fix_seed(1234)
 parser_args = yaml_parser()
 print('->>Input args:')
 pprint(parser_args)
@@ -36,6 +35,7 @@ print('->> Merged Config:')
 config = dict_merge(config, parser_args, True)
 pprint(config)
 
+fix_seed(int(config['seed']))
 
 def get_models(config):
     num_models = config['Lab_Partitions']['label'].__len__()
