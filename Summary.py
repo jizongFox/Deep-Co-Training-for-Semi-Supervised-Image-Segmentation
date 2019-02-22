@@ -13,8 +13,8 @@ from torch import Tensor
 
 from generalframework.dataset import get_ACDC_dataloaders
 from generalframework.models import Segmentator
-from generalframework.utils import dice_coef, probs2one_hot, class2one_hot
-
+from generalframework.utils import dice_coef, probs2one_hot, class2one_hot,dice_batch
+from generalframework.metrics import AverageValueMeter
 warnings.filterwarnings('ignore')
 
 
@@ -100,6 +100,8 @@ val_b: int = len(dataloaders['val'])
 val_n: int = val_b * dataloaders['val'].batch_size if dataloaders['val'].drop_last \
     else len(dataloaders['val'].dataset)
 coef_dice = torch.zeros(val_n, len(models) + 1, config['Arch']['num_classes'])
+bcoef_dice = torch.zeros(val_b, len(models) + 1, config['Arch']['num_classes'])
+diversities = [AverageValueMeter() for _ in range(checkpoints.__len__())]
 
 for i, (model, state_dict) in enumerate(zip(models, state_dicts)):
     model.load_state_dict(state_dict['segmentator'])
@@ -115,10 +117,15 @@ with torch.no_grad():
         preds = [model.predict(img, logit=False) for model in models]
         for j, pred in enumerate(preds):
             coef_dice[done:done + b, j] = dice_coef(*toOneHot(pred, gt))
+            bcoef_dice[i,j]= dice_batch(*toOneHot(pred,gt))
 
         preds_ = ensemble(preds)
         coef_dice[done:done + b, -1] = dice_coef(*toOneHot(preds_, gt))
+        bcoef_dice[i,-1]= dice_batch(*toOneHot(preds_,gt))
         done += b
+        ## diversities:
+        diffs = list(map(lambda x: x - preds_,preds))
+        list(map(lambda x,y:x.add(y.detach().cpu().abs().mean()),diversities,diffs))
 
     individual_result_dict = {
         f'model_{i}': {f'DSC{j}': coef_dice[:, i, j].mean().item() for j in range(config['Arch']['num_classes'])} for i
@@ -136,3 +143,25 @@ with torch.no_grad():
     summary_std = pd.DataFrame({**ensemble_std_dict, **individual_std_dict})
     summary.to_csv(Path(args.input_dir) / 'summary.csv')
     summary_std.to_csv(Path(args.input_dir) / 'summary_std.csv')
+
+
+
+    individual_result_dict = {
+        f'model_{i}': {f'DSC{j}': bcoef_dice[:, i, j].mean().item() for j in range(config['Arch']['num_classes'])} for i
+        in
+        range(models.__len__())}
+    individual_std_dict = {
+        f'model_{i}': {f'DSC{j}': bcoef_dice[:, i, j].std().item() for j in range(config['Arch']['num_classes'])} for i
+        in
+        range(models.__len__())}
+    ensemble_result_dict = {
+        f'ensemble': {f'DSC{i}': bcoef_dice[:, -1, i].mean().item() for i in range(config['Arch']['num_classes'])}}
+    ensemble_std_dict = {
+        f'ensemble': {f'DSC{i}': bcoef_dice[:, -1, i].std().item() for i in range(config['Arch']['num_classes'])}}
+    summary = pd.DataFrame({**ensemble_result_dict, **individual_result_dict})
+    summary_std = pd.DataFrame({**ensemble_std_dict, **individual_std_dict})
+    summary.to_csv(Path(args.input_dir) / 'bsummary.csv')
+    summary_std.to_csv(Path(args.input_dir) / 'bsummary_std.csv')
+
+    diversity_dict = {f'Div{i}':diversities[i].value()[0].item() for i in range(checkpoints.__len__()) }
+    pd.Series(diversity_dict).to_csv(Path(args.input_dir) / 'div.csv')
