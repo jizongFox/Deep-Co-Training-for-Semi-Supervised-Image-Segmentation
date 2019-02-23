@@ -24,7 +24,7 @@ echo "Do not support num_model = ${num_model}"
     exit
 fi
 
-source ./utils.sh
+source utils.sh
 cd ..
 
 Summary(){

@@ -11,7 +11,7 @@ net=enet
 logdir=cardiac/$net"_refactor_test"
 tqdm=False
 
-source ./utils.sh
+source utils.sh
 Summary(){
 subfolder=$1
 gpu=$2

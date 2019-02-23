@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 set -e
-cd ..
-time=$(date +'%m%d_%H:%M')
-gitcommit_number=$(git rev-parse HEAD)
-gitcommit_number=${gitcommit_number:0:8}
-max_peoch=$1
-labeled_unlabeled_ratio=$2
+# input parameters
+logdir=$1
+received_com=$2
+max_peoch=$3
+labeled_unlabeled_ratio=$4
+partiton_overlap=$5
+
 data_aug=None
 net=enet
-logdir=cardiac/task1_labeled_unlabeled_ratio
 tqdm=False
-source ./utils.sh
+source utils.sh
+cd ../..
 
 Summary(){
 subfolder=$1
@@ -21,12 +22,12 @@ CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir runs/$logdir/$subfolder
 
 FS(){
 gpu=$1
-currentfoldername=FS_${labeled_unlabeled_ratio}
+currentfoldername=FS
 rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=1 Lab_Partitions.partition_overlap=1 \
+Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=1 Lab_Partitions.partition_overlap=$partiton_overlap \
 Arch.name=$net Trainer.use_tqdm=$tqdm
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
@@ -40,7 +41,7 @@ rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=$labeled_unlabeled_ratio Lab_Partitions.partition_overlap=1 \
+Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=$labeled_unlabeled_ratio Lab_Partitions.partition_overlap=$partiton_overlap \
 Arch.name=$net Trainer.use_tqdm=$tqdm
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
@@ -54,7 +55,7 @@ rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=True \
-Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=$labeled_unlabeled_ratio Lab_Partitions.partition_overlap=1 \
+Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=$labeled_unlabeled_ratio Lab_Partitions.partition_overlap=$partiton_overlap \
 Arch.name=$net Trainer.use_tqdm=$tqdm
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
@@ -68,7 +69,7 @@ rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=$labeled_unlabeled_ratio Lab_Partitions.partition_overlap=1 \
+Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=$labeled_unlabeled_ratio Lab_Partitions.partition_overlap=$partiton_overlap \
 Arch.name=$net Trainer.use_tqdm=$tqdm
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
@@ -82,25 +83,19 @@ rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=True \
-Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=$labeled_unlabeled_ratio Lab_Partitions.partition_overlap=1 \
+Lab_Partitions.label="[[1,1],[1,1]]" Lab_Partitions.partition_sets=$labeled_unlabeled_ratio Lab_Partitions.partition_overlap=$partiton_overlap \
 Arch.name=$net Trainer.use_tqdm=$tqdm
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
-#rm -rf archives/$logdir
 mkdir -p archives/$logdir
-#rm -rf runs/$logdir
 mkdir -p runs/$logdir
 
-FS 0 &
-Partial 0 &
-JSD 0 &
-wait_script
+echo $received_com
+$received_com 0
 
-ADV 0 &
-JSD_ADV 0 &
 wait_script
 
 #python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \

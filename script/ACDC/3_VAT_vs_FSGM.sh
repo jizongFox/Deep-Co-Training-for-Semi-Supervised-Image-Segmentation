@@ -6,7 +6,7 @@ tqdm=False
 data_aug=None
 net=enet
 
-source ./utils.sh
+source utils.sh
 cd ..
 
 Summary(){

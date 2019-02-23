@@ -16,7 +16,7 @@ echo "Group name to run: "${groupname}
 echo "Net:: "${net}
 echo "Save dir: ${logdir}"
 echo "randon seed:${random_seed}"
-source ./utils.sh
+source utils.sh
 cd ..
 
 

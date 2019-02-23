@@ -11,7 +11,7 @@ data_aug=None
 net=enet
 logdir=cardiac/task2_overlap_ratio
 tqdm=False
-source ./utils.sh
+source utils.sh
 
 Summary(){
 subfolder=$1
