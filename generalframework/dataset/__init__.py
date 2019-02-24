@@ -61,7 +61,7 @@ def get_ACDC_split_dataloders(config):
     lab_ids, unlab_ids = create_partitions(partition_ratio)
     partition_overlap = config['Lab_Partitions']['partition_overlap']
     rd_idx = np.random.permutation(range(*lab_ids))
-    overlap_idx = np.random.choice(rd_idx, size=int(partition_overlap * range(*lab_ids).__len__()),
+    overlap_idx = np.random.choice(rd_idx, size=int(float(partition_overlap) * range(*lab_ids).__len__()),
                                    replace=False)
     exclusive_idx = [x for x in rd_idx if x not in overlap_idx]
     n_splits = int(config['Lab_Partitions']['num_models'])

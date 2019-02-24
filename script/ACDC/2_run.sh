@@ -4,9 +4,10 @@ time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
+overlap_ratio=$1
+max_epoch=$2
 la_ratio=0.5
-overlap_ratio=1
-max_epoch=1
+echo "fixed partition of ${la_ratio} for overlap_ratio of ${overlap_ratio}"
 
 source utils.sh
 logdir="cardiac/task2_overlap_ratio_${overlap_ratio}_for_${la_ratio}_la_ratio"

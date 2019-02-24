@@ -84,7 +84,6 @@ mv -f runs/$logdir/$currentfoldername archives/$logdir
 
 JSD_ADV(){
 set -e
-
 gpu=$1
 currentfoldername=JSD_ADV
 rm -rf runs/$logdir/$currentfoldername
@@ -97,22 +96,8 @@ Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
-
 mkdir -p archives/$logdir
 mkdir -p runs/$logdir
-
 echo $received_com
 $received_com 0
-
-#python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
-# archives/$logdir/PS/ \
-#archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/ --file val_dice.npy --axis 1 2 3 --postfix=model0 --seg_id=0 --y_lim 0.3 0.9
-#
-#python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
-# archives/$logdir/PS/ \
-#archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/  --file val_dice.npy --axis 1 2 3 --postfix=model1 --seg_id=1 --y_lim 0.3 0.9
-#
-#python generalframework/postprocessing/report.py --folder=archives/$logdir/ --file=summary.csv
-#
-#zip -rq archives/$logdir"_"$time"_"$gitcommit_number".zip" archives/$logdir
-#rm -rf runs/$logdir
+#wait_script
