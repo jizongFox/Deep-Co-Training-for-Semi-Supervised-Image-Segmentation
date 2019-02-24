@@ -28,8 +28,7 @@ Lab_Dataloader:
                   {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
 
 Lab_Partitions:
-  label: [[1,1],[1,1]]
-  unlabel: [1,1]
+  num_models: 2
   partition_sets: 0.5
   partition_overlap: 1
 
@@ -50,7 +49,7 @@ Trainer:
 
 Cot_Scheduler:
   name: RampScheduler
-  begin_epoch: 10
+  begin_epoch: 1
   max_epoch: 80
   max_value: 1.0
   ramp_mult: -5

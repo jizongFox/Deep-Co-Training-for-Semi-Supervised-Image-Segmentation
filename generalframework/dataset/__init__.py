@@ -49,6 +49,38 @@ def get_ACDC_dataloaders(dataset_dict: dict, dataloader_dict: dict, quite=False)
         val_loader = DataLoader(val_set, **{**dataloader_dict, **{'shuffle': False, 'batch_size': 1}})
     return {'train': train_loader, 'val': val_loader}
 
+def get_ACDC_split_dataloders(config):
+
+    def create_partitions(partition_ratio):
+        lab_ids = [1, int(100 * partition_ratio + 1)]
+        unlab_ids = [int(100 * partition_ratio + 1), 101]
+        return lab_ids, unlab_ids
+
+    dataloders = get_ACDC_dataloaders(config['Dataset'], config['Lab_Dataloader'])
+    partition_ratio = config['Lab_Partitions']['partition_sets']
+    lab_ids, unlab_ids = create_partitions(partition_ratio)
+    partition_overlap = config['Lab_Partitions']['partition_overlap']
+    rd_idx = np.random.permutation(range(*lab_ids))
+    overlap_idx = np.random.choice(rd_idx, size=int(partition_overlap * range(*lab_ids).__len__()),
+                                   replace=False)
+    exclusive_idx = [x for x in rd_idx if x not in overlap_idx]
+    n_splits = int(config['Lab_Partitions']['num_models'])
+    exclusive_samples = int(exclusive_idx.__len__() / n_splits)
+    excl_indx = [exclusive_idx[i * exclusive_samples: (i + 1) * exclusive_samples] for i in range(n_splits)]
+
+    lab_partitions = [np.hstack((overlap_idx, np.array(excl_indx[idx]))) for idx in range(n_splits)]
+    labeled_dataloaders = []
+    for idx_lst in lab_partitions:
+        labeled_dataloaders.append(extract_patients(dataloders['train'], [str(int(x)) for x in idx_lst]))
+
+    unlab_dataloader = get_ACDC_dataloaders(config['Dataset'], config['Unlab_Dataloader'], quite=True)['train']
+    unlab_dataloader = extract_patients(unlab_dataloader, [str(x) for x in range(*unlab_ids)])
+    val_dataloader = dataloders['val']
+    print('labeled_image_number:',len(range(*lab_ids)), 'unlab_image_number:',len(range(*unlab_ids)))
+    from functools import reduce
+    print(f'{len(lab_partitions)} datasets with overlap labeled image number', len(reduce(lambda x,y: x&y,list(map(lambda x:set(x), lab_partitions)))))
+    return labeled_dataloaders, unlab_dataloader, val_dataloader
+
 
 citylist = [
     'aachen',

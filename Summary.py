@@ -27,7 +27,6 @@ def get_args():
 with open('config/ensembling_config.yaml', 'r') as f:
     config = yaml.load(f.read())
 args = get_args()
-# pprint(config)
 
 input_dir = Path(args.input_dir)
 checkpoints = list(input_dir.glob('best*.pth'))
