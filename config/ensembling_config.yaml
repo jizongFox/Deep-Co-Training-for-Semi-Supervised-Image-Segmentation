@@ -3,20 +3,6 @@ Checkpoints: ['archives/cardiac/unet_cotraining2models/ADV/best_0.pth','archives
 Device: cuda:0
 Ensemble_method: soft
 
-Arch:
-  name: unet
-  num_classes: 4
-
-Optim:
-  name: Adam
-  lr: 0.0005
-
-
-Scheduler:
-  name: MultiStepLR
-  milestones: [10,20,30,40,50,60,70,80,90]
-  gamma: 0.7
-
 
 Dataset:
   root_dir: dataset/ACDC-all
