@@ -26,7 +26,10 @@ def main(args: argparse.Namespace):
     div = {}
     for k,v in name_dict.items():
         div_csv = pd.read_csv(v.replace(args.file,'div.csv'))
-        div[k]=div_csv.mean(1).values[0]
+        try:
+            div[k]=div_csv.mean(1).values[0]
+        except:
+            pass
     kappa=pd.DataFrame(div,index=['kappa'])
 
     results = {}
@@ -58,7 +61,10 @@ def main(args: argparse.Namespace):
     order_dict = results.loc['mean_iou'].to_dict()
     order_dict = dict(sorted(order_dict.items(), key=operator.itemgetter(1), reverse=True))
     results = results[list(order_dict.keys())]
-    results=results.append(kappa,sort=False)
+    try:
+        results=results.append(kappa,sort=False)
+    except:
+        pass
     print('\nAverage score:\n',results)
     results.to_csv(folder_path / 'mean_score_results.csv')
 

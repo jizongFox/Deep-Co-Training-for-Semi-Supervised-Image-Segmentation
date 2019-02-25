@@ -13,7 +13,7 @@ from torch import Tensor
 from generalframework.dataset import get_ACDC_dataloaders
 from generalframework.metrics import KappaMetrics, DiceMeter
 from generalframework.models import Segmentator
-from generalframework.utils import probs2one_hot, class2one_hot
+from generalframework.utils import probs2one_hot, class2one_hot,save_images,pred2class
 
 warnings.filterwarnings('ignore')
 
@@ -110,14 +110,20 @@ for i, (model, state_dict) in enumerate(zip(models, state_dicts)):
     print(f'model {i} has the best score: {state_dict["best_score"]:.3f}.')
 
 with torch.no_grad():
-    for i, ((img, gt), _, filename) in enumerate(dataloaders['val']):
+    for i, ((img, gt), _, path) in enumerate(dataloaders['val']):
         img, gt = img.to(device), gt.to(device)
-        b = filename.__len__()
         preds = [model.predict(img, logit=False) for model in models]
         for j, pred in enumerate(preds):
             diceMeters[j].add(pred, gt)
             bdiceMeters[j].add(pred, gt)
+            save_images(pred2class(pred), names=path, root=args.input_dir, mode='val', iter=1000,
+                        seg_num=str(j))
+
         voting_preds = ensemble(preds)
+
+        save_images(pred2class(voting_preds), names=path, root=args.input_dir, mode='val', iter=1000,
+                    seg_num='voting')
+
         ensembleMeter.add(voting_preds, gt)
         bensembleMeter.add(voting_preds, gt)
         kappameter.add(predicts=[pred.max(1)[1] for pred in preds], target=voting_preds.max(1)[1],
