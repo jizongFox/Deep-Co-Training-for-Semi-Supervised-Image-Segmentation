@@ -58,7 +58,7 @@ Adv_Scheduler:
   name: RampScheduler
   begin_epoch: 10
   max_epoch: 80
-  max_value: 0.01
+  max_value: 0.1
   ramp_mult: -5
 
 Adv_Training:
