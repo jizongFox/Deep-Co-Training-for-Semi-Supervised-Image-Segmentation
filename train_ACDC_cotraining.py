@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import yaml
 
-from generalframework.dataset import get_ACDC_split_dataloders
+from generalframework.dataset import get_ACDC_split_dataloders#,get_spin_splite_dataset
 from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
 from generalframework.trainer import CoTrainer
@@ -36,16 +36,18 @@ config = dict_merge(config, parser_args, True)
 pprint(config)
 
 fix_seed(int(config['Seed']))
+if config['Dataset']['root_dir'].find('ACDC')>0:
+    labeled_dataloaders, unlab_dataloader, val_dataloader = get_ACDC_split_dataloders(config)
+# elif config['Dataset']['root_dir'].find('GM')>0:
+#     labeled_dataloaders,unlab_dataloader,val_dataloader =get_spin_splite_dataset(config)
 
-
-
-labeled_dataloaders, unlab_dataloader, val_dataloader = get_ACDC_split_dataloders(config)
 
 def get_models(config):
     num_models = config['Lab_Partitions']['num_models']
     for i in range(num_models):
         return [Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
                 for _ in range(num_models)]
+
 
 segmentators = get_models(config)
 

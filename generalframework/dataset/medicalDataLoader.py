@@ -12,11 +12,11 @@ from itertools import repeat
 from functools import partial
 import torch, numpy as np
 from .metainfoGenerator import *
-from .augment import PILaugment, segment_transform
+from .augment import PILaugment, segment_transform, temporary_seed
 
 
 class MedicalImageDataset(Dataset):
-    dataset_modes = ['train', 'val', 'test']
+    dataset_modes = ['train', 'val', 'test','unlabeled']
     allow_extension = ['.jpg', '.png']
 
     def __init__(self, root_dir: str, mode: str, subfolders: List[str], transform=None, augment=None,
@@ -44,7 +44,13 @@ class MedicalImageDataset(Dataset):
         self.augment = eval(augment) if isinstance(augment, str) else augment
         self.equalize = equalize
         self.training = ModelMode.TRAIN
-        self.metainfo_generator = None if metainfo is None else eval(metainfo)[0](**eval(metainfo)[1])
+        if metainfo is None:
+            self.metainfo_generator = None
+        else:
+            if isinstance(metainfo[0],str):
+                metainfo[0]=eval(metainfo[0])
+                metainfo[1]=eval(metainfo[1]) if isinstance(metainfo[1],str) else metainfo[1]
+            self.metainfo_generator = metainfo[0](**metainfo[1])
 
     def __len__(self):
         return int(len(self.imgs[self.subfolders[0]]))
@@ -74,18 +80,25 @@ class MedicalImageDataset(Dataset):
                         zip(self.subfolders, img_list)]
 
         if self.augment is not None and self.training == ModelMode.TRAIN:
-            img_list = self.augment(img_list)
-            print('dataaugmentatioon done')
+            A_img_list = self.augment(img_list)
+            random_seed = (random.getstate(),np.random.get_state())
+            # print('dataaugmentatioon done')
 
-        img_T = [self.transform['img'](img) if b == 'img' else self.transform['gt'](img) for b, img in
-                 zip(self.subfolders, img_list)]
+            img_T = [self.transform['img'](img) if b == 'img' else self.transform['gt'](img) for b, img in
+                     zip(self.subfolders, A_img_list)]
+        else:
+            img_T = [self.transform['img'](img) if b == 'img' else self.transform['gt'](img) for b, img in
+                     zip(self.subfolders, img_list)]
+
 
         metainformation = torch.Tensor([-1])
         if self.metainfo_generator is not None:
+            original_imgs = [self.transform['img'](img) if b == 'img' else self.transform['gt'](img) for b, img in
+                     zip(self.subfolders, img_list)]
             metainformation = [self.metainfo_generator(img_t) for b, img_t in
-                               zip(self.subfolders, img_T) if b in self.metainfo_generator.foldernames]
+                               zip(self.subfolders, original_imgs) if b in self.metainfo_generator.foldernames]
 
-        return img_T, metainformation, filename
+        return img_T, [metainformation,random_seed] if 'random_seed' in locals() else [metainformation,None], filename
 
     @classmethod
     def make_dataset(cls, root, mode, subfolders, pin_memory, quite=False):

@@ -9,6 +9,22 @@ import torchvision.transforms.functional as tf
 from PIL import Image, ImageOps
 import collections
 
+class temporary_seed:
+    def __init__(self, seed):
+        self.seed = seed
+        self.backup = None
+
+    def __enter__(self):
+        self.randombackup = random.getstate()
+        self.npbackup=np.random.get_state()
+        np.random.seed(self.seed)
+        random.seed(self.seed)
+
+    def __exit__(self, *_):
+        np.random.set_state(self.npbackup)
+        random.setstate(self.randombackup)
+
+
 class ToLabel():
     def __init__(self) -> None:
         super().__init__()
@@ -253,7 +269,6 @@ def segment_transform(size):
     ])
     mask_transform = transforms.Compose([
         transforms.Resize(size),
-        # transforms.ToTensor()
         ToLabel()
     ])
     return {'img': img_transform,
