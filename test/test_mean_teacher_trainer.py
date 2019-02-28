@@ -70,6 +70,7 @@ meanTeacherTrainer = MeanTeacherTrainer(student_segmentator=student,
                                         teacher_segmentator=teacher,
                                         labeled_dataloader=labeled_dataloader,
                                         unlabeled_dataloader=unlabeled_dataloader,
+                                        val_dataloader=val_dataloader,
                                         criterions={'sup': nn.CrossEntropyLoss(),
                                                     'con':nn.MSELoss()})
 meanTeacherTrainer.start_training()

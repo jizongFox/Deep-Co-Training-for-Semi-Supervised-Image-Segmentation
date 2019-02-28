@@ -17,89 +17,51 @@ class Metric(object):
     def value(self, **kwargs):
         pass
 
-    def summary_epoch(self):
-        pass
-
-    def save_images(self, **kwargs):
-        pass
+    def summary(self):
+        raise NotImplementedError
 
 
 class AggragatedMeter(object):
     '''
     Aggragate historical information in a List.
     '''
-
     def __init__(self, meter: Metric = None, save_dir=None) -> None:
         super().__init__()
         self.epoch = 0
-        assert meter is not None
+        assert meter is not None,meter
         self.meter = meter
         self.record = []
         self.save_dir = save_dir
 
     def Step(self):
         self.epoch += 1
-        self.Summary()
+        instance_data = self.Summary()
+        self.record.append(instance_data)
         self.meter.reset()
 
     def Summary(self):
-        self.record.append(self.meter.summary_epoch())
-        return pd.DataFrame(self.record)
+        return self.meter.summary()
 
     def Add(self,*input):
         self.meter.add(*input)
 
-    def Save_Images(self,pred_logit:Tensor, filenames, mode='train',seg_num=None):
-        assert pred_logit.shape.__len__()==4
-        pred_mask = pred_logit.max(1)[1]
-        save_images(pred_mask,filenames, root=self.save_dir, mode=mode,iter=self.epoch, seg_num=seg_num)
+    def Reset(self):
+        self.meter.reset()
+        self.record=[]
 
-class Horizontal_Meter(object):
+    def state_dict(self):
+        """Returns the state of the scheduler as a :class:`dict`.
 
-    def __init__(self,*aggregatedMeters) -> None:
-        super().__init__()
-        self.meters = aggregatedMeters
+        It contains an entry for every variable in self.__dict__ which
+        is not the optimizer.
+        """
+        return {key: value for key, value in self.__dict__.items() if key != 'meter'}
 
-    def Step(self):
-        [m.step for m in self.meters]
+    def load_state_dict(self, state_dict):
+        """Loads the schedulers state.
 
-
-
-class AverageValueMeter(Metric):
-    def __init__(self, name='Average Meter'):
-        super(AverageValueMeter, self).__init__()
-        self.reset()
-        self.val = 0
-        self.name = name
-
-    def add(self, value, n=1):
-        self.val = value
-        self.sum += value
-        self.var += value * value
-        self.n += n
-
-        if self.n == 0:
-            self.mean, self.std = np.nan, np.nan
-        elif self.n == 1:
-            self.mean = 0.0 + self.sum  # This is to force a copy in torch/numpy
-            self.std = np.inf
-            self.mean_old = self.mean
-            self.m_s = 0.0
-        else:
-            self.mean = self.mean_old + (value - n * self.mean_old) / float(self.n)
-            self.m_s += (value - self.mean_old) * (value - self.mean)
-            self.mean_old = self.mean
-            self.std = np.sqrt(self.m_s / (self.n - 1.0))
-
-    def value(self):
-        return self.mean, self.std
-
-    def reset(self):
-        self.n = 0
-        self.sum = 0.0
-        self.var = 0.0
-        self.val = 0.0
-        self.mean = np.nan
-        self.mean_old = 0.0
-        self.m_s = 0.0
-        self.std = np.nan
+        Arguments:
+            state_dict (dict): scheduler state. Should be an object returned
+                from a call to :meth:`state_dict`.
+        """
+        self.__dict__.update(state_dict)

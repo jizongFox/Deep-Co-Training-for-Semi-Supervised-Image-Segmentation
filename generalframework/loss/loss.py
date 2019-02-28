@@ -108,19 +108,3 @@ class KL_Divergence_2D(nn.Module):
         else:
             return ylogy - ylogp
 
-
-class Adv_2D(nn.Module):
-    """Adversarial loss based on https://arxiv.org/abs/1803.05984 adapted for segmentation"""
-
-    def __init__(self):
-        super().__init__()
-        self.entropy = Entropy_2D()
-
-    def forward(self, predictions: List[torch.Tensor], adversarials: List[torch.Tensor]):
-        assert predictions.__len__() == adversarials.__len__()
-        for inprob, inadvs in zip(predictions, adversarials):
-            assert simplex(inprob, 1)
-            assert simplex(inadvs, 1)
-        diff_loss = sum(
-            list(map(lambda xy: self.entropy(xy[0]) + self.entropy(xy[1]), zip(predictions, adversarials))))
-        return diff_loss / len(predictions)

@@ -73,3 +73,7 @@ class DiceMeter(Metric):
         assert len(log.shape) == 2
         return log
 
+    def summary_epoch(self):
+        (report_mean, report_std),_= self.value()
+        return {'r_mean dice':report_mean.item(),
+                'val':report_std.item()}

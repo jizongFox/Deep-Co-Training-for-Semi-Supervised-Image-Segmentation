@@ -22,6 +22,7 @@ class MeanTeacherTrainer(Trainer):
                  teacher_segmentator: Segmentator,
                  labeled_dataloader: DataLoader,
                  unlabeled_dataloader: DataLoader,
+                 val_dataloader:DataLoader,
                  criterions: Dict[str, nn.Module],
                  max_epoch: int = 100,
                  save_dir: str = 'tmp',
@@ -37,6 +38,7 @@ class MeanTeacherTrainer(Trainer):
         self.student = student_segmentator
         self.labeled_dataloader = labeled_dataloader
         self.unlabel_dataloader = unlabeled_dataloader
+        self.val_dataloader= val_dataloader
         self.criterions = criterions
         self.save_dir = Path(save_dir)
         # assert not (self.save_dir.exists() and checkpoint is None), f'>> save_dir: {self.save_dir} exits.'
@@ -85,10 +87,17 @@ class MeanTeacherTrainer(Trainer):
 
         self._train_loop(self.labeled_dataloader, self.unlabel_dataloader, epoch=1, mode=ModelMode.TRAIN)
 
+        with torch.no_grad():
+            self._eval_loop(self.val_dataloader, epoch=1)
+        for k, v in self.METERS.items():
+            v.Step()
+
     def _train_loop(self, labeled_dataloader, unlabeled_dataloader, epoch, mode=ModelMode.TRAIN):
         self.student.set_mode(mode)
-        ## detach the
+        ## detach the teacher model
         self.teacher.set_mode(mode)
+        self.labeled_dataloader.dataset.training=True
+        self.unlabel_dataloader.dataset.training=True
         for param in self.teacher.torchnet.parameters():
             param.detach_()
 
@@ -104,8 +113,10 @@ class MeanTeacherTrainer(Trainer):
                 s_preds = self.student.predict(img,logit=True)
                 sup_loss = self.criterions.get('sup')(s_preds,gt.squeeze(1))
                 s_preds = F.softmax(s_preds,1)
-
-            t_preds= self.teacher.predict(o_img,logit=False)
+            self.METERS.train_loss.Add(sup_loss.item())
+            self.METERS.train_2D_dice.Add(s_preds,gt)
+            with torch.no_grad():
+                t_preds= self.teacher.predict(o_img,logit=False)
             img_lists,seed = zip(t_preds.detach()),map(eval,str_seed)
             t_preds_aug = []
             for i, (t_pred, seed) in enumerate(zip(img_lists,seed)):
@@ -118,7 +129,8 @@ class MeanTeacherTrainer(Trainer):
             ((img, _), ((o_img, _), str_seed), filenames) = fake_unlabel_iter.__next__()
             img, o_img = img.to(self.device),  o_img.to(self.device)
             s_preds = self.student.predict(img, logit=False)
-            t_preds = self.teacher.predict(o_img, logit=False)
+            with torch.no_grad():
+                t_preds = self.teacher.predict(o_img, logit=False)
             img_lists,seed = zip(t_preds.detach()),map(eval,str_seed)
             t_preds_aug = []
             for i, (t_pred, seed) in enumerate(zip(img_lists,seed)):
@@ -130,22 +142,27 @@ class MeanTeacherTrainer(Trainer):
             self.student.optimizer.zero_grad()
             total_loss.backward()
             self.student.optimizer.step()
+            self.update_ema()
+            dataloader_.set_postfix({'loss':self.METERS.train_loss.Summary(),'dice':self.METERS.train_2D_dice.Summary()})
+        print(self.METERS.train_loss.Summary())
+        print(self.METERS.train_2D_dice.Summary())
+        print(desc, {'train_loss':self.METERS.train_loss.Summary(),'dice':self.METERS.train_2D_dice.Summary()})
+
+    def _eval_loop(self,val_dataloader,epoch, mode=ModelMode.EVAL):
+        val_dataloader.dataset.training=False
+        self.teacher.set_mode(mode)
+        desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
+
+        for i, ((img, gt), (_, _), filenames) in enumerate(val_dataloader):
+            img,gt = img.to(self.device),gt.to(self.device)
+            t_preds = self.teacher.predict(img,logit=True)
+            val_loss = self.criterions.get('sup')(t_preds,gt.squeeze(1))
+            self.METERS.val_loss.Add(val_loss.item())
+            self.METERS.val_2D_dice.Add(t_preds,gt)
+        print(desc, {'val_loss':self.METERS.val_loss.Summary(),'dice':self.METERS.val_2D_dice.Summary()})
 
 
-            # labeled_dataloader.t
-            # self.METERS.train_loss.Add(loss.item())
-            # self.METERS.train_2D_dice.Add(preds,imgs[1])
-            # self.METERS.train_2D_dice.Save_Images(preds,filenames,mode='train')
-            # from generalframework.dataset import PILaugment
-            # from  generalframework.dataset.augment import temporary_seed
-            # # with temporary_seed(see=eval(str_seed)[0]):
-            #     pass
 
-        # self.METERS.train_2D_dice.Add(preds, imgs[1])
-    # def _auxiliary_PIL_image_loader(self,filenames):
-    #     '''
-    #     This function is to return the PIL images of given
-    #     :return: PIL images based on filenames
-    #     '''
-    #     root_dir = Path(self.labeled_dataloader.dataset.root_dir)/self.labeled_dataloader.dataset.mode
-    #     return [Image]
+    def update_ema(self,alpha=0.99):
+        for ema_param, param in zip(self.teacher.torchnet.parameters(), self.student.torchnet.parameters()):
+            ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
