@@ -1,4 +1,4 @@
 from .iou import  IoU
 from .dice_meter import DiceMeter
-from .metric import AverageValueMeter
+from .metric import AverageValueMeter,AggragatedMeter
 from .kappa import KappaMetrics

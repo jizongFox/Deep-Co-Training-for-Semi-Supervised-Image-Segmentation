@@ -1,24 +1,28 @@
-from torchvision import transforms
-import random
-import numpy as np, torch
 import collections
-
 import math
 import numbers
+import random
+
+import numpy as np
+import torch
 import torchvision.transforms.functional as tf
 from PIL import Image, ImageOps
-import collections
+from scipy.ndimage import rotate
+from skimage.transform import  resize
+from torch import Tensor
+from torchvision import transforms
+
 
 class temporary_seed:
-    def __init__(self, seed):
-        self.seed = seed
-        self.backup = None
+    def __init__(self, random_seed, np_seed):
+        self.random_seed =random_seed
+        self.np_seed =np_seed
 
     def __enter__(self):
         self.randombackup = random.getstate()
-        self.npbackup=np.random.get_state()
-        np.random.seed(self.seed)
-        random.seed(self.seed)
+        self.npbackup = np.random.get_state()
+        np.random.set_state(self.np_seed)
+        random.setstate(self.random_seed)
 
     def __exit__(self, *_):
         np.random.set_state(self.npbackup)
@@ -132,7 +136,7 @@ class RandomRotate(object):
 
 class Scale(object):
     def __init__(self, size):
-        if isinstance(size,str):
+        if isinstance(size, str):
             size = eval(size)
         assert isinstance(size, int) or (isinstance(size, collections.Iterable) and len(size) == 2)
         if isinstance(size, int):
@@ -223,7 +227,7 @@ key2aug = {
     "rsizecrop": RandomSizedCrop,
     "rotate": RandomRotate,
     "ccrop": CenterCrop,
-    "sale":Scale
+    "sale": Scale
 }
 
 
@@ -246,9 +250,9 @@ def PILaugment(img_list):
         img_list = [ImageOps.mirror(img) for img in img_list]
     if random.random() > 0.5:
         angle = random.random() * 90 - 45
-        img_list = [img.rotate(angle) for img in img_list]
+        img_list = [img.rotate(angle,resample=Image.NEAREST) for img in img_list]
 
-    if random.random() > 0.8:
+    if random.random() > 0.5:
         (w, h) = img_list[0].size
         crop = random.uniform(0.85, 0.95)
         W = int(crop * w)
@@ -259,6 +263,30 @@ def PILaugment(img_list):
         y_pos = int(random.uniform(0, start_y))
         img_list = [img.crop((x_pos, y_pos, x_pos + W, y_pos + H)) for img in img_list]
 
+    return img_list
+
+
+def TensorAugment(img_list):
+    img_list = [img.cpu().numpy() for img in img_list] if isinstance(img_list[0], Tensor) else img_list
+    if random.random() > 0.5:
+        img_list = [np.flip(img,axis=1) for img in img_list]
+    if random.random() > 0.5:
+        img_list = [np.flip(img,axis=2) for img in img_list]
+    if random.random() > 0.5:
+        angle = random.random() * 90 - 45
+        img_list = [rotate(img, axes=(1, 2), angle=angle,reshape=False,mode='constant',prefilter=True,order=4) for img in img_list]
+    if random.random() > 0.5:
+        (w, h) = img_list[0][0].shape
+        crop = random.uniform(0.85, 0.95)
+        W = int(crop * w)
+        H = int(crop * h)
+        start_x = w - W
+        start_y = h - H
+        x_pos = int(random.uniform(0, start_x))
+        y_pos = int(random.uniform(0, start_y))
+        img_list = [img[:, y_pos:y_pos + H, x_pos:x_pos + W,] for img in img_list]
+
+    img_list =[resize(img,output_shape=(img.shape[0],256,256),anti_aliasing=True,preserve_range=True) for img in img_list]
     return img_list
 
 

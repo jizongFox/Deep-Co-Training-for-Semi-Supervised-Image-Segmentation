@@ -3,8 +3,9 @@ from ..utils import one_hot, intersection, probs2one_hot, class2one_hot
 import torch
 import torch.nn.functional as F
 from torch import einsum, Tensor
-from functools import partial
 
+from functools import partial
+from ..utils.utils import save_images
 
 # # Metrics and shitz
 def meta_dice(sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8) -> float:
@@ -71,3 +72,4 @@ class DiceMeter(Metric):
             log = log.unsqueeze(0)
         assert len(log.shape) == 2
         return log
+

@@ -80,9 +80,8 @@ class MedicalImageDataset(Dataset):
                         zip(self.subfolders, img_list)]
 
         if self.augment is not None and self.training == ModelMode.TRAIN:
-            A_img_list = self.augment(img_list)
             random_seed = (random.getstate(),np.random.get_state())
-            # print('dataaugmentatioon done')
+            A_img_list = self.augment(img_list)
 
             img_T = [self.transform['img'](img) if b == 'img' else self.transform['gt'](img) for b, img in
                      zip(self.subfolders, A_img_list)]
@@ -97,8 +96,8 @@ class MedicalImageDataset(Dataset):
                      zip(self.subfolders, img_list)]
             metainformation = [self.metainfo_generator(img_t) for b, img_t in
                                zip(self.subfolders, original_imgs) if b in self.metainfo_generator.foldernames]
-
-        return img_T, [metainformation,random_seed] if 'random_seed' in locals() else [metainformation,None], filename
+        # random_seed=1
+        return img_T, [metainformation,str(random_seed)] if 'random_seed' in locals() else [metainformation,Tensor([1])], filename
 
     @classmethod
     def make_dataset(cls, root, mode, subfolders, pin_memory, quite=False):

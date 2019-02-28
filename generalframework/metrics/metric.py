@@ -1,4 +1,7 @@
 import numpy as np
+import pandas as pd
+from torch import Tensor
+from ..utils import save_images
 class Metric(object):
     """Base class for all metrics.
 
@@ -14,11 +17,60 @@ class Metric(object):
     def value(self, **kwargs):
         pass
 
+    def summary_epoch(self):
+        pass
+
+    def save_images(self, **kwargs):
+        pass
+
+
+class AggragatedMeter(object):
+    '''
+    Aggragate historical information in a List.
+    '''
+
+    def __init__(self, meter: Metric = None, save_dir=None) -> None:
+        super().__init__()
+        self.epoch = 0
+        assert meter is not None
+        self.meter = meter
+        self.record = []
+        self.save_dir = save_dir
+
+    def Step(self):
+        self.epoch += 1
+        self.Summary()
+        self.meter.reset()
+
+    def Summary(self):
+        self.record.append(self.meter.summary_epoch())
+        return pd.DataFrame(self.record)
+
+    def Add(self,*input):
+        self.meter.add(*input)
+
+    def Save_Images(self,pred_logit:Tensor, filenames, mode='train',seg_num=None):
+        assert pred_logit.shape.__len__()==4
+        pred_mask = pred_logit.max(1)[1]
+        save_images(pred_mask,filenames, root=self.save_dir, mode=mode,iter=self.epoch, seg_num=seg_num)
+
+class Horizontal_Meter(object):
+
+    def __init__(self,*aggregatedMeters) -> None:
+        super().__init__()
+        self.meters = aggregatedMeters
+
+    def Step(self):
+        [m.step for m in self.meters]
+
+
+
 class AverageValueMeter(Metric):
-    def __init__(self):
+    def __init__(self, name='Average Meter'):
         super(AverageValueMeter, self).__init__()
         self.reset()
         self.val = 0
+        self.name = name
 
     def add(self, value, n=1):
         self.val = value
