@@ -7,7 +7,7 @@ import yaml
 from generalframework import ModelMode
 from ..utils import *
 from ..models import Segmentator
-
+from torch import Tensor, nn
 
 class Base(ABC):
 

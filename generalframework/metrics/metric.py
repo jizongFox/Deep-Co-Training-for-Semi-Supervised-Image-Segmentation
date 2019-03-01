@@ -1,7 +1,6 @@
-import numpy as np
+from typing import List
 import pandas as pd
-from torch import Tensor
-from ..utils import save_images
+
 class Metric(object):
     """Base class for all metrics.
 
@@ -17,7 +16,10 @@ class Metric(object):
     def value(self, **kwargs):
         pass
 
-    def summary(self):
+    def summary(self) -> dict:
+        raise NotImplementedError
+
+    def detailed_summary(self) -> dict:
         raise NotImplementedError
 
 
@@ -25,29 +27,45 @@ class AggragatedMeter(object):
     '''
     Aggragate historical information in a List.
     '''
-    def __init__(self, meter: Metric = None, save_dir=None) -> None:
+
+    def __init__(self, meter: Metric = None) -> None:
         super().__init__()
         self.epoch = 0
-        assert meter is not None,meter
+        assert meter is not None, meter
         self.meter = meter
-        self.record = []
-        self.save_dir = save_dir
+        self.record: List[dict] = []
+        self.detailed_record: List[dict] = []
 
     def Step(self):
         self.epoch += 1
-        instance_data = self.Summary()
-        self.record.append(instance_data)
+        summary = self.__Summary()
+        self.record.append(summary)
+        detailed_summary = self.__Detailed_Summary()
+        self.detailed_record.append(detailed_summary)
         self.meter.reset()
 
-    def Summary(self):
+    def __Summary(self):
         return self.meter.summary()
 
-    def Add(self,*input):
+    def __Detailed_Summary(self):
+        return self.meter.detailed_summary()
+
+    def __repr__(self):
+        return str(self.Detailed_Summary())
+
+    def Summary(self):
+        return pd.DataFrame(self.record)
+
+    def Detailed_Summary(self):
+        return pd.DataFrame(self.detailed_record)
+
+    def Add(self, *input):
         self.meter.add(*input)
 
     def Reset(self):
         self.meter.reset()
-        self.record=[]
+        self.record = []
+        self.detailed_record = []
 
     def state_dict(self):
         """Returns the state of the scheduler as a :class:`dict`.
@@ -65,3 +83,7 @@ class AggragatedMeter(object):
                 from a call to :meth:`state_dict`.
         """
         self.__dict__.update(state_dict)
+
+
+class AggregatedDict(object):
+    pass

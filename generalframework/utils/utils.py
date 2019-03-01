@@ -1,23 +1,21 @@
+import argparse
+import collections
+import os
+import random
+import sys
 import warnings
+from copy import deepcopy as dcopy
 from functools import partial
+from functools import reduce
 from pathlib import Path
 from typing import Callable, Iterable, List, Set, Tuple, TypeVar, Union, Any
-from pprint import pprint
+
 import numpy as np
 import torch
-from torch import nn
-from torch.nn import functional as F
-from copy import deepcopy as dcopy
-from functools import reduce
-
 from skimage.io import imsave
 from torch import Tensor, einsum
 from torch.utils.data import DataLoader
-from torchnet.meter import AverageValueMeter
 from tqdm import tqdm
-import os
-import argparse
-import collections
 
 A = TypeVar("A")
 B = TypeVar("B")
@@ -70,7 +68,7 @@ def colormap(n):
     return cmap
 
 
-def pred2class(pred: torch.Tensor)->Tensor:
+def pred2class(pred: torch.Tensor) -> Tensor:
     '''
     return the class prediction whether for pred_logit or pred_after_softmax
     :param pred: input Tensor of B,C,W,H
@@ -78,17 +76,6 @@ def pred2class(pred: torch.Tensor)->Tensor:
     '''
     assert pred.shape.__len__() == 4, pred.shape
     return pred.max(1)[1]
-
-
-
-def extract_from_big_dict(big_dict, keys)->dict:
-    """ Get a small dictionary with key in `keys` and value
-        in big dict. If the key doesn't exist, give None.
-        :param big_dict: A dict
-        :param keys: A list of keys
-    """
-    #   TODO a bug has been found
-    return {key: big_dict.get(key) for key in keys if big_dict.get(key, 'not_found') != 'not_found'}
 
 
 # fns
@@ -148,7 +135,6 @@ def sset(a: Tensor, sub: Iterable) -> bool:
 
 def eq(a: Tensor, b) -> bool:
     return torch.eq(a, b).all()
-
 
 
 def simplex(t: Tensor, axis=1) -> bool:
@@ -236,6 +222,7 @@ def meta_dice(sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8) -
 dice_coef = partial(meta_dice, "bcwh->bc")
 dice_batch = partial(meta_dice, "bcwh->c")  # used for 3d dice
 
+
 def save_images(segs: Tensor, names: Iterable[str], root: str, mode: str, iter: int, seg_num=None) -> None:
     (b, w, h) = segs.shape  # type: Tuple[int, int,int] # Since we have the class numbers, we do not need a C axis
     with warnings.catch_warnings():
@@ -303,6 +290,18 @@ def _parser_(input_string: str) -> Union[dict, None]:
     return dict(value)
 
 
+## dictionary functions
+def flatten_dict(d, parent_key='', sep='_'):
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, collections.MutableMapping):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+
 def dict_merge(dct: dict, merge_dct: dict, re=False):
     """ Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
     updating only top-level keys, dict_merge recurses down into dicts nested
@@ -332,6 +331,17 @@ def dict_merge(dct: dict, merge_dct: dict, re=False):
         return dcopy(dct)
 
 
+def extract_from_big_dict(big_dict, keys) -> dict:
+    """ Get a small dictionary with key in `keys` and value
+        in big dict. If the key doesn't exist, give None.
+        :param big_dict: A dict
+        :param keys: A list of keys
+    """
+    #   TODO a bug has been found
+    return {key: big_dict.get(key) for key in keys if big_dict.get(key, 'not_found') != 'not_found'}
+
+
+## search path functions
 def recursive_glob(rootdir=".", suffix=""):
     """Performs recursive glob with given suffix and rootdir
         :param rootdir is the root directory
@@ -342,8 +352,10 @@ def recursive_glob(rootdir=".", suffix=""):
             for filename in filenames
             if filename.endswith(suffix)]
 
+
 # taken from mean teacher paper
-import sys
+
+
 def export(fn):
     mod = sys.modules[fn.__module__]
     if hasattr(mod, '__all__'):
@@ -355,3 +367,18 @@ def export(fn):
 
 def parameter_count(module):
     return sum(int(param.numel()) for param in module.parameters())
+
+
+def fix_torch_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+
+def fix_all_seed(seed):
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False

@@ -1,11 +1,12 @@
-from .metric import Metric
-from ..utils import one_hot, intersection, probs2one_hot, class2one_hot
+from functools import partial
+
 import torch
 import torch.nn.functional as F
 from torch import einsum, Tensor
 
-from functools import partial
-from ..utils.utils import save_images
+from .metric import Metric
+from ..utils import one_hot, intersection, probs2one_hot, class2one_hot
+
 
 # # Metrics and shitz
 def meta_dice(sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8) -> float:
@@ -73,7 +74,10 @@ class DiceMeter(Metric):
         assert len(log.shape) == 2
         return log
 
-    def summary_epoch(self):
-        (report_mean, report_std),_= self.value()
-        return {'r_mean dice':report_mean.item(),
-                'val':report_std.item()}
+    def detailed_summary(self) -> dict:
+        _, (means, _) = self.value()
+        return {f'DSC{i}': means[i].item() for i in range(len(means))}
+
+    def summary(self) -> dict:
+        (means, var), (_, _) = self.value()
+        return {f'mDSC': means.item(),'mVars':var.item()}

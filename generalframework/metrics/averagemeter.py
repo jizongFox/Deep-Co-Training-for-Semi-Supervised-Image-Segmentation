@@ -42,3 +42,7 @@ class AverageValueMeter(Metric):
     def summary(self)->dict:
         ## this function returns a dict and tends to aggregate the historical results.
         return {'mean':self.value()[0],'val':self.value()[1]}
+
+    def detailed_summary(self)->dict:
+        ## this function returns a dict and tends to aggregate the historical results.
+        return {'mean':self.value()[0],'val':self.value()[1]}
