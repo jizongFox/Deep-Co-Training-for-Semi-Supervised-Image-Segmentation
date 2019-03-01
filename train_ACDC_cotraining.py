@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import yaml
 
-from generalframework.dataset import get_ACDC_split_dataloders#,get_spin_splite_dataset
+from generalframework.dataset import get_ACDC_split_dataloders, extract_patients_gmc#,get_spin_splite_dataset
 from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
 from generalframework.trainer import CoTrainer
