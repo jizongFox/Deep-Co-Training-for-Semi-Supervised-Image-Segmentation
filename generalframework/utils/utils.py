@@ -12,6 +12,7 @@ from typing import Callable, Iterable, List, Set, Tuple, TypeVar, Union, Any
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from skimage.io import imsave
 from torch import Tensor, einsum
 from torch.utils.data import DataLoader
@@ -198,6 +199,14 @@ def class2one_hot(seg: Tensor, C: int) -> Tensor:
 
 def probs2one_hot(probs: Tensor) -> Tensor:
     _, C, _, _ = probs.shape
+    assert simplex(probs)
+    res = class2one_hot(probs2class(probs), C)
+    assert res.shape == probs.shape
+    assert one_hot(res)
+    return res
+def predlogit2one_hot(logit: Tensor) -> Tensor:
+    _, C, _, _ = logit.shape
+    probs = F.softmax(logit,1)
     assert simplex(probs)
     res = class2one_hot(probs2class(probs), C)
     assert res.shape == probs.shape
