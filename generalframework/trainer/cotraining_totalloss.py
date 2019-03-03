@@ -7,7 +7,6 @@ import yaml
 from tensorboardX import SummaryWriter
 
 from generalframework import ModelMode
-from generalframework.scheduler import RampScheduler
 from .trainer import Trainer
 from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
 from ..models import Segmentator
@@ -48,14 +47,13 @@ class CoTrainer(Trainer):
         self.unlabeled_dataloader = unlabeled_dataloader
         self.val_dataloader = val_dataloader
 
-        ## N segmentators should be consist with N+1 dataloders
-        # (N for labeled data and N+2 th for unlabeled dataset)
+        # N segmentators should be consist with N+1 dataloders
         assert self.segmentators.__len__() == self.labeled_dataloaders.__len__()
         assert self.segmentators.__len__() >= 1
-        ## the sgementators and dataloaders must be different instance
+        # the sgementators and dataloaders must be different instance
         assert set(map_(id, self.segmentators)).__len__() == self.segmentators.__len__()
         assert set(map_(id, self.labeled_dataloaders)).__len__() == self.segmentators.__len__()
-        ## labeled_dataloaders should have the same batch number
+        # labeled_dataloaders should have the same batch number
         assert set(map_(lambda x: x.batch_size, self.labeled_dataloaders)).__len__() == 1
         # assert set(map_(lambda x: len(x), self.labeled_dataloaders)).__len__() == 1
 
@@ -66,7 +64,7 @@ class CoTrainer(Trainer):
         # assert not (self.save_dir.exists() and checkpoint is None), f'>> save_dir: {self.save_dir} exits.'
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.writer = SummaryWriter(save_dir)
-        ## save the whole new config to the save_dir
+        # save the whole new config to the save_dir
         if whole_config:
             with open(Path(self.save_dir, 'config.yml'), 'w') as outfile:
                 yaml.dump(whole_config, outfile, default_flow_style=False)
@@ -78,7 +76,7 @@ class CoTrainer(Trainer):
         self.start_epoch = 0
         self.metricname = metricname
 
-        ## scheduler
+        # scheduler
         self.cot_scheduler = eval(cot_scheduler_dict['name'])(
             **{k: v for k, v in cot_scheduler_dict.items() if k != 'name'})
         self.adv_scheduler = eval(adv_scheduler_dict['name'])(
@@ -179,7 +177,7 @@ class CoTrainer(Trainer):
             l_dataloader.dataset.set_mode(ModelMode.TRAIN if augment_labeled_data else ModelMode.EVAL)
         unlabeled_dataloader.dataset.training = ModelMode.TRAIN if augment_unlabeled_data else ModelMode.EVAL
 
-        assert self.segmentators[0].training == True
+        assert self.segmentators[0].training
         assert self.labeled_dataloaders[
                    0].dataset.training == ModelMode.TRAIN if augment_labeled_data else ModelMode.EVAL
         assert self.unlabeled_dataloader.dataset.training == ModelMode.TRAIN if augment_unlabeled_data else ModelMode.EVAL
@@ -189,7 +187,7 @@ class CoTrainer(Trainer):
         n_batch = max(map_(len, self.labeled_dataloaders))
         S = len(self.segmentators)
 
-        ## build fake_iterator
+        # build fake_iterator
         fake_labeled_iterators = [iterator_(dcopy(x)) for x in labeled_dataloaders]
         fake_labeled_iterators_adv = [iterator_(dcopy(x)) for x in labeled_dataloaders]
 
@@ -217,7 +215,7 @@ class CoTrainer(Trainer):
                                 seg_num=str(enu_lab))
                 supervisedLoss += sup_loss
             if train_jsd and self.cot_scheduler.value > 0:
-                ## for unlabeled data update
+                # for unlabeled data update
                 [[unlab_img, unlab_gt], _, path] = fake_unlabeled_iterator.__next__()
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
                 unlab_preds: List[Tensor] = map_(lambda x: x.predict(unlab_img, logit=False), self.segmentators)
@@ -241,7 +239,7 @@ class CoTrainer(Trainer):
             totalLoss.backward()
             map_(lambda x: x.optimizer.step(), self.segmentators)
 
-            ## for recording
+            # for recording
             lab_dsc_dict = {f"S{i}": {f"DSC{n}": diceMeters[i].value()[1][0][n] for n in self.axises} \
                             for i in range(len(self.segmentators))}
             unlab_dsc_dict = {f"S{i}": {f"DSC{n}": unlabdiceMeters[i].value()[1][0][n] \
@@ -319,7 +317,7 @@ class CoTrainer(Trainer):
                       use_fsgm=True):
         assert segmentators.__len__() == 2, 'only implemented for 2 segmentators'
         adv_losses = []
-        ## draw first term from labeled1 or unlabeled
+        # draw first term from labeled1 or unlabeled
         img, img_adv = None, None
         if random.random() <= label_data_ratio:
             [[img, gt], _, _] = lab_data_iterators[0].__next__()
