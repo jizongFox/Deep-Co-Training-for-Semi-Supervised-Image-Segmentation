@@ -1,6 +1,9 @@
-from typing import List
-from ..utils import export
+from typing import List, Iterable
 import pandas as pd
+import functools
+
+from ..utils import export
+
 
 @export
 class Metric(object):
@@ -24,6 +27,7 @@ class Metric(object):
     def detailed_summary(self) -> dict:
         raise NotImplementedError
 
+
 @export
 class AggragatedMeter(object):
     '''
@@ -38,37 +42,39 @@ class AggragatedMeter(object):
         self.record: List[dict] = []
         self.detailed_record: List[dict] = []
 
-    def Step(self):
+    def step(self):
         self.epoch += 1
-        summary: dict = self.__Summary()
+        summary: dict = self.__summary()
         self.record.append(summary)
-        detailed_summary = self.__Detailed_Summary()
+        detailed_summary = self.__detailed_summary()
         self.detailed_record.append(detailed_summary)
         self.meter.reset()
 
-    def __Summary(self) -> dict:
+    def __summary(self) -> dict:
         return self.meter.summary()
 
-    def __Detailed_Summary(self) -> dict:
+    def __detailed_summary(self) -> dict:
         return self.meter.detailed_summary()
 
     def __repr__(self):
-        return str(self.Detailed_Summary())
+        return str(self.detailed_summary())
 
-    def Summary(self, if_dict=False):
+    # public interface of dict
+    def summary(self, if_dict=False):
         if if_dict:
             return self.record
         return pd.DataFrame(self.record)
 
-    def Detailed_Summary(self, if_dict=False):
+    # public interface
+    def detailed_summary(self, if_dict=False):
         if if_dict:
             return self.detailed_record
         return pd.DataFrame(self.detailed_record)
 
-    def Add(self, *input):
-        self.meter.add(*input)
+    def add(self, *input_, **kwargs):
+        self.meter.add(*input_, **kwargs)
 
-    def Reset(self):
+    def reset(self):
         self.meter.reset()
         self.record = []
         self.detailed_record = []
@@ -91,15 +97,15 @@ class AggragatedMeter(object):
         self.__dict__.update(state_dict)
 
 
-class AggregatedDict(object):
-    pass
-
 @export
 class ListAggregatedMeter(object):
 
-    def __init__(self, listAggregatedMeter: List[AggragatedMeter], names: List[str] = None) -> None:
+    def __init__(self,
+                 listAggregatedMeter: List[AggragatedMeter],
+                 names: Iterable[str] = None
+                 ) -> None:
         super().__init__()
-        self.ListAggragatedMeter = listAggregatedMeter
+        self.ListAggragatedMeter: List[AggragatedMeter] = listAggregatedMeter
         self.names = names
         assert self.ListAggragatedMeter.__len__() == self.names.__len__()
         assert isinstance(self.ListAggragatedMeter, list), type(self.ListAggragatedMeter)
@@ -107,8 +113,43 @@ class ListAggregatedMeter(object):
     def __getitem__(self, index: int):
         return self.ListAggragatedMeter[index]
 
-    def Step(self):
-        [m.Step() for m in self.ListAggragatedMeter]
+    def step(self) -> None:
+        [m.step() for m in self.ListAggragatedMeter]
 
-    def Add(self, **kwargs):
+    def add(self, **kwargs) -> None:
         raise NotImplementedError("use indexing and adding one by one")
+
+    def summary(self) -> pd.DataFrame:
+        '''
+        summary on the list of subsummarys, merging them together.
+        :return:
+        '''
+
+        def change_dataframe_name(dataframe: pd.DataFrame, name: str):
+            dataframe.columns = list(map(lambda x: name + '_' + x, dataframe.columns))
+            return dataframe
+
+        list_of_summary = [change_dataframe_name(self.ListAggragatedMeter[i].summary(), n) \
+                           for i, n in enumerate(self.names)]
+
+        summary = functools.reduce(lambda x, y: pd.merge(x, y, left_index=True, right_index=True), list_of_summary)
+
+        return pd.DataFrame(summary)
+
+    def detailed_summary(self) -> pd.DataFrame:
+        '''
+        summary on the list of subsummarys, merging them together.
+        :return:
+        '''
+
+        def change_dataframe_name(dataframe: pd.DataFrame, name: str):
+            dataframe.columns = list(map(lambda x: name + '_' + x, dataframe.columns))
+            return dataframe
+
+        list_of_detailed_summary = [change_dataframe_name(self.ListAggragatedMeter[i].detailed_summary(), n) for i, n in
+                                    enumerate(self.names)]
+
+        summary = functools.reduce(lambda x, y: pd.merge(x, y, left_index=True, right_index=True),
+                                   list_of_detailed_summary)
+
+        return pd.DataFrame(summary)
