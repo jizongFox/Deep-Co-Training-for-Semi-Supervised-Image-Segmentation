@@ -1,12 +1,13 @@
 import random
 from operator import itemgetter
-from typing import Dict
-
+from typing import Dict, List, Union
 import pandas as pd
 import yaml
 from tensorboardX import SummaryWriter
+import torch
 
 from generalframework import ModelMode
+from torch.utils.data import DataLoader
 from .trainer import Trainer
 from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
 from ..models import Segmentator
@@ -14,7 +15,6 @@ from ..utils.AEGenerator import *
 from ..utils.utils import *
 from ..metrics import DiceMeter, AverageValueMeter
 from ..scheduler import *
-
 
 
 def fix_seed(seed):
@@ -220,9 +220,9 @@ class CoTrainer(Trainer):
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
                 unlab_preds: List[Tensor] = map_(lambda x: x.predict(unlab_img, logit=False), self.segmentators)
                 list(map(lambda x, y: x.add(y, gt), unlabdiceMeters, unlab_preds))
-                jsdloss_2D = self.criterions.get('jsd')(unlab_preds)
-                jsdLoss = jsdloss_2D.mean()
-                jsdlossMeter.add(jsdLoss.detach().data.cpu())
+                jsdloss_2D:Tensor = self.criterions.get('jsd')(unlab_preds)
+                jsdLoss:Tensor = jsdloss_2D.mean()
+                jsdlossMeter.add(jsdLoss.item())
                 #
                 if save:
                     [save_images(probs2class(prob), names=path, root=self.save_dir, mode='unlab',

@@ -1,4 +1,5 @@
 #!/bin/sh
+wrapper(){
 model_num=$1
 max_epoch=$2
 hour=$3
@@ -15,5 +16,9 @@ sbatch  --job-name=multipleview_${model_num} \
  --account=def-chdesa \
  --mail-user=jizong.peng.1@etsmtl.net \
  --mail-type=ALL   \
-5_multiple_views.sh $model_num $max_epoch
+5_run.sh $model_num $max_epoch
 
+}
+wrapper 2 150 72
+wrapper 3 150 100
+wrapper 4 150 144

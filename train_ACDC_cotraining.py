@@ -1,35 +1,26 @@
-import os
-import random
 import warnings
 from pprint import pprint
-
-import numpy as np
-import torch
 import yaml
-from generalframework.dataset import get_ACDC_split_dataloders  # ,get_spin_splite_dataset
+from generalframework.dataset.ACDC_helper import get_ACDC_split_dataloders
 from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
 from generalframework.trainer import CoTrainer
-from generalframework.utils import yaml_parser, dict_merge,fix_all_seed
+from generalframework.utils import yaml_parser, dict_merge, fix_all_seed
 
 warnings.filterwarnings('ignore')
 
 parser_args = yaml_parser()
 print('->>Input args:')
 pprint(parser_args)
-with open('config/ACDC_config_cotrain.yaml', 'r') as f:
+with open('config/ACDC_config_cotraing.yaml', 'r') as f:
     config = yaml.load(f.read())
-print('->> Merged Config:')
+# print('->> Merged Config:')
 config = dict_merge(config, parser_args, True)
-pprint(config)
+# pprint(config)
 
 fix_all_seed(int(config['Seed']))
 # if config['Dataset']['root_dir'].find('ACDC') > 0:
 labeled_dataloaders, unlab_dataloader, val_dataloader = get_ACDC_split_dataloders(config)
-
-
-# elif config['Dataset']['root_dir'].find('GM')>0:
-#     labeled_dataloaders,unlab_dataloader,val_dataloader =get_spin_splite_dataset(config)
 
 
 def get_models(config):

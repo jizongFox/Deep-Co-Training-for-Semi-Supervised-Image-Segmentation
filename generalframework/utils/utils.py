@@ -204,6 +204,8 @@ def probs2one_hot(probs: Tensor) -> Tensor:
     assert res.shape == probs.shape
     assert one_hot(res)
     return res
+
+
 def predlogit2one_hot(logit: Tensor) -> Tensor:
     _, C, _, _ = logit.shape
     probs = F.softmax(logit,1)
@@ -232,7 +234,7 @@ dice_coef = partial(meta_dice, "bcwh->bc")
 dice_batch = partial(meta_dice, "bcwh->c")  # used for 3d dice
 
 
-def save_images(segs: Tensor, names: Iterable[str], root: str, mode: str, iter: int, seg_num=None) -> None:
+def save_images(segs: Tensor, names: Iterable[str], root: Union[str,Path], mode: str, iter: int, seg_num=None) -> None:
     (b, w, h) = segs.shape  # type: Tuple[int, int,int] # Since we have the class numbers, we do not need a C axis
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', category=UserWarning)
@@ -247,9 +249,7 @@ def save_images(segs: Tensor, names: Iterable[str], root: str, mode: str, iter: 
             imsave(str(save_path), seg.cpu().numpy())
 
 
-## dataset
-
-
+# dataset
 class iterator_(object):
     def __init__(self, dataloader: Union[DataLoader, List[Any]]) -> None:
         super().__init__()
@@ -264,7 +264,7 @@ class iterator_(object):
             return self.iter_dataloader.__next__()
 
 
-## argparser
+# argparser
 
 def yaml_parser() -> dict:
     parser = argparse.ArgumentParser('Augment parser for yaml config')
