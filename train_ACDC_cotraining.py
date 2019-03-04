@@ -2,6 +2,7 @@ import warnings
 from pprint import pprint
 import yaml
 from generalframework.dataset.ACDC_helper import get_ACDC_split_dataloders
+from generalframework.dataset.GM_helper import get_GMC_split_dataloders
 from generalframework.loss import get_loss_fn
 from generalframework.models import Segmentator
 from generalframework.trainer import CoTrainer
@@ -14,13 +15,17 @@ print('->>Input args:')
 pprint(parser_args)
 with open('config/ACDC_config_cotraing.yaml', 'r') as f:
     config = yaml.load(f.read())
-# print('->> Merged Config:')
+print('->> Merged Config:')
 config = dict_merge(config, parser_args, True)
-# pprint(config)
+pprint(config)
 
 fix_all_seed(int(config['Seed']))
-# if config['Dataset']['root_dir'].find('ACDC') > 0:
-labeled_dataloaders, unlab_dataloader, val_dataloader = get_ACDC_split_dataloders(config)
+if config['Dataset']['root_dir'].find('ACDC') >= 0:
+    labeled_dataloaders, unlab_dataloader, val_dataloader = get_ACDC_split_dataloders(config)
+elif config['Dataset']['root_dir'].find('GM') >= 0:
+    labeled_dataloaders, unlab_dataloader, val_dataloader = get_GMC_split_dataloders(config)
+else:
+    raise NotImplementedError
 
 
 def get_models(config):

@@ -228,7 +228,10 @@ class CoTrainer(Trainer):
                     [save_images(probs2class(prob), names=path, root=self.save_dir, mode='unlab',
                                  iter=epoch, seg_num=str(i)) for i, prob in enumerate(unlab_preds)]
             if train_adv and self.adv_scheduler.value > 0:
-                choice = np.random.choice(list(range(S)), 2, replace=False).tolist()
+                try:
+                    choice = np.random.choice(list(range(S)), 2, replace=False).tolist()
+                except:
+                    choice = np.random.choice(list(range(S)), 2, replace=True).tolist()
                 advLoss = self._adv_training(segmentators=itemgetter(*choice)(self.segmentators),
                                              lab_data_iterators=itemgetter(*choice)(fake_labeled_iterators_adv),
                                              unlab_data_iterator=fake_unlabeled_iterator_adv,

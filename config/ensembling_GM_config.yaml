@@ -1,0 +1,32 @@
+
+Checkpoints: ['archives/cardiac/unet_cotraining2models/ADV/best_0.pth','archives/cardiac/unet_cotraining2models/ADV/best_1.pth']
+Device: cuda:0
+Ensemble_method: soft
+
+
+Dataset:
+  root_dir: dataset/GM_Challenge
+  subfolders: ['img','gt']
+  transform: segment_transform((200,200))
+  augment: None
+  pin_memory: False
+
+Dataloader:
+  pin_memory: False
+  batch_size: 1
+  num_workers: 2
+  shuffle: True
+  drop_last: True
+
+Unlab_Dataloader:
+  pin_memory: False
+  batch_size: 1
+  num_workers: 2
+  shuffle: True
+  drop_last: True
+
+Lab_Partitions:
+  partition_overlap: 1
+
+
+

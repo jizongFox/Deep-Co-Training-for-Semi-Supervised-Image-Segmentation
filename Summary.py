@@ -2,7 +2,7 @@ import argparse
 import warnings
 from pathlib import Path
 from typing import List
-
+from easydict import EasyDict
 import numpy as np
 import pandas as pd
 import torch
@@ -10,10 +10,11 @@ import torch.nn.functional as F
 import yaml
 from torch import Tensor
 
-from generalframework.dataset import get_ACDC_dataloaders
-from generalframework.metrics import KappaMetrics, DiceMeter
+from generalframework.dataset.ACDC_helper import get_ACDC_dataloaders
+from generalframework.dataset.GM_helper import get_GMC_split_dataloders
+from generalframework.metrics import KappaMetrics, DiceMeter,Kappa2Annotator
 from generalframework.models import Segmentator
-from generalframework.utils import probs2one_hot, class2one_hot,save_images,pred2class
+from generalframework.utils import probs2one_hot, class2one_hot, save_images, pred2class
 
 warnings.filterwarnings('ignore')
 
@@ -21,18 +22,34 @@ warnings.filterwarnings('ignore')
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_dir', required=True, help='input folder directory')
+    parser.add_argument('--dataset', default='ACDC', choices=('ACDC, GM'), help='default dataset')
+
     return parser.parse_args()
 
 
-with open('config/ensembling_config.yaml', 'r') as f:
-    config = yaml.load(f.read())
 args = get_args()
+
+with open(f'config/ensembling_{args.dataset}_config.yaml', 'r') as f:
+    config = yaml.load(f.read())
+    config = EasyDict(config)
 
 input_dir = Path(args.input_dir)
 checkpoints = list(input_dir.glob('best*.pth'))
 
-dataloaders = get_ACDC_dataloaders(config['Dataset'], config['Dataloader'], quite=True)
-dataloaders['val'].dataset.training = 'eval'
+if args.dataset == 'ACDC':
+    dataloaders = get_ACDC_dataloaders(config['Dataset'], config['Dataloader'], quite=True)
+    dataloaders['val'].dataset.training = 'eval'
+    report_axises = [1, 2, 3]
+elif args.dataset == "GM":
+    config["Lab_Partitions"]["num_models"] = len(checkpoints)
+
+    *_, val_dataloader = get_GMC_split_dataloders(config)
+    dataloaders = {}
+    dataloaders['val'] = val_dataloader
+    dataloaders['val'].dataset.training = 'eval'
+    report_axises = [0, 1]
+else:
+    raise NotImplementedError
 
 
 def load_model(checkpoint):
@@ -97,10 +114,10 @@ state_dicts = [torch.load(c, map_location=torch.device('cpu')) for c in checkpoi
 
 num_classes = state_dicts[0]['segmentator']['arch_dict']['num_classes']
 
-diceMeters = [DiceMeter(method='2d', report_axises=[1, 2, 3], C=num_classes) for _ in range(checkpoints.__len__())]
-bdiceMeters = [DiceMeter(method='3d', report_axises=[1, 2, 3], C=num_classes) for _ in range(checkpoints.__len__())]
-ensembleMeter = DiceMeter(method='2d', report_axises=[1, 2, 3], C=num_classes)
-bensembleMeter = DiceMeter(method='3d', report_axises=[1, 2, 3], C=num_classes)
+diceMeters = [DiceMeter(method='2d', report_axises=report_axises, C=num_classes) for _ in range(checkpoints.__len__())]
+bdiceMeters = [DiceMeter(method='3d', report_axises=report_axises, C=num_classes) for _ in range(checkpoints.__len__())]
+ensembleMeter = DiceMeter(method='2d', report_axises=report_axises, C=num_classes)
+bensembleMeter = DiceMeter(method='3d', report_axises=report_axises, C=num_classes)
 kappameter = KappaMetrics()
 
 for i, (model, state_dict) in enumerate(zip(models, state_dicts)):
@@ -128,7 +145,9 @@ with torch.no_grad():
         bensembleMeter.add(voting_preds, gt)
         kappameter.add(predicts=[pred.max(1)[1] for pred in preds], target=voting_preds.max(1)[1],
                        considered_classes=[1, 2, 3])
-## for 2D dice:
+        # todo: add kappa2 score
+
+# for 2D dice:
 individual_result_dict = \
     {
         f'model_{i}': {f'DSC{j}': diceMeters[i].value()[1][0][j].item() \
@@ -155,7 +174,7 @@ summary_std = pd.DataFrame({**ensemble_std_dict, **individual_std_dict})
 summary.to_csv(Path(args.input_dir) / 'summary.csv')
 summary_std.to_csv(Path(args.input_dir) / 'summary_std.csv')
 
-## for 3D dice:
+# for 3D dice:
 individual_result_dict = \
     {
         f'model_{i}': {f'DSC{j}': bdiceMeters[i].value()[1][0][j].item() \
