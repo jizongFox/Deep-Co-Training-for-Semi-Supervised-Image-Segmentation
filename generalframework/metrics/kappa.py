@@ -21,7 +21,7 @@ class KappaMetrics(Metric):
         mask  = [t in considered_classes for t in target]
         predicts = [predict[mask] for predict in predicts]
         target = target[mask]
-        kappa_score = [cohen_kappa_score(predict, target) for  predict in predicts]
+        kappa_score = [cohen_kappa_score(predict, target) for predict in predicts]
         self.kappa.append(kappa_score)
 
 

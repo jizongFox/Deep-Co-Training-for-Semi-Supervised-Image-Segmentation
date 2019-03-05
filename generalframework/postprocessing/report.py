@@ -29,7 +29,8 @@ def main(args: argparse.Namespace):
         try:
             div[k]=div_csv.mean(1).values[0]
         except:
-            pass
+            import ipdb
+            ipdb.set_trace()
     kappa=pd.DataFrame(div,index=['kappa'])
 
     results = {}

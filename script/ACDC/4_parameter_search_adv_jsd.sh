@@ -17,7 +17,6 @@ echo "Net:: "${net}
 echo "Save dir: ${logdir}"
 echo "randon seed:${random_seed}"
 source utils.sh
-cd ..
 
 
 Summary(){
@@ -141,12 +140,14 @@ rm -rf archives/${logdir}/${currentfoldername}
 mv -f runs/${logdir}/${currentfoldername} archives/${logdir}
 }
 
+cd ../..
+
 mkdir -p archives/${logdir}
 mkdir -p runs/${logdir}
 
 group1(){
 FS 0 &
-Partial 0 &
+PS 0 &
 JSD 0 0 10 80 10 0.5 80
 }
 
