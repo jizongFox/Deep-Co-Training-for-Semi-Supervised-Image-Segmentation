@@ -11,7 +11,6 @@ seg_config = {
                   'gamma': 0.7},
 
     'Dataset': {'root_dir': '../dataset/ACDC-all', 'subfolders': ['img', 'gt'],
-
                 'transform': 'segment_transform((256,256))',
                 'augment': 'PILaugment',
                 'pin_memory': False,
@@ -36,7 +35,7 @@ import torch
 from easydict import EasyDict
 from torch import nn
 
-from generalframework.dataset import get_ACDC_dataloaders, extract_patients
+from generalframework.dataset.ACDC_helper import get_ACDC_dataloaders, extract_patients
 from generalframework.models import Segmentator
 
 

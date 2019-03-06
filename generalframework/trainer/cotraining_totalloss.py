@@ -219,7 +219,7 @@ class CoTrainer(Trainer):
                 [[unlab_img, unlab_gt], _, path] = fake_unlabeled_iterator.__next__()
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
                 unlab_preds: List[Tensor] = map_(lambda x: x.predict(unlab_img, logit=False), self.segmentators)
-                list(map(lambda x, y: x.add(y, gt), unlabdiceMeters, unlab_preds))
+                list(map(lambda x, y: x.add(y, unlab_gt), unlabdiceMeters, unlab_preds))
                 jsdloss_2D:Tensor = self.criterions.get('jsd')(unlab_preds)
                 jsdLoss:Tensor = jsdloss_2D.mean()
                 jsdlossMeter.add(jsdLoss.item())
