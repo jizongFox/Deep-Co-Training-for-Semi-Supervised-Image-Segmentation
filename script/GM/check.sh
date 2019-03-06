@@ -10,14 +10,15 @@ data_aug=PILaugment
 net=enet
 logdir=GM/$net"_sanity_check"
 tqdm=True
-augment_labeled_data=False
-augment_unlabeled_data=False
+augment_labeled_data=True
+augment_unlabeled_data=True
 echo $(ls)
 source utils.sh
 
 
 
 Summary(){
+set -e
 subfolder=$1
 gpu=$2
 echo CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir runs/$logdir/$subfolder --dataset=GM
@@ -25,6 +26,7 @@ CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir runs/$logdir/$subfolder 
 }
 
 FS(){
+set -e
 gpu=$1
 currentfoldername=FS
 rm -rf runs/$logdir/$currentfoldername
@@ -43,6 +45,7 @@ mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
 JSD(){
+set -e
 gpu=$1
 currentfoldername=JSD
 rm -rf runs/$logdir/$currentfoldername
@@ -61,6 +64,7 @@ mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
 ADV(){
+set -e
 gpu=$1
 currentfoldername=ADV
 rm -rf runs/$logdir/$currentfoldername
@@ -79,6 +83,7 @@ mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
 JSD_ADV(){
+set -e
 gpu=$1
 currentfoldername=JSD_ADV
 rm -rf runs/$logdir/$currentfoldername
@@ -98,15 +103,15 @@ mv -f runs/$logdir/$currentfoldername archives/$logdir
 
 cd ../..
 
-rm -rf archives/$logdir
+#rm -rf archives/$logdir
 mkdir -p archives/$logdir
-rm -rf runs/$logdir
+#rm -rf runs/$logdir
 mkdir -p runs/$logdir
 
 
-FS 0 &
-JSD 0 &#
-ADV 0 &
+#FS 0 &
+JSD 0 &
+#ADV 0 &
 JSD_ADV 0 &
 wait_script
 
@@ -119,6 +124,6 @@ wait_script
 #archives/$logdir/JSD/  archives/$logdir/ADV/ archives/$logdir/JSD_ADV/  --file val_dice.npy --axis 1 2 3 --postfix=model1 --seg_id=1 --y_lim 0.3 0.9
 
 python generalframework/postprocessing/report.py --folder=archives/$logdir/ --file=summary.csv
-
+#
 zip -rq archives/$logdir"_"$time"_"$gitcommit_number".zip" archives/$logdir
-rm -rf runs/$logdir
+#rm -rf runs/$logdir
