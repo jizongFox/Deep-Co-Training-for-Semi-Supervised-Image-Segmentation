@@ -1,7 +1,7 @@
 import shutil
 from abc import ABC, abstractmethod
 from typing import Dict
-
+from torch import nn
 import pandas as pd
 import yaml
 

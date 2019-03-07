@@ -18,3 +18,10 @@ class classSizeCalulator():
         classSize = onehotSeg.sum([0, 2, 3])
         assert classSize.shape[0] == self.C
         return classSize
+class getImage_GT():
+
+    def __init__(self, foldernames:List[str]) -> None:
+        super().__init__()
+        self.foldernames= foldernames
+    def __call__(self, x):
+        return x

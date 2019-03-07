@@ -108,19 +108,29 @@ class KL_Divergence_2D(nn.Module):
         else:
             return ylogy - ylogp
 
+class KL_Divergence_2D_Logit(nn.Module):
 
-class Adv_2D(nn.Module):
-    """Adversarial loss based on https://arxiv.org/abs/1803.05984 adapted for segmentation"""
-
-    def __init__(self):
+    def __init__(self, reduce=False, eps=1e-10):
         super().__init__()
-        self.entropy = Entropy_2D()
+        self.reduce = reduce
+        self.eps = eps
 
-    def forward(self, predictions: List[torch.Tensor], adversarials: List[torch.Tensor]):
-        assert predictions.__len__() == adversarials.__len__()
-        for inprob, inadvs in zip(predictions, adversarials):
-            assert simplex(inprob, 1)
-            assert simplex(inadvs, 1)
-        diff_loss = sum(
-            list(map(lambda xy: self.entropy(xy[0]) + self.entropy(xy[1]), zip(predictions, adversarials))))
-        return diff_loss / len(predictions)
+    def forward(self, p_logit: torch.Tensor, y_logit: torch.Tensor):
+        '''
+        :param p_probs:
+        :param y_prob: the Y_logit is like that for crossentropy
+        :return: 2D map?
+        '''
+        # assert simplex(p_prob, 1)
+        # assert simplex(y_prob, 1)
+
+        logp = F.log_softmax(p_logit,1)
+        logy = F.log_softmax(y_logit,1)
+        y_prob = F.softmax(y_logit,1)
+
+        ylogy = (y_prob * logy).sum(dim=1)
+        ylogp = (y_prob * logp).sum(dim=1)
+        if self.reduce:
+            return (ylogy - ylogp).mean()
+        else:
+            return ylogy - ylogp

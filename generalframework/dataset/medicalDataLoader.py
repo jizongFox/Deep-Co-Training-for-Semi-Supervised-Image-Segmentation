@@ -1,27 +1,27 @@
 # coding=utf8
 from __future__ import print_function, division
-import os, sys, random, re
+import os, random, re
 from PIL import Image, ImageOps
 from torch.utils.data import Dataset, DataLoader, Sampler
 from torchvision import transforms
 from generalframework import ModelMode
 from typing import Any, Callable, BinaryIO, Dict, List, Match, Pattern, Tuple, Union, Optional, TypeVar, Iterable
-from operator import itemgetter
 from pathlib import Path
-from itertools import repeat
-from functools import partial
-import torch, numpy as np
+import numpy as np
+import torch
+from torch import Tensor
 from .metainfoGenerator import *
-from .augment import PILaugment, segment_transform
+from .augment import PILaugment, segment_transform, temporary_seed
+from ..utils import map_
 
 
 class MedicalImageDataset(Dataset):
-    dataset_modes = ['train', 'val', 'test']
+    dataset_modes = ['train', 'val', 'test', 'unlabeled']
     allow_extension = ['.jpg', '.png']
 
     def __init__(self, root_dir: str, mode: str, subfolders: List[str], transform=None, augment=None,
                  equalize: Union[List[str], str, None] = None,
-                 pin_memory=False, metainfo: str = None, quite=False):
+                 pin_memory=False, metainfo: str = None, quite=False) -> None:
         '''
         :param root_dir: dataset root
         :param mode: train or test or val etc, should be in the cls attribute
@@ -44,12 +44,18 @@ class MedicalImageDataset(Dataset):
         self.augment = eval(augment) if isinstance(augment, str) else augment
         self.equalize = equalize
         self.training = ModelMode.TRAIN
-        self.metainfo_generator = None if metainfo is None else eval(metainfo)[0](**eval(metainfo)[1])
+        if metainfo is None:
+            self.metainfo_generator = None
+        else:
+            if isinstance(metainfo[0], str):
+                metainfo[0]: Callable = eval(metainfo[0])
+                metainfo[1]: dict = eval(metainfo[1]) if isinstance(metainfo[1], str) else metainfo[1]
+            self.metainfo_generator: Callable = metainfo[0](**metainfo[1])
 
-    def __len__(self):
+    def __len__(self) -> int:
         return int(len(self.imgs[self.subfolders[0]]))
 
-    def set_mode(self, mode):
+    def set_mode(self, mode) -> None:
         assert isinstance(mode, (str, ModelMode)), 'the type of mode should be str or ModelMode, given %s' % str(mode)
 
         if isinstance(mode, str):
@@ -57,7 +63,7 @@ class MedicalImageDataset(Dataset):
         else:
             self.training = mode
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> Tuple[list, Union[List[Union[list, Tensor, str]], List[Union[list, Tensor]]], str]:
         if self.pin_memory:
             img_list, filename_list = [self.imgs[subfolder][index] for subfolder in self.subfolders], [
                 self.filenames[subfolder][index] for subfolder in self.subfolders]
@@ -74,18 +80,25 @@ class MedicalImageDataset(Dataset):
                         zip(self.subfolders, img_list)]
 
         if self.augment is not None and self.training == ModelMode.TRAIN:
-            img_list = self.augment(img_list)
-            print('dataaugmentatioon done')
+            # print('data_aug')
+            random_seed = (random.getstate(), np.random.get_state())
+            A_img_list = self.augment(img_list)
 
-        img_T = [self.transform['img'](img) if b == 'img' else self.transform['gt'](img) for b, img in
-                 zip(self.subfolders, img_list)]
+            img_T = [self.transform['img'](img) if b == 'img' else self.transform['gt'](img) for b, img in
+                     zip(self.subfolders, A_img_list)]
+        else:
+            img_T = [self.transform['img'](img) if b == 'img' else self.transform['gt'](img) for b, img in
+                     zip(self.subfolders, img_list)]
 
         metainformation = torch.Tensor([-1])
         if self.metainfo_generator is not None:
+            original_imgs = [self.transform['img'](img) if b == 'img' else self.transform['gt'](img) for b, img in
+                             zip(self.subfolders, img_list)]
             metainformation = [self.metainfo_generator(img_t) for b, img_t in
-                               zip(self.subfolders, img_T) if b in self.metainfo_generator.foldernames]
-
-        return img_T, metainformation, filename
+                               zip(self.subfolders, original_imgs) if b in self.metainfo_generator.foldernames]
+        # random_seed=1
+        return img_T, [metainformation, str(random_seed)] if 'random_seed' in locals() else [metainformation,
+                                                                                             Tensor([1])], filename
 
     @classmethod
     def make_dataset(cls, root, mode, subfolders, pin_memory, quite=False):
@@ -102,7 +115,7 @@ class MedicalImageDataset(Dataset):
 
         items = [os.listdir(Path(os.path.join(root, mode, subfoloder))) for subfoloder in
                  subfolders]
-        ## clear up extension
+        # clear up extension
         items = [[x for x in item if allow_extension(x, cls.allow_extension)] for item in items]
         assert set(map_(len, items)).__len__() == 1, map_(len, items)
 
@@ -128,60 +141,3 @@ class MedicalImageDataset(Dataset):
             return pin_imgs, imgs
 
         return imgs, imgs
-
-
-def id_(x):
-    return x
-
-
-A = TypeVar("A")
-B = TypeVar("B")
-T = TypeVar("T", torch.Tensor, np.ndarray)
-
-
-def map_(fn: Callable[[A], B], iter: Iterable[A]) -> List[B]:
-    return list(map(fn, iter))
-
-
-class PatientSampler(Sampler):
-    def __init__(self, dataset: MedicalImageDataset, grp_regex, shuffle=False, quite=False) -> None:
-        filenames: List[str] = dataset.filenames[dataset.subfolders[0]]
-        # Might be needed in case of escape sequence fuckups
-        # self.grp_regex = bytes(grp_regex, "utf-8").decode('unicode_escape')
-        self.grp_regex = grp_regex
-
-        # Configure the shuffling function
-        self.shuffle: bool = shuffle
-        self.shuffle_fn: Callable = (lambda x: random.sample(x, len(x))) if self.shuffle else id_
-        if not quite:
-            print(f"Grouping using {self.grp_regex} regex")
-        # assert grp_regex == "(patient\d+_\d+)_\d+"
-        # grouping_regex: Pattern = re.compile("grp_regex")
-        grouping_regex: Pattern = re.compile(self.grp_regex)
-
-        stems: List[str] = [Path(filename).stem for filename in filenames]  # avoid matching the extension
-        matches: List[Match] = map_(grouping_regex.match, stems)
-        patients: List[str] = [match.group(1) for match in matches]
-
-        unique_patients: List[str] = list(set(patients))
-        assert len(unique_patients) < len(filenames)
-        if not quite:
-            print(f"Found {len(unique_patients)} unique patients out of {len(filenames)} images")
-
-        self.idx_map: Dict[str, List[int]] = dict(zip(unique_patients, repeat(None)))
-        for i, patient in enumerate(patients):
-            if not self.idx_map[patient]:
-                self.idx_map[patient] = []
-
-            self.idx_map[patient] += [i]
-        assert sum(len(self.idx_map[k]) for k in unique_patients) == len(filenames)
-        if not quite:
-            print("Patient to slices mapping done")
-
-    def __len__(self):
-        return len(self.idx_map.keys())
-
-    def __iter__(self):
-        values = list(self.idx_map.values())
-        shuffled = self.shuffle_fn(values)
-        return iter(shuffled)

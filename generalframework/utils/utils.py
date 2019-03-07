@@ -1,23 +1,22 @@
+import argparse
+import collections
+import os
+import random
+import sys
 import warnings
+from copy import deepcopy as dcopy
 from functools import partial
+from functools import reduce
 from pathlib import Path
 from typing import Callable, Iterable, List, Set, Tuple, TypeVar, Union, Any
-from pprint import pprint
+
 import numpy as np
 import torch
-from torch import nn
-from torch.nn import functional as F
-from copy import deepcopy as dcopy
-from functools import reduce
-
+import torch.nn.functional as F
 from skimage.io import imsave
 from torch import Tensor, einsum
 from torch.utils.data import DataLoader
-from torchnet.meter import AverageValueMeter
 from tqdm import tqdm
-import os
-import argparse
-import collections
 
 A = TypeVar("A")
 B = TypeVar("B")
@@ -46,7 +45,6 @@ class Colorize:
         for label in range(1, len(self.cmap)):
             mask = gray_image.squeeze() == label
             try:
-
                 color_image[0][mask] = self.cmap[label][0]
                 color_image[1][mask] = self.cmap[label][1]
                 color_image[2][mask] = self.cmap[label][2]
@@ -71,58 +69,14 @@ def colormap(n):
     return cmap
 
 
-def pred2class(pred: torch.Tensor):
+def pred2class(pred: torch.Tensor) -> Tensor:
+    '''
+    return the class prediction whether for pred_logit or pred_after_softmax
+    :param pred: input Tensor of B,C,W,H
+    :return: B,W,H
+    '''
     assert pred.shape.__len__() == 4, pred.shape
     return pred.max(1)[1]
-
-
-class AverageValueMeter(object):
-    def __init__(self):
-        super(AverageValueMeter, self).__init__()
-        self.reset()
-        self.val = 0
-
-    def add(self, value, n=1):
-        self.val = value
-        self.sum += value
-        self.var += value * value
-        self.n += n
-
-        if self.n == 0:
-            self.mean, self.std = np.nan, np.nan
-        elif self.n == 1:
-            self.mean = 0.0 + self.sum  # This is to force a copy in torch/numpy
-            self.std = np.inf
-            self.mean_old = self.mean
-            self.m_s = 0.0
-        else:
-            self.mean = self.mean_old + (value - n * self.mean_old) / float(self.n)
-            self.m_s += (value - self.mean_old) * (value - self.mean)
-            self.mean_old = self.mean
-            self.std = np.sqrt(self.m_s / (self.n - 1.0))
-
-    def value(self):
-        return self.mean, self.std
-
-    def reset(self):
-        self.n = 0
-        self.sum = 0.0
-        self.var = 0.0
-        self.val = 0.0
-        self.mean = np.nan
-        self.mean_old = 0.0
-        self.m_s = 0.0
-        self.std = np.nan
-
-
-def extract_from_big_dict(big_dict, keys):
-    """ Get a small dictionary with key in `keys` and value
-        in big dict. If the key doesn't exist, give None.
-        :param big_dict: A dict
-        :param keys: A list of keys
-    """
-    #   TODO a bug has been found
-    return {key: big_dict.get(key) for key in keys if big_dict.get(key, 'not_found') != 'not_found'}
 
 
 # fns
@@ -132,14 +86,29 @@ def map_(fn: Callable[[A], B], iter: Iterable[A]) -> List[B]:
 
 
 def soft_size(a: Tensor) -> Tensor:
+    '''
+    Soft some of each class per image
+    :param a:
+    :return:
+    '''
     return torch.einsum("bcwh->bc", a)[..., None]
 
 
 def batch_soft_size(a: Tensor) -> Tensor:
+    '''
+    Soft sum of each class among images
+    :param a:
+    :return:
+    '''
     return torch.einsum("bcwh->c", a)[..., None]
 
 
 def soft_centroid(a: Tensor) -> Tensor:
+    '''
+    todo: understand this function
+    :param a:
+    :return:
+    '''
     b, c, w, h = a.shape
 
     ws, hs = map_(lambda e: Tensor(e).to(a.device).type(torch.float32), np.mgrid[0:w, 0:h])
@@ -147,7 +116,6 @@ def soft_centroid(a: Tensor) -> Tensor:
 
     flotted = a.type(torch.float32)
     tot = einsum("bcwh->bc", a).type(torch.float32) + 1e-10
-
     cw = einsum("bcwh,wh->bc", flotted, ws) / tot
     ch = einsum("bcwh,wh->bc", flotted, hs) / tot
 
@@ -170,33 +138,26 @@ def eq(a: Tensor, b) -> bool:
     return torch.eq(a, b).all()
 
 
-# check if the matrix is the probability
 def simplex(t: Tensor, axis=1) -> bool:
+    '''
+    check if the matrix is the probability
+    :param t:
+    :param axis:
+    :return:
+    '''
     _sum = t.sum(axis).type(torch.float32)
     _ones = torch.ones_like(_sum, dtype=torch.float32)
     return torch.allclose(_sum, _ones)
 
 
 def one_hot(t: Tensor, axis=1) -> bool:
+    '''
+    check if the Tensor is Onehot
+    :param t:
+    :param axis:
+    :return:
+    '''
     return simplex(t, axis) and sset(t, [0, 1])
-
-
-# # Metrics and shitz
-def meta_dice(sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8) -> float:
-    assert label.shape == pred.shape
-    assert one_hot(label)
-    assert one_hot(pred)
-
-    inter_size: Tensor = einsum(sum_str, [intersection(label, pred)]).type(torch.float32)
-    sum_sizes: Tensor = (einsum(sum_str, [label]) + einsum(sum_str, [pred])).type(torch.float32)
-
-    dices: Tensor = (2 * inter_size + smooth) / (sum_sizes + smooth)
-
-    return dices
-
-
-dice_coef = partial(meta_dice, "bcwh->bc")
-dice_batch = partial(meta_dice, "bcwh->c")  # used for 3d dice
 
 
 def intersection(a: Tensor, b: Tensor) -> Tensor:
@@ -238,20 +199,43 @@ def class2one_hot(seg: Tensor, C: int) -> Tensor:
 
 def probs2one_hot(probs: Tensor) -> Tensor:
     _, C, _, _ = probs.shape
-    try:
-        assert simplex(probs)
-    except:
-        import ipdb
-        ipdb.set_trace()
+    assert simplex(probs)
     res = class2one_hot(probs2class(probs), C)
     assert res.shape == probs.shape
     assert one_hot(res)
-
     return res
 
 
-def save_images(segs: Tensor, names: Iterable[str], root: str, mode: str, iter: int, seg_num=None) -> None:
-    b, w, h = segs.shape  # type: Tuple[int, int,int] # Since we have the class numbers, we do not need a C axis
+def predlogit2one_hot(logit: Tensor) -> Tensor:
+    _, C, _, _ = logit.shape
+    probs = F.softmax(logit,1)
+    assert simplex(probs)
+    res = class2one_hot(probs2class(probs), C)
+    assert res.shape == probs.shape
+    assert one_hot(res)
+    return res
+
+
+# # Metrics and shitz
+def meta_dice(sum_str: str, label: Tensor, pred: Tensor, smooth: float = 1e-8) -> float:
+    assert label.shape == pred.shape
+    assert one_hot(label)
+    assert one_hot(pred)
+
+    inter_size: Tensor = einsum(sum_str, [intersection(label, pred)]).type(torch.float32)
+    sum_sizes: Tensor = (einsum(sum_str, [label]) + einsum(sum_str, [pred])).type(torch.float32)
+
+    dices: Tensor = (2 * inter_size + smooth) / (sum_sizes + smooth)
+
+    return dices
+
+
+dice_coef = partial(meta_dice, "bcwh->bc")
+dice_batch = partial(meta_dice, "bcwh->c")  # used for 3d dice
+
+
+def save_images(segs: Tensor, names: Iterable[str], root: Union[str,Path], mode: str, iter: int, seg_num=None) -> None:
+    (b, w, h) = segs.shape  # type: Tuple[int, int,int] # Since we have the class numbers, we do not need a C axis
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', category=UserWarning)
         for seg, name in zip(segs, names):
@@ -265,9 +249,7 @@ def save_images(segs: Tensor, names: Iterable[str], root: str, mode: str, iter: 
             imsave(str(save_path), seg.cpu().numpy())
 
 
-## dataset
-
-
+# dataset
 class iterator_(object):
     def __init__(self, dataloader: Union[DataLoader, List[Any]]) -> None:
         super().__init__()
@@ -282,7 +264,7 @@ class iterator_(object):
             return self.iter_dataloader.__next__()
 
 
-## argparser
+# argparser
 
 def yaml_parser() -> dict:
     parser = argparse.ArgumentParser('Augment parser for yaml config')
@@ -317,6 +299,18 @@ def _parser_(input_string: str) -> Union[dict, None]:
     return dict(value)
 
 
+## dictionary functions
+def flatten_dict(d, parent_key='', sep='_'):
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, collections.MutableMapping):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+
 def dict_merge(dct: dict, merge_dct: dict, re=False):
     """ Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
     updating only top-level keys, dict_merge recurses down into dicts nested
@@ -346,6 +340,17 @@ def dict_merge(dct: dict, merge_dct: dict, re=False):
         return dcopy(dct)
 
 
+def extract_from_big_dict(big_dict, keys) -> dict:
+    """ Get a small dictionary with key in `keys` and value
+        in big dict. If the key doesn't exist, give None.
+        :param big_dict: A dict
+        :param keys: A list of keys
+    """
+    #   TODO a bug has been found
+    return {key: big_dict.get(key) for key in keys if big_dict.get(key, 'not_found') != 'not_found'}
+
+
+## search path functions
 def recursive_glob(rootdir=".", suffix=""):
     """Performs recursive glob with given suffix and rootdir
         :param rootdir is the root directory
@@ -355,3 +360,34 @@ def recursive_glob(rootdir=".", suffix=""):
             for looproot, _, filenames in os.walk(rootdir)
             for filename in filenames
             if filename.endswith(suffix)]
+
+
+# taken from mean teacher paper
+
+
+def export(fn):
+    mod = sys.modules[fn.__module__]
+    if hasattr(mod, '__all__'):
+        mod.__all__.append(fn.__name__)
+    else:
+        mod.__all__ = [fn.__name__]
+    return fn
+
+
+def parameter_count(module):
+    return sum(int(param.numel()) for param in module.parameters())
+
+
+def fix_torch_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+
+def fix_all_seed(seed):
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False

@@ -1,9 +1,11 @@
-from .metric import Metric
-from ..utils import one_hot, intersection, probs2one_hot, class2one_hot
+from functools import partial
+
 import torch
 import torch.nn.functional as F
 from torch import einsum, Tensor
-from functools import partial
+
+from .metric import Metric
+from ..utils import one_hot, intersection, probs2one_hot, class2one_hot
 
 
 # # Metrics and shitz
@@ -71,3 +73,11 @@ class DiceMeter(Metric):
             log = log.unsqueeze(0)
         assert len(log.shape) == 2
         return log
+
+    def detailed_summary(self) -> dict:
+        _, (means, _) = self.value()
+        return {f'DSC{i}': means[i].item() for i in range(len(means))}
+
+    def summary(self) -> dict:
+        (means, var), (_, _) = self.value()
+        return {f'mDSC': means.item(),'mVars':var.item()}

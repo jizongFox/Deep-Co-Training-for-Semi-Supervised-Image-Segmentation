@@ -1,5 +1,5 @@
 from typing import Dict
-
+from torch import nn
 import pandas as pd
 from generalframework import ModelMode
 

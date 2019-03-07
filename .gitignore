@@ -1,6 +1,6 @@
 *__pycache__/
 *.idea/*
-*dataset/*
+dataset/Cityscapes
 checkpoints/*
 results/*
 .DS_Store
@@ -15,3 +15,10 @@ tmp/*
 archives/*
 test/data/
 generalframework/trainer/deeplab_init_checkpoint/
+generalframework.egg-info/
+/.mypy_cache/
+/.pytest_cache/
+.mypy_cache/
+/archives/
+/generalframework.egg-info/
+/runs/

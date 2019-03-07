@@ -22,6 +22,17 @@ def main(args: argparse.Namespace):
         name_dict[file.parent.name] = str(file)
     pprint(name_dict)
 
+    ## load div results:
+    div = {}
+    for k,v in name_dict.items():
+        div_csv = pd.read_csv(v.replace(args.file,'div.csv'))
+        try:
+            div[k]=div_csv.mean(1).values[0]
+        except:
+            import ipdb
+            ipdb.set_trace()
+    kappa=pd.DataFrame(div,index=['kappa'])
+
     results = {}
     for k, v in name_dict.items():
         summary = pd.read_csv(v, index_col=0)
@@ -33,7 +44,9 @@ def main(args: argparse.Namespace):
     order_dict = results.loc['mean_iou'].to_dict()
     order_dict = dict(sorted(order_dict.items(), key=operator.itemgetter(1), reverse=True))
     results = results[list(order_dict.keys())]
+    results=results.append(kappa,sort=False)
     print('\nEnsemble score:\n',results)
+
     results.to_csv(folder_path / 'ensemble_results.csv')
 
     ## for average of the score
@@ -49,6 +62,10 @@ def main(args: argparse.Namespace):
     order_dict = results.loc['mean_iou'].to_dict()
     order_dict = dict(sorted(order_dict.items(), key=operator.itemgetter(1), reverse=True))
     results = results[list(order_dict.keys())]
+    try:
+        results=results.append(kappa,sort=False)
+    except:
+        pass
     print('\nAverage score:\n',results)
     results.to_csv(folder_path / 'mean_score_results.csv')
 

@@ -1,21 +1,21 @@
 import random
 from operator import itemgetter
-from typing import Dict
-
+from typing import Dict, List, Union
 import pandas as pd
 import yaml
 from tensorboardX import SummaryWriter
+import torch
+from torch import Tensor
 
 from generalframework import ModelMode
-from generalframework.scheduler import RampScheduler
+from torch.utils.data import DataLoader
 from .trainer import Trainer
-from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
+from ..loss import CrossEntropyLoss2d, KL_Divergence_2D, KL_Divergence_2D_Logit
 from ..models import Segmentator
 from ..utils.AEGenerator import *
 from ..utils.utils import *
 from ..metrics import DiceMeter, AverageValueMeter
 from ..scheduler import *
-
 
 
 def fix_seed(seed):
@@ -48,14 +48,13 @@ class CoTrainer(Trainer):
         self.unlabeled_dataloader = unlabeled_dataloader
         self.val_dataloader = val_dataloader
 
-        ## N segmentators should be consist with N+1 dataloders
-        # (N for labeled data and N+2 th for unlabeled dataset)
+        # N segmentators should be consist with N+1 dataloders
         assert self.segmentators.__len__() == self.labeled_dataloaders.__len__()
         assert self.segmentators.__len__() >= 1
-        ## the sgementators and dataloaders must be different instance
+        # the sgementators and dataloaders must be different instance
         assert set(map_(id, self.segmentators)).__len__() == self.segmentators.__len__()
         assert set(map_(id, self.labeled_dataloaders)).__len__() == self.segmentators.__len__()
-        ## labeled_dataloaders should have the same batch number
+        # labeled_dataloaders should have the same batch number
         assert set(map_(lambda x: x.batch_size, self.labeled_dataloaders)).__len__() == 1
         # assert set(map_(lambda x: len(x), self.labeled_dataloaders)).__len__() == 1
 
@@ -66,7 +65,7 @@ class CoTrainer(Trainer):
         # assert not (self.save_dir.exists() and checkpoint is None), f'>> save_dir: {self.save_dir} exits.'
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.writer = SummaryWriter(save_dir)
-        ## save the whole new config to the save_dir
+        # save the whole new config to the save_dir
         if whole_config:
             with open(Path(self.save_dir, 'config.yml'), 'w') as outfile:
                 yaml.dump(whole_config, outfile, default_flow_style=False)
@@ -78,7 +77,7 @@ class CoTrainer(Trainer):
         self.start_epoch = 0
         self.metricname = metricname
 
-        ## scheduler
+        # scheduler
         self.cot_scheduler = eval(cot_scheduler_dict['name'])(
             **{k: v for k, v in cot_scheduler_dict.items() if k != 'name'})
         self.adv_scheduler = eval(adv_scheduler_dict['name'])(
@@ -179,7 +178,7 @@ class CoTrainer(Trainer):
             l_dataloader.dataset.set_mode(ModelMode.TRAIN if augment_labeled_data else ModelMode.EVAL)
         unlabeled_dataloader.dataset.training = ModelMode.TRAIN if augment_unlabeled_data else ModelMode.EVAL
 
-        assert self.segmentators[0].training == True
+        assert self.segmentators[0].training
         assert self.labeled_dataloaders[
                    0].dataset.training == ModelMode.TRAIN if augment_labeled_data else ModelMode.EVAL
         assert self.unlabeled_dataloader.dataset.training == ModelMode.TRAIN if augment_unlabeled_data else ModelMode.EVAL
@@ -189,7 +188,7 @@ class CoTrainer(Trainer):
         n_batch = max(map_(len, self.labeled_dataloaders))
         S = len(self.segmentators)
 
-        ## build fake_iterator
+        # build fake_iterator
         fake_labeled_iterators = [iterator_(dcopy(x)) for x in labeled_dataloaders]
         fake_labeled_iterators_adv = [iterator_(dcopy(x)) for x in labeled_dataloaders]
 
@@ -217,20 +216,23 @@ class CoTrainer(Trainer):
                                 seg_num=str(enu_lab))
                 supervisedLoss += sup_loss
             if train_jsd and self.cot_scheduler.value > 0:
-                ## for unlabeled data update
+                # for unlabeled data update
                 [[unlab_img, unlab_gt], _, path] = fake_unlabeled_iterator.__next__()
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
                 unlab_preds: List[Tensor] = map_(lambda x: x.predict(unlab_img, logit=False), self.segmentators)
-                list(map(lambda x, y: x.add(y, gt), unlabdiceMeters, unlab_preds))
-                jsdloss_2D = self.criterions.get('jsd')(unlab_preds)
-                jsdLoss = jsdloss_2D.mean()
-                jsdlossMeter.add(jsdLoss.detach().data.cpu())
+                list(map(lambda x, y: x.add(y, unlab_gt), unlabdiceMeters, unlab_preds))
+                jsdloss_2D: Tensor = self.criterions.get('jsd')(unlab_preds)
+                jsdLoss: Tensor = jsdloss_2D.mean()
+                jsdlossMeter.add(jsdLoss.item())
                 #
                 if save:
                     [save_images(probs2class(prob), names=path, root=self.save_dir, mode='unlab',
                                  iter=epoch, seg_num=str(i)) for i, prob in enumerate(unlab_preds)]
             if train_adv and self.adv_scheduler.value > 0:
-                choice = np.random.choice(list(range(S)), 2, replace=False).tolist()
+                try:
+                    choice = np.random.choice(list(range(S)), 2, replace=False).tolist()
+                except:
+                    choice = np.random.choice(list(range(S)), 2, replace=True).tolist()
                 advLoss = self._adv_training(segmentators=itemgetter(*choice)(self.segmentators),
                                              lab_data_iterators=itemgetter(*choice)(fake_labeled_iterators_adv),
                                              unlab_data_iterator=fake_unlabeled_iterator_adv,
@@ -241,7 +243,7 @@ class CoTrainer(Trainer):
             totalLoss.backward()
             map_(lambda x: x.optimizer.step(), self.segmentators)
 
-            ## for recording
+            # for recording
             lab_dsc_dict = {f"S{i}": {f"DSC{n}": diceMeters[i].value()[1][0][n] for n in self.axises} \
                             for i in range(len(self.segmentators))}
             unlab_dsc_dict = {f"S{i}": {f"DSC{n}": unlabdiceMeters[i].value()[1][0][n] \
@@ -319,7 +321,7 @@ class CoTrainer(Trainer):
                       use_fsgm=True):
         assert segmentators.__len__() == 2, 'only implemented for 2 segmentators'
         adv_losses = []
-        ## draw first term from labeled1 or unlabeled
+        # draw first term from labeled1 or unlabeled
         img, img_adv = None, None
         if random.random() <= label_data_ratio:
             [[img, gt], _, _] = lab_data_iterators[0].__next__()
@@ -339,6 +341,7 @@ class CoTrainer(Trainer):
         adv_pred = segmentators[1].predict(img_adv, logit=False)
         real_pred = segmentators[0].predict(img, logit=False)
         adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()))
+
         if random.random() <= label_data_ratio:
             [[img, gt], _, _] = lab_data_iterators[1].__next__()
             img, gt = img.to(self.device), gt.to(self.device)
@@ -348,13 +351,19 @@ class CoTrainer(Trainer):
             else:
                 img_adv, _ = VATGenerator(segmentators[1].torchnet, eplision=eplision, axises=axises)(dcopy(img))
         else:
-            [[img, _], _, _] = unlab_data_iterator.__next__()
+            [[img, _gt], _, _] = unlab_data_iterator.__next__()
             img = img.to(self.device)
             img_adv, _ = VATGenerator(segmentators[1].torchnet, eplision=eplision, axises=axises)(dcopy(img))
+
         adv_pred = segmentators[0].predict(img_adv, logit=False)
         real_pred = segmentators[1].predict(img, logit=False)
         adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()))
         adv_loss = sum(adv_losses) / adv_losses.__len__()
+        if eplision == 0:
+            # assert torch.allclose(adv_pred,real_pred)
+            # assert torch.allclose(img_adv,img)
+            assert torch.allclose(adv_loss, torch.zeros_like(adv_loss))
+
         return adv_loss
 
     def upload_dicts(self, name, dicts, epoch):

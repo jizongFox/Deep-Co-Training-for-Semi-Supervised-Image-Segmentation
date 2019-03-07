@@ -7,9 +7,21 @@ import yaml
 from generalframework import ModelMode
 from ..utils import *
 from ..models import Segmentator
-
+from torch import Tensor, nn
 
 class Base(ABC):
+
+    def __init__(self, segmentator: Segmentator, dataloaders: Dict[str, DataLoader], criterion: nn.Module,
+                 max_epoch: int = 100,
+                 save_dir: str = 'tmp',
+                 device: str = 'cpu',
+                 axises: List[int] = [1, 2, 3, 4],
+                 checkpoint: str = None,
+                 metricname: str = 'metrics.csv',
+                 whole_config=None) -> None:
+        raise NotImplementedError
+    def __init_record__(self):
+        pass
 
     @abstractmethod
     def start_training(self):
@@ -19,9 +31,21 @@ class Base(ABC):
     def _main_loop(self, dataloader, epoch, mode, save, **kwargs):
         raise NotImplementedError
 
+    def _train_loop(self):
+        pass
+
+    def _eval_loop(self):
+        pass
+
     @abstractmethod
     def checkpoint(self, **kwargs):
         raise NotImplementedError
+
+    def _load_checkpoint(self, checkpoint):
+        pass
+
+    def schedulerStep(self):
+        pass
 
 
 class Trainer(Base):
