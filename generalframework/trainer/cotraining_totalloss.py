@@ -5,11 +5,12 @@ import pandas as pd
 import yaml
 from tensorboardX import SummaryWriter
 import torch
+from torch import Tensor, nn
 
 from generalframework import ModelMode
 from torch.utils.data import DataLoader
 from .trainer import Trainer
-from ..loss import CrossEntropyLoss2d, KL_Divergence_2D,KL_Divergence_2D_Logit
+from ..loss import CrossEntropyLoss2d, KL_Divergence_2D, KL_Divergence_2D_Logit
 from ..models import Segmentator
 from ..utils.AEGenerator import *
 from ..utils.utils import *
@@ -220,8 +221,8 @@ class CoTrainer(Trainer):
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
                 unlab_preds: List[Tensor] = map_(lambda x: x.predict(unlab_img, logit=False), self.segmentators)
                 list(map(lambda x, y: x.add(y, unlab_gt), unlabdiceMeters, unlab_preds))
-                jsdloss_2D:Tensor = self.criterions.get('jsd')(unlab_preds)
-                jsdLoss:Tensor = jsdloss_2D.mean()
+                jsdloss_2D: Tensor = self.criterions.get('jsd')(unlab_preds)
+                jsdLoss: Tensor = jsdloss_2D.mean()
                 jsdlossMeter.add(jsdLoss.item())
                 #
                 if save:
@@ -229,14 +230,15 @@ class CoTrainer(Trainer):
                                  iter=epoch, seg_num=str(i)) for i, prob in enumerate(unlab_preds)]
             if train_adv and self.adv_scheduler.value > 0:
                 try:
-                    choice = np.random.choice(list(range(S)), 2, replace=False).tolist()
+                    choice = sorted(np.random.choice(list(range(S)), 2, replace=False).tolist())
                 except:
-                    choice = np.random.choice(list(range(S)), 2, replace=True).tolist()
+                    choice = sorted(np.random.choice(list(range(S)), 2, replace=True).tolist())
                 advLoss = self._adv_training(segmentators=itemgetter(*choice)(self.segmentators),
                                              lab_data_iterators=itemgetter(*choice)(fake_labeled_iterators_adv),
                                              unlab_data_iterator=fake_unlabeled_iterator_adv,
                                              **self.adv_training_dict)
                 advlossMeter.add(advLoss.detach().data.cpu())
+                print(advLoss.item())
             map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
             totalLoss = supervisedLoss + self.cot_scheduler.value * jsdLoss + self.adv_scheduler.value * advLoss
             totalLoss.backward()
@@ -273,7 +275,7 @@ class CoTrainer(Trainer):
                    ):
         [segmentator.set_mode(mode) for segmentator in self.segmentators]
         val_dataloader.dataset.set_mode(ModelMode.EVAL)
-        assert self.segmentators[0].training == False
+        assert not self.segmentators[0].training
         desc = f">> Validating   ({epoch})"
         S = self.segmentators.__len__()
 
@@ -282,6 +284,7 @@ class CoTrainer(Trainer):
         vallossMeters = [AverageValueMeter() for _ in range(self.segmentators.__len__())]
 
         val_dataloader = tqdm_(val_dataloader) if self.use_tqdm else val_dataloader
+        nice_dict: dict
 
         for batch_num, [(img, gt), _, path] in enumerate(val_dataloader):
             img, gt = img.to(self.device), gt.to(self.device)
@@ -341,7 +344,6 @@ class CoTrainer(Trainer):
         real_pred = segmentators[0].predict(img, logit=False)
         adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()))
 
-
         if random.random() <= label_data_ratio:
             [[img, gt], _, _] = lab_data_iterators[1].__next__()
             img, gt = img.to(self.device), gt.to(self.device)
@@ -359,10 +361,10 @@ class CoTrainer(Trainer):
         real_pred = segmentators[1].predict(img, logit=False)
         adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()))
         adv_loss = sum(adv_losses) / adv_losses.__len__()
-        if eplision==0:
+        if eplision == 0:
             # assert torch.allclose(adv_pred,real_pred)
             # assert torch.allclose(img_adv,img)
-            assert torch.allclose(adv_loss,torch.zeros_like(adv_loss))
+            assert torch.allclose(adv_loss, torch.zeros_like(adv_loss))
 
         return adv_loss
 

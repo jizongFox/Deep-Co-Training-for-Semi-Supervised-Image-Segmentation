@@ -31,10 +31,10 @@ class Base(ABC):
     def _main_loop(self, dataloader, epoch, mode, save, **kwargs):
         raise NotImplementedError
 
-    def _train_loop(self, args, **kwargs):
+    def _train_loop(self, *args, **kwargs):
         pass
 
-    def _eval_loop(self,args, **kwargs):
+    def _eval_loop(self, *args, **kwargs):
         pass
 
     @abstractmethod

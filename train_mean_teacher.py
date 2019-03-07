@@ -39,6 +39,7 @@ meanTeacherTrainer = MeanTeacherTrainer(student_segmentator=student,
                                         val_dataloader=val_dataloader,
                                         criterions={'sup': nn.CrossEntropyLoss(),
                                                     'con': nn.MSELoss()},
+                                        cot_scheduler_dict=config['Cot_Scheduler'],
                                         **config['Trainer'],
                                         whole_config=config)
 meanTeacherTrainer.start_training()

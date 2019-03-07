@@ -18,20 +18,25 @@ def main(args: argparse.Namespace):
     assert folder_path.exists(), folder_path
     file_list = list(folder_path.glob('**/%s' % args.file))
     name_dict = {}
-    for file in file_list:
-        name_dict[file.parent.name] = str(file)
+    if set([x.parent.name for x in file_list]).__len__() == len(file_list):
+        for file in file_list:
+            name_dict[file.parent.name] = str(file)
+    else:
+        for file in file_list:
+            name_dict[file] = str(file)
+
     pprint(name_dict)
 
-    ## load div results:
+    # load div results:
     div = {}
-    for k,v in name_dict.items():
-        div_csv = pd.read_csv(v.replace(args.file,'div.csv'))
+    for k, v in name_dict.items():
+        div_csv = pd.read_csv(v.replace(args.file, 'div.csv'))
         try:
-            div[k]=div_csv.mean(1).values[0]
+            div[k] = div_csv.mean(1).values[0]
         except:
             import ipdb
             ipdb.set_trace()
-    kappa=pd.DataFrame(div,index=['kappa'])
+    kappa = pd.DataFrame(div, index=['kappa'])
 
     results = {}
     for k, v in name_dict.items():
@@ -44,12 +49,12 @@ def main(args: argparse.Namespace):
     order_dict = results.loc['mean_iou'].to_dict()
     order_dict = dict(sorted(order_dict.items(), key=operator.itemgetter(1), reverse=True))
     results = results[list(order_dict.keys())]
-    results=results.append(kappa,sort=False)
-    print('\nEnsemble score:\n',results)
+    results = results.append(kappa, sort=False)
+    print('\nEnsemble score:\n', results)
 
-    results.to_csv(folder_path / 'ensemble_results.csv')
+    results.T.to_csv(folder_path / 'ensemble_results.csv')
 
-    ## for average of the score
+    # for average of the score
     results = {}
     for k, v in name_dict.items():
         summary = pd.read_csv(v, index_col=0)
@@ -63,11 +68,11 @@ def main(args: argparse.Namespace):
     order_dict = dict(sorted(order_dict.items(), key=operator.itemgetter(1), reverse=True))
     results = results[list(order_dict.keys())]
     try:
-        results=results.append(kappa,sort=False)
+        results = results.append(kappa, sort=False)
     except:
         pass
-    print('\nAverage score:\n',results)
-    results.to_csv(folder_path / 'mean_score_results.csv')
+    print('\nAverage score:\n', results)
+    results.T.to_csv(folder_path / 'mean_score_results.csv')
 
 
 if __name__ == '__main__':

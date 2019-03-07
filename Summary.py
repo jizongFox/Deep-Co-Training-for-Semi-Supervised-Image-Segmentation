@@ -12,7 +12,7 @@ from torch import Tensor
 
 from generalframework.dataset.ACDC_helper import get_ACDC_dataloaders
 from generalframework.dataset.GM_helper import get_GMC_split_dataloders
-from generalframework.metrics import KappaMetrics, DiceMeter,Kappa2Annotator
+from generalframework.metrics import KappaMetrics, DiceMeter, Kappa2Annotator
 from generalframework.models import Segmentator
 from generalframework.utils import probs2one_hot, class2one_hot, save_images, pred2class
 
@@ -22,7 +22,9 @@ warnings.filterwarnings('ignore')
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_dir', required=True, help='input folder directory')
-    parser.add_argument('--dataset', default='ACDC', choices=('ACDC, GM'), help='default dataset')
+    parser.add_argument('--dataset', default='ACDC', type=str, choices=('ACDC, GM'), help='default dataset')
+    parser.add_argument('--kappa_considered_class', default=[1, 2, 3], type=int, nargs='+',
+                        help='considered class in kappa')
 
     return parser.parse_args()
 
@@ -144,7 +146,7 @@ with torch.no_grad():
         ensembleMeter.add(voting_preds, gt)
         bensembleMeter.add(voting_preds, gt)
         kappameter.add(predicts=[pred.max(1)[1] for pred in preds], target=voting_preds.max(1)[1],
-                       considered_classes=[1, 2, 3])
+                       considered_classes=args.kappa_considered_class)
         # todo: add kappa2 score
 
 # for 2D dice:
@@ -202,3 +204,11 @@ summary_std.to_csv(Path(args.input_dir) / 'bsummary_std.csv')
 
 diversity_dict = {f'Div{i}': kappameter.value()[i].item() for i in range(checkpoints.__len__())}
 pd.Series(diversity_dict).to_csv(Path(args.input_dir) / 'div.csv')
+
+# record val_logs
+
+pd.DataFrame(bensembleMeter.log.cpu().numpy()).to_csv(Path(args.input_dir, 'log_3Ddice_ensemble.csv'))
+pd.DataFrame(ensembleMeter.log.cpu().numpy()).to_csv(Path(args.input_dir, 'log_2Ddice_ensemble.csv'))
+for s in range(len(checkpoints)):
+    pd.DataFrame(diceMeters[s].log.cpu().numpy()).to_csv(Path(args.input_dir, f'log_2Ddice_model_{s}.csv'))
+    pd.DataFrame(bdiceMeters[s].log.cpu().numpy()).to_csv(Path(args.input_dir, f'log_3Ddice_model_{s}.csv'))

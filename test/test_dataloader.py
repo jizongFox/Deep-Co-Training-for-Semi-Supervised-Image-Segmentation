@@ -1,7 +1,6 @@
 from generalframework.dataset import MedicalImageDataset, segment_transform, augment
 from torch.utils.data import DataLoader
 from torchvision.transforms import ToPILImage
-import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.pylab as pl
 import numpy as np

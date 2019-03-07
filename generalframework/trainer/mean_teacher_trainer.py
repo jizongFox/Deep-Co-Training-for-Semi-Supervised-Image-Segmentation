@@ -17,6 +17,7 @@ from .. import ModelMode
 from ..dataset.augment import TensorAugment, temporary_seed
 from ..metrics2 import DiceMeter, AggragatedMeter, AverageValueMeter, ListAggregatedMeter
 from ..utils import tqdm_, iterator_, flatten_dict
+from ..scheduler import *
 
 
 class MeanTeacherTrainer(Trainer):
@@ -31,6 +32,7 @@ class MeanTeacherTrainer(Trainer):
                  save_dir: str = 'tmp',
                  device: str = 'cuda:0',
                  axises: List[int] = [1, 2, 3],
+                 cot_scheduler_dict:dict = {},
                  checkpoint: str = None,
                  metricname: str = 'metrics.csv',
                  whole_config=None
@@ -61,6 +63,9 @@ class MeanTeacherTrainer(Trainer):
             self._load_checkpoint(checkpoint)
 
         self.to(self.device)
+
+        self.cot_scheduler:RampScheduler = eval(cot_scheduler_dict['name'])(
+            **{k: v for k, v in cot_scheduler_dict.items() if k != 'name'})
 
     def to(self, device):
         self.teacher.to(device)
@@ -124,17 +129,21 @@ class MeanTeacherTrainer(Trainer):
             for k, v in METERS.items():
                 v.summary().to_csv(Path(self.save_dir, 'meters', f'{k}.csv'))
             wholeMeter.summary().to_csv(Path(self.save_dir, f'wholeMeter.csv'))
+            self.schedulerStep()
 
             self.save_checkpoint(save_criterion, epoch, wholeMeter)
 
     def _train_loop(self, labeled_dataloader, unlabeled_dataloader, epoch, mode=ModelMode.TRAIN):
         self.student.set_mode(mode)
-        ## detach the teacher model
+        # detach the teacher model
         self.teacher.set_mode(mode)
         self.labeled_dataloader.dataset.training = True
         self.unlabel_dataloader.dataset.training = True
         for param in self.teacher.torchnet.parameters():
             param.detach_()
+
+        # disable dataaugmentation
+        mode=ModelMode.EVAL
 
         labeled_dataloader.dataset.set_mode(mode)
         unlabeled_dataloader.dataset.set_mode(mode)
@@ -159,28 +168,38 @@ class MeanTeacherTrainer(Trainer):
             with torch.no_grad():
                 t_preds = self.teacher.predict(o_img, logit=False)
             teacher_cDice.add(t_preds, o_gt)
-            img_lists, seed = zip(t_preds.detach()), map(eval, str_seed)
-            t_preds_aug = []
-            for i, (t_pred, seed) in enumerate(zip(img_lists, seed)):
-                with temporary_seed(*seed):
-                    t_preds_aug.append(TensorAugment(t_pred)[0])
-            t_preds_aug = torch.Tensor(t_preds_aug).float().to(self.device)
-            assert s_preds.shape == t_preds_aug.shape
-            con_loss1 = self.criterions.get('con')(s_preds, t_preds_aug.detach())
+
+            # Here we disable data augmentation to a fair comparison.
+
+
+            # img_lists, seed = zip(t_preds.detach()), map(eval, str_seed)
+            # t_preds_aug = []
+            # for i, (t_pred, seed) in enumerate(zip(img_lists, seed)):
+            #     with temporary_seed(*seed):
+            #         t_preds_aug.append(TensorAugment(t_pred)[0])
+            # t_preds_aug = torch.Tensor(t_preds_aug).float().to(self.device)
+
+            # assert s_preds.shape == t_preds_aug.shape
+            assert s_preds.shape == t_preds.shape
+            # con_loss1 = self.criterions.get('con')(s_preds, t_preds_aug.detach())
+            con_loss1 = self.criterions.get('con')(s_preds,t_preds)
 
             ((img, _), ((o_img, _), str_seed), filenames) = fake_unlabel_iter.__next__()
             img, o_img = img.to(self.device), o_img.to(self.device)
             s_preds = self.student.predict(img, logit=False)
             with torch.no_grad():
                 t_preds = self.teacher.predict(o_img, logit=False)
-            img_lists, seed = zip(t_preds.detach()), map(eval, str_seed)
-            t_preds_aug = []
-            for i, (t_pred, seed) in enumerate(zip(img_lists, seed)):
-                with temporary_seed(*seed):
-                    t_preds_aug.append(TensorAugment(t_pred)[0])
-            t_preds_aug = torch.Tensor(t_preds_aug).float().to(self.device)
-            con_loss2 = self.criterions.get('con')(s_preds, t_preds_aug)
-            total_loss = sup_loss + con_loss1 + con_loss2
+
+            # same to disable data augmentation
+
+            # img_lists, seed = zip(t_preds.detach()), map(eval, str_seed)
+            # t_preds_aug = []
+            # for i, (t_pred, seed) in enumerate(zip(img_lists, seed)):
+            #     with temporary_seed(*seed):
+            #         t_preds_aug.append(TensorAugment(t_pred)[0])
+            # t_preds_aug = torch.Tensor(t_preds_aug).float().to(self.device)
+            con_loss2 = self.criterions.get('con')(s_preds, t_preds)
+            total_loss = sup_loss + self.cot_scheduler.value * (con_loss1 + con_loss2)
             total_loss_meter.add(total_loss.item())
             self.student.optimizer.zero_grad()
             total_loss.backward()
@@ -228,3 +247,7 @@ class MeanTeacherTrainer(Trainer):
     def update_ema(self, alpha=0.99):
         for ema_param, param in zip(self.teacher.torchnet.parameters(), self.student.torchnet.parameters()):
             ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
+
+    def schedulerStep(self):
+        self.student.scheduler.step()
+        self.cot_scheduler.step()

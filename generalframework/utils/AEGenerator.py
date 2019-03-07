@@ -25,7 +25,7 @@ class FSGMGenerator(object):
         if tra_state is True:
             self.net.train()
         assert self.net.training == tra_state
-        self.net.zero_grad()
+        # self.net.zero_grad()
         return adv_img.detach(), noise.detach()
 
     @staticmethod

@@ -108,6 +108,7 @@ class KL_Divergence_2D(nn.Module):
         else:
             return ylogy - ylogp
 
+
 class KL_Divergence_2D_Logit(nn.Module):
 
     def __init__(self, reduce=False, eps=1e-10):

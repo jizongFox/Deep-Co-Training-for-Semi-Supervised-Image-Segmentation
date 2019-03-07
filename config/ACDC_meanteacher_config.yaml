@@ -2,7 +2,7 @@ Arch:
   name: enet
   num_classes: 4
 Dataset:
-  augment: PILaugment
+  augment: None
   metainfo:
     - getImage_GT
     - foldernames:
@@ -16,15 +16,15 @@ Dataset:
   transform: segment_transform((256,256))
 Trainer:
   max_epoch: 100
-  save_dir: tmp/ACDC_meanteacher
+  save_dir: runs/ACDC_meanteacher
   device: cuda:0
   axises: [1,2,3]
   metricname: metrics.csv
 
 Lab_Dataloader:
-  batch_size: 3
+  batch_size: 2
   drop_last: true
-  num_workers: 3
+  num_workers: 2
   pin_memory: false
   shuffle: true
   batch_sampler: [PatientSampler,
@@ -34,24 +34,25 @@ Lab_Partitions:
   partition_sets: 0.5
   partition_overlap: 1
 Optim:
-  lr: 0.0005
   name: Adam
+  lr: 0.002
+
 Scheduler:
-  gamma: 0.7
-  milestones:
-    - 10
-    - 20
-    - 30
-    - 40
-    - 50
-    - 60
-    - 70
-    - 80
-    - 90
-  name: MultiStepLR
+  name: StepLR
+  step_size: 30
+  gamma: 0.1
+
+
 Unlab_Dataloader:
-  batch_size: 3
+  batch_size: 2
   drop_last: true
-  num_workers: 3
+  num_workers: 2
   pin_memory: false
   shuffle: true
+
+Cot_Scheduler:
+  name: RampScheduler
+  begin_epoch: 10
+  max_epoch: 80
+  max_value: 1.0
+  ramp_mult: -5
