@@ -9,7 +9,7 @@ import torch
 from generalframework import ModelMode
 from torch.utils.data import DataLoader
 from .trainer import Trainer
-from ..loss import CrossEntropyLoss2d, KL_Divergence_2D
+from ..loss import CrossEntropyLoss2d, KL_Divergence_2D,KL_Divergence_2D_Logit
 from ..models import Segmentator
 from ..utils.AEGenerator import *
 from ..utils.utils import *
@@ -341,6 +341,7 @@ class CoTrainer(Trainer):
         real_pred = segmentators[0].predict(img, logit=False)
         adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()))
 
+
         if random.random() <= label_data_ratio:
             [[img, gt], _, _] = lab_data_iterators[1].__next__()
             img, gt = img.to(self.device), gt.to(self.device)
@@ -358,6 +359,11 @@ class CoTrainer(Trainer):
         real_pred = segmentators[1].predict(img, logit=False)
         adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()))
         adv_loss = sum(adv_losses) / adv_losses.__len__()
+        if eplision==0:
+            # assert torch.allclose(adv_pred,real_pred)
+            # assert torch.allclose(img_adv,img)
+            assert torch.allclose(adv_loss,torch.zeros_like(adv_loss))
+
         return adv_loss
 
     def upload_dicts(self, name, dicts, epoch):

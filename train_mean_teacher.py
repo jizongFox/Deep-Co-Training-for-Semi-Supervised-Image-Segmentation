@@ -1,5 +1,5 @@
 from pprint import pprint
-
+import warnings
 import torch
 import yaml
 from easydict import EasyDict
@@ -9,6 +9,7 @@ from generalframework.dataset.ACDC_helper import get_ACDC_split_dataloders
 from generalframework.models import Segmentator
 from generalframework.trainer.mean_teacher_trainer import MeanTeacherTrainer
 from generalframework.utils import yaml_parser, dict_merge
+warnings.filterwarnings('ignore')
 
 parser_args = yaml_parser()
 print('->>Input args:')
@@ -28,7 +29,7 @@ student = Segmentator(arch_dict=config.Arch, optim_dict=config.Optim, scheduler_
 student.train()
 teacher = Segmentator(arch_dict=config.Arch, optim_dict=config.Optim, scheduler_dict=config.Scheduler)
 # teacher.load_state_dict(student.state_dict)
-## dataset
+# dataset
 labeled_dataloader, unlabeled_dataloader, val_dataloader = get_ACDC_split_dataloders(config)
 
 meanTeacherTrainer = MeanTeacherTrainer(student_segmentator=student,

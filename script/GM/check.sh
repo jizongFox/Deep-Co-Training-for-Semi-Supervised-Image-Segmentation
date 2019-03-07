@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
-#!/usr/bin/env bash
+gpu=$1
+adv_weight=$2
+
 set -e
 time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
-max_peoch=200
+max_peoch=10
 data_aug=PILaugment
 net=enet
-logdir=GM/$net"_sanity_check"
+logdir=GM/$net"_adv_weigth_check${adv_weight}"
 tqdm=True
 augment_labeled_data=True
 augment_unlabeled_data=True
-echo $(ls)
+seed=1
+
 source utils.sh
-
-
 
 Summary(){
 set -e
@@ -38,7 +39,10 @@ Lab_Partitions.num_models=2 \
 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Arch.num_classes=2 Trainer.use_tqdm=$tqdm \
 Dataset.root_dir=dataset/GM_Challenge \
-Adv_Training.axises=[0,1]
+Adv_Training.axises=[0,1] Adv_Scheduler.max_value=$adv_weight \
+StartTraining.augment_labeled_data=$augment_labeled_data \
+StartTraining.augment_unlabeled_data=$augment_unlabeled_data \
+Seed=$seed
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -57,7 +61,10 @@ Lab_Partitions.num_models=2 \
 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Arch.num_classes=2 Trainer.use_tqdm=$tqdm \
 Dataset.root_dir=dataset/GM_Challenge \
-Adv_Training.axises=[0,1]
+Adv_Training.axises=[0,1] Adv_Scheduler.max_value=$adv_weight \
+StartTraining.augment_labeled_data=$augment_labeled_data \
+StartTraining.augment_unlabeled_data=$augment_unlabeled_data \
+Seed=$seed
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -76,7 +83,10 @@ Lab_Partitions.num_models=2 \
 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Arch.num_classes=2 Trainer.use_tqdm=$tqdm \
 Dataset.root_dir=dataset/GM_Challenge \
-Adv_Training.axises=[0,1]
+Adv_Training.axises=[0,1] Adv_Scheduler.max_value=$adv_weight \
+StartTraining.augment_labeled_data=$augment_labeled_data \
+StartTraining.augment_unlabeled_data=$augment_unlabeled_data \
+Seed=$seed
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -95,24 +105,27 @@ Lab_Partitions.num_models=2 \
 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Arch.num_classes=2 Trainer.use_tqdm=$tqdm \
 Dataset.root_dir=dataset/GM_Challenge \
-Adv_Training.axises=[0,1]
+Adv_Training.axises=[0,1] Adv_Scheduler.max_value=$adv_weight \
+StartTraining.augment_labeled_data=$augment_labeled_data \
+StartTraining.augment_unlabeled_data=$augment_unlabeled_data \
+Seed=$seed
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
 cd ../..
-
 #rm -rf archives/$logdir
 mkdir -p archives/$logdir
 #rm -rf runs/$logdir
 mkdir -p runs/$logdir
 
 
-#FS 0 &
-JSD 0 &
-#ADV 0 &
-JSD_ADV 0 &
+
+FS $gpu &
+JSD $gpu &
+ADV $gpu &
+JSD_ADV $gpu &
 wait_script
 
 #python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
@@ -126,4 +139,4 @@ wait_script
 python generalframework/postprocessing/report.py --folder=archives/$logdir/ --file=summary.csv
 #
 zip -rq archives/$logdir"_"$time"_"$gitcommit_number".zip" archives/$logdir
-#rm -rf runs/$logdir
+rm -rf runs/$logdir
