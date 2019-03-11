@@ -227,6 +227,7 @@ class CoTrainer(Trainer):
                 if save:
                     [save_images(probs2class(prob), names=path, root=self.save_dir, mode='unlab',
                                  iter=epoch, seg_num=str(i)) for i, prob in enumerate(unlab_preds)]
+
             if train_adv and self.adv_scheduler.value > 0:
                 try:
                     choice = sorted(np.random.choice(list(range(S)), 2, replace=False).tolist())

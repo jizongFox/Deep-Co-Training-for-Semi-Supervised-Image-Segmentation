@@ -19,6 +19,6 @@ sbatch  --job-name=multipleview_${model_num} \
 5_run.sh $model_num $max_epoch
 
 }
-wrapper 2 150 72
-wrapper 3 150 100
-wrapper 4 150 144
+wrapper 2 150 48
+wrapper 3 150 56
+wrapper 4 150 72

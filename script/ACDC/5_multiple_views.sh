@@ -4,11 +4,11 @@ logir=$1
 received_com=$2
 num_model=$3
 max_peoch=$4
-data_aug=None
+data_aug=PILaugment
 net=enet
 tqdm=False
-la_ratio=0.5
-overlap_ratio=0.5
+la_ratio=0.2
+overlap_ratio=1
 
 
 source utils.sh
