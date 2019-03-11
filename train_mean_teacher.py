@@ -31,9 +31,11 @@ student = Segmentator(arch_dict=config.Arch, optim_dict=config.Optim, scheduler_
 teacher = Segmentator(arch_dict=config.Arch, optim_dict=config.Optim, scheduler_dict=config.Scheduler)
 # teacher.load_state_dict(student.state_dict)
 # dataset
+
 if config['Dataset']['root_dir'].find('ACDC') >= 0:
     labeled_dataloader, unlabeled_dataloader, val_dataloader = get_ACDC_split_dataloders(config)
 elif config['Dataset']['root_dir'].find('GM') >= 0:
+
     labeled_dataloader, unlabeled_dataloader, val_dataloader = get_GMC_split_dataloders(config)
 else:
     raise NotImplementedError

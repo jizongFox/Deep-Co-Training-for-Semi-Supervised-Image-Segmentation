@@ -174,6 +174,7 @@ class MeanTeacherTrainer(Trainer):
 
             assert s_preds.shape == t_preds_aug.shape
 
+
             con_loss1 = self.criterions.get('con')(s_preds, t_preds_aug.detach())
             ((img, _), ((o_img, _), str_seed), filenames) = fake_unlabel_iter.__next__()
             img, o_img = img.to(self.device), o_img.to(self.device)
@@ -184,6 +185,7 @@ class MeanTeacherTrainer(Trainer):
             t_preds_aug = []
             for i, (t_pred, seed) in enumerate(zip(img_lists, seed)):
                 with temporary_seed(*seed):
+
                     t_preds_aug.append(TensorAugment_4_dim(t_pred)[0])
             t_preds_aug = torch.Tensor(t_preds_aug).float().to(self.device)
 
@@ -204,6 +206,7 @@ class MeanTeacherTrainer(Trainer):
             # plt.imshow(t_preds.max(1)[1][0].squeeze().cpu(),alpha=0.5)
             # plt.show()
             # plt.pause(0.5)
+
 
             con_loss2 = self.criterions.get('con')(s_preds, t_preds_aug)
             total_loss = sup_loss + self.cot_scheduler.value * (con_loss1 + con_loss2)
