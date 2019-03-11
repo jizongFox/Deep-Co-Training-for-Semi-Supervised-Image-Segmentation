@@ -21,10 +21,7 @@ wrapper(){
     4_parameter_search_adv_jsd.sh $group $max_epoch
 }
 
-wrapper group1 100 35
-wrapper group2 100 35
-wrapper group3 100 35
-wrapper group4 100 35
-wrapper group5 100 35
-wrapper group6 100 35
-wrapper group7 100 35
+wrapper group1 3 1
+wrapper group2 3 1
+wrapper group3 3 1
+wrapper group4 3 1

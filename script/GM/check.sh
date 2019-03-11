@@ -7,11 +7,11 @@ time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
-max_peoch=10
+max_peoch=200
 data_aug=PILaugment
 net=enet
-logdir=GM/$net"_adv_weigth_check${adv_weight}"
-tqdm=True
+logdir=GM/weight_search/$net"_adv_weigth_check${adv_weight}"
+tqdm=False
 augment_labeled_data=True
 augment_unlabeled_data=True
 seed=1
@@ -22,8 +22,8 @@ Summary(){
 set -e
 subfolder=$1
 gpu=$2
-echo CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir runs/$logdir/$subfolder --dataset=GM
-CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir runs/$logdir/$subfolder --dataset=GM
+echo CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir runs/$logdir/$subfolder --dataset=GM --kappa_considered_class 0 1
+CUDA_VISIBLE_DEVICES=$gpu python Summary.py --input_dir runs/$logdir/$subfolder --dataset=GM --kappa_considered_class 0 1
 }
 
 FS(){
@@ -39,7 +39,7 @@ Lab_Partitions.num_models=2 \
 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Arch.num_classes=2 Trainer.use_tqdm=$tqdm \
 Dataset.root_dir=dataset/GM_Challenge \
-Adv_Training.axises=[0,1] Adv_Scheduler.max_value=$adv_weight \
+Adv_Scheduler.max_value=$adv_weight \
 StartTraining.augment_labeled_data=$augment_labeled_data \
 StartTraining.augment_unlabeled_data=$augment_unlabeled_data \
 Seed=$seed
@@ -61,7 +61,7 @@ Lab_Partitions.num_models=2 \
 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Arch.num_classes=2 Trainer.use_tqdm=$tqdm \
 Dataset.root_dir=dataset/GM_Challenge \
-Adv_Training.axises=[0,1] Adv_Scheduler.max_value=$adv_weight \
+Adv_Scheduler.max_value=$adv_weight \
 StartTraining.augment_labeled_data=$augment_labeled_data \
 StartTraining.augment_unlabeled_data=$augment_unlabeled_data \
 Seed=$seed
@@ -83,7 +83,7 @@ Lab_Partitions.num_models=2 \
 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Arch.num_classes=2 Trainer.use_tqdm=$tqdm \
 Dataset.root_dir=dataset/GM_Challenge \
-Adv_Training.axises=[0,1] Adv_Scheduler.max_value=$adv_weight \
+Adv_Scheduler.max_value=$adv_weight \
 StartTraining.augment_labeled_data=$augment_labeled_data \
 StartTraining.augment_unlabeled_data=$augment_unlabeled_data \
 Seed=$seed
@@ -97,6 +97,18 @@ set -e
 gpu=$1
 currentfoldername=JSD_ADV
 rm -rf runs/$logdir/$currentfoldername
+echo CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
+Trainer.max_epoch=$max_peoch Trainer.axises=[0,1] \
+Dataset.augment=$data_aug Dataset.transform="segment_transform((200,200))" \
+StartTraining.train_adv=True StartTraining.train_jsd=True \
+Lab_Partitions.num_models=2 \
+Lab_Partitions.partition_overlap=1 \
+Arch.name=$net Arch.num_classes=2 Trainer.use_tqdm=$tqdm \
+Dataset.root_dir=dataset/GM_Challenge \
+Adv_Scheduler.max_value=$adv_weight \
+StartTraining.augment_labeled_data=$augment_labeled_data \
+StartTraining.augment_unlabeled_data=$augment_unlabeled_data \
+Seed=$seed
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Trainer.axises=[0,1] \
 Dataset.augment=$data_aug Dataset.transform="segment_transform((200,200))" \
@@ -105,7 +117,7 @@ Lab_Partitions.num_models=2 \
 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Arch.num_classes=2 Trainer.use_tqdm=$tqdm \
 Dataset.root_dir=dataset/GM_Challenge \
-Adv_Training.axises=[0,1] Adv_Scheduler.max_value=$adv_weight \
+Adv_Scheduler.max_value=$adv_weight \
 StartTraining.augment_labeled_data=$augment_labeled_data \
 StartTraining.augment_unlabeled_data=$augment_unlabeled_data \
 Seed=$seed
@@ -124,6 +136,7 @@ mkdir -p runs/$logdir
 
 FS $gpu &
 JSD $gpu &
+
 ADV $gpu &
 JSD_ADV $gpu &
 wait_script

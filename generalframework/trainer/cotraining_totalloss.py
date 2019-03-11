@@ -191,10 +191,8 @@ class CoTrainer(Trainer):
 
         # build fake_iterator
         fake_labeled_iterators = [iterator_(dcopy(x)) for x in labeled_dataloaders]
-        # fake_labeled_iterators_adv = [iterator_(dcopy(x)) for x in labeled_dataloaders]
-
         fake_unlabeled_iterator = iterator_(dcopy(unlabeled_dataloader))
-        # fake_unlabeled_iterator_adv = iterator_(dcopy(unlabeled_dataloader))
+
         report_iterator = iterator_(['label', 'unlab'])
         report_status = 'label'
 
@@ -244,7 +242,6 @@ class CoTrainer(Trainer):
                                                   **self.adv_training_dict)
 
                 advlossMeter.add(advLoss.item())
-                print(advLoss.item())
             map_(lambda x: x.optimizer.zero_grad(), self.segmentators)
             totalLoss = supervisedLoss + self.cot_scheduler.value * jsdLoss + self.adv_scheduler.value * advLoss
             totalLoss.backward()
@@ -386,6 +383,10 @@ class CoTrainer(Trainer):
             img_1_adv, _ = FSGMGenerator(segmentators[0].torchnet, eplision=eplision) \
                 (dcopy(img_1), gt_1, criterion=self.criterions['sup'])
 
+        adv_pred = segmentators[1].predict(img_1_adv, logit=False)
+        real_pred = segmentators[0].predict(img_1, logit=False)
+        adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()))
+
         # draw  term from labeled2
         [[img_2, gt_2], _, _] = lab_data_iterators[1].__cache__()
         img_2, gt_2 = img_2.to(self.device), gt_2.to(self.device)
@@ -393,14 +394,10 @@ class CoTrainer(Trainer):
             warnings.simplefilter("ignore")
             img_2_adv, _ = FSGMGenerator(segmentators[1].torchnet, eplision=eplision) \
                 (dcopy(img_2), gt_2, criterion=self.criterions['sup'])
-        # for image drawn from labeled1
-        adv_pred = segmentators[1].predict(img_1_adv, logit=False)
-        real_pred = segmentators[0].predict(img_1, logit=False)
-        adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred))
-        # for image drawn from labeled2
+
         adv_pred = segmentators[0].predict(img_2_adv, logit=False)
         real_pred = segmentators[1].predict(img_2, logit=False)
-        adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred))
+        adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, real_pred.detach()))
 
         # draw from unlabeled dataset
         [[unl_img, _], _, _] = unlab_data_iterator.__cache__()
@@ -417,10 +414,10 @@ class CoTrainer(Trainer):
             unl_adv2, _ = FSGMGenerator(segmentators[1].torchnet, eplision=eplision) \
                 (dcopy(unl_img), unl_mask2, criterion=self.criterions['sup'])
         adv_pred = segmentators[1].predict(unl_adv1, logit=False)
-        adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, unl_pred1))
+        adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, unl_pred1.detach()))
 
         adv_pred = segmentators[0].predict(unl_adv2, logit=False)
-        adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, unl_pred2))
+        adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, unl_pred2.detach()))
 
         adv_loss = sum(adv_losses) / adv_losses.__len__()
 

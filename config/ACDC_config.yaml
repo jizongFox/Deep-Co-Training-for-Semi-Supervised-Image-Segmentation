@@ -25,8 +25,8 @@ Dataloader:
   num_workers: 2
   shuffle: True
   drop_last: True
-#  batch_sampler: [PatientSampler,
-#                  {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
+  batch_sampler: [PatientSampler,
+                  {grp_regex: '(patient\d+_\d+)_\d+',shuffle: False}]
 
 Trainer:
   max_epoch: 100

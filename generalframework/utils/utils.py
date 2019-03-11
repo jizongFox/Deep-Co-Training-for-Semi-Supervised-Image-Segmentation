@@ -261,7 +261,7 @@ class iterator_(object):
         try:
             self.cache = self.iter_dataloader.__next__()
             return self.cache
-        except:
+        except StopIteration:
             self.iter_dataloader = iter(self.dataloader)
             self.cache = self.iter_dataloader.__next__()
             return self.cache

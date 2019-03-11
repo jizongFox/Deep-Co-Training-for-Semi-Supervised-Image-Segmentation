@@ -4,12 +4,13 @@ Arch:
 
 Optim:
   name: Adam
-  lr: 0.002
+  lr: 0.001
+  weight_decay: 0.0001
 
 
 Scheduler:
   name: StepLR
-  step_size: 30
+  step_size: 90
   gamma: 0.1
 
 
@@ -17,13 +18,13 @@ Dataset:
   root_dir: dataset/ACDC-all
   subfolders: ['img','gt']
   transform: segment_transform((256,256))
-  augment: None
+  augment: PILaugment
   pin_memory: False
 
 Lab_Dataloader:
   pin_memory: False
-  batch_size: 2
-  num_workers: 2
+  batch_size: 4
+  num_workers: 4
   shuffle: True
   drop_last: True
   batch_sampler: [PatientSampler,
@@ -31,18 +32,18 @@ Lab_Dataloader:
 
 Lab_Partitions:
   num_models: 2
-  partition_sets: 0.5
-  partition_overlap: 1
+  partition_sets: 0.2
+  partition_overlap: 0.5
 
 Unlab_Dataloader:
   pin_memory: False
-  batch_size: 2
-  num_workers: 2
+  batch_size: 4
+  num_workers: 4
   shuffle: True
   drop_last: True
 
 Trainer:
-  max_epoch: 75
+  max_epoch: 300
   save_dir: tmp/ACDC_cotraining
   device: cuda:0
   axises: [1,2,3]
@@ -51,20 +52,20 @@ Trainer:
 
 Cot_Scheduler:
   name: RampScheduler
-  begin_epoch: 5
-  max_epoch: 80
-  max_value: 1.0
-  ramp_mult: -5
-
-Adv_Scheduler:
-  name: RampScheduler
   begin_epoch: 10
   max_epoch: 80
   max_value: 0.5
   ramp_mult: -5
 
+Adv_Scheduler:
+  name: RampScheduler
+  begin_epoch: 10
+  max_epoch: 150
+  max_value: 0.5
+  ramp_mult: -5
+
 Adv_Training:
-  eplision:  0.001
+  eplision:  0.03
 
 Loss:
   name: cross_entropy
@@ -75,7 +76,7 @@ StartTraining:
   train_adv: False
   save_train: False
   save_val: False
-  augment_labeled_data: False
-  augment_unlabeled_data: False
+  augment_labeled_data: True
+  augment_unlabeled_data: True
 
 Seed: 1234
