@@ -133,13 +133,15 @@ mkdir -p archives/$logdir
 mkdir -p runs/$logdir
 
 
-
+JSD_ADV $gpu &
 FS $gpu &
-JSD $gpu &
+
+wait_script
 
 ADV $gpu &
-JSD_ADV $gpu &
+JSD $gpu &
 wait_script
+
 
 #python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \
 # archives/$logdir/PS/ \

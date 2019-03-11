@@ -6,6 +6,7 @@ from easydict import EasyDict
 from torch import nn
 
 from generalframework.dataset.ACDC_helper import get_ACDC_split_dataloders
+from generalframework.dataset.GM_helper import get_GMC_split_dataloders
 from generalframework.models import Segmentator
 from generalframework.trainer.mean_teacher_trainer import MeanTeacherTrainer
 from generalframework.utils import yaml_parser, dict_merge
@@ -30,7 +31,12 @@ student.train()
 teacher = Segmentator(arch_dict=config.Arch, optim_dict=config.Optim, scheduler_dict=config.Scheduler)
 # teacher.load_state_dict(student.state_dict)
 # dataset
-labeled_dataloader, unlabeled_dataloader, val_dataloader = get_ACDC_split_dataloders(config)
+if config['Dataset']['root_dir'].find('ACDC')>=0:
+    labeled_dataloader, unlabeled_dataloader, val_dataloader = get_ACDC_split_dataloders(config)
+elif config['Dataset']['root_dir'].find('GM')>=0:
+    labeled_dataloader, unlabeled_dataloader, val_dataloader = get_GMC_split_dataloders(config)
+else:
+    raise NotImplementedError
 
 meanTeacherTrainer = MeanTeacherTrainer(student_segmentator=student,
                                         teacher_segmentator=teacher,

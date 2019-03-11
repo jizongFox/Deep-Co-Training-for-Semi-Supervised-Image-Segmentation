@@ -14,15 +14,12 @@ class FSGMGenerator(object):
         self.eplision = eplision
 
     def __call__(self, img: Tensor, gt: Tensor, criterion: nn.Module) -> Tuple[Tensor, Tensor]:
-        tra_state = self.net.training
         img.requires_grad = True
         self.net.zero_grad()
         pred = self.net(img)
         loss = criterion(pred, gt.squeeze(1))
         loss.backward()
         adv_img, noise = self.adversarial_fgsm(img, img.grad, epsilon=self.eplision)
-        if tra_state is True:
-            self.net.train()
         self.net.zero_grad()
         return adv_img.detach(), noise.detach()
 

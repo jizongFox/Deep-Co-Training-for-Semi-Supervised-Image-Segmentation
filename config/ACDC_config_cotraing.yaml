@@ -33,7 +33,7 @@ Lab_Dataloader:
 Lab_Partitions:
   num_models: 2
   partition_sets: 0.2
-  partition_overlap: 0.5
+  partition_overlap: 1
 
 Unlab_Dataloader:
   pin_memory: False
@@ -54,7 +54,7 @@ Cot_Scheduler:
   name: RampScheduler
   begin_epoch: 10
   max_epoch: 80
-  max_value: 0.5
+  max_value: 5
   ramp_mult: -5
 
 Adv_Scheduler:
@@ -65,7 +65,7 @@ Adv_Scheduler:
   ramp_mult: -5
 
 Adv_Training:
-  eplision:  0.03
+  eplision:  0.05
 
 Loss:
   name: cross_entropy

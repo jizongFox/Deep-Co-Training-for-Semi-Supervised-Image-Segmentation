@@ -29,7 +29,7 @@ class KappaMetrics(Metric):
         self.kappa = []
 
     def value(self):
-        return np.nanmean(torch.Tensor(self.kappa).numpy(),0)
+        return torch.from_numpy(np.nanmean(torch.Tensor(self.kappa).numpy(),0)).float()
 
     def summary(self):
         return {f'kappa{i}': self.value()[i].item() for i in range(len(self.value()))}

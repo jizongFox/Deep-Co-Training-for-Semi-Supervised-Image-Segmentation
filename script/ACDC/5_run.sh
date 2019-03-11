@@ -11,7 +11,7 @@ source ./utils.sh
 
 bash 5_multiple_views.sh $logdir FS $num_models $max_epoch
 bash 5_multiple_views.sh $logdir PS $num_models $max_epoch
-bash 5_multiple_views.sh $logdir ADV $num_models $max_epoch
+#bash 5_multiple_views.sh $logdir ADV $num_models $max_epoch
 bash 5_multiple_views.sh $logdir JSD $num_models $max_epoch
 bash 5_multiple_views.sh $logdir JSD_ADV $num_models $max_epoch
 wait_script

@@ -274,7 +274,7 @@ def TensorAugment(img_list):
         img_list = [np.flip(img,axis=2) for img in img_list]
     if random.random() > 0.5:
         angle = random.random() * 90 - 45
-        img_list = [rotate(img, axes=(1, 2), angle=angle,reshape=False,mode='constant',prefilter=True,order=4) for img in img_list]
+        img_list = [rotate(img, axes=(1, 2), angle=angle, reshape=False, mode='constant', prefilter=True, order=4) for img in img_list]
     if random.random() > 0.5:
         (w, h) = img_list[0][0].shape
         crop = random.uniform(0.85, 0.95)
