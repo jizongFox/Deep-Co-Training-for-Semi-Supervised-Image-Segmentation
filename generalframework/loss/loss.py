@@ -42,6 +42,8 @@ class MSE_2D(nn.Module):
         self.loss = nn.MSELoss()
 
     def forward(self, input, target):
+        assert input.shape == target.shape
+        warnings.warn('This function is only implemneted for binary class and have impact on class=1')
         prob = F.softmax(input, dim=1)[:, 1].squeeze()
         target = target.squeeze()
         assert prob.shape == target.shape
@@ -72,12 +74,11 @@ class JSD_2D(nn.Module):
         self.entropy = Entropy_2D()
 
     def forward(self, input: List[torch.Tensor]):
-        # assert self.C == input.__len__()
         for inprob in input:
             assert simplex(inprob, 1)
         mean_prob = reduce(lambda x, y: x + y, input) / len(input)
         f_term = self.entropy(mean_prob)
-        mean_entropy = sum(list(map(lambda x,: self.entropy(x), input))) / len(input)
+        mean_entropy = sum(list(map(lambda x: self.entropy(x), input))) / len(input)
         assert f_term.shape == mean_entropy.shape
         return f_term - mean_entropy
 
@@ -125,9 +126,9 @@ class KL_Divergence_2D_Logit(nn.Module):
         # assert simplex(p_prob, 1)
         # assert simplex(y_prob, 1)
 
-        logp = F.log_softmax(p_logit,1)
-        logy = F.log_softmax(y_logit,1)
-        y_prob = F.softmax(y_logit,1)
+        logp = F.log_softmax(p_logit, 1)
+        logy = F.log_softmax(y_logit, 1)
+        y_prob = F.softmax(y_logit, 1)
 
         ylogy = (y_prob * logy).sum(dim=1)
         ylogp = (y_prob * logp).sum(dim=1)

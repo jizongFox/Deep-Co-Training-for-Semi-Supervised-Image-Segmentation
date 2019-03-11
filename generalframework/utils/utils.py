@@ -208,7 +208,7 @@ def probs2one_hot(probs: Tensor) -> Tensor:
 
 def predlogit2one_hot(logit: Tensor) -> Tensor:
     _, C, _, _ = logit.shape
-    probs = F.softmax(logit,1)
+    probs = F.softmax(logit, 1)
     assert simplex(probs)
     res = class2one_hot(probs2class(probs), C)
     assert res.shape == probs.shape
@@ -234,7 +234,7 @@ dice_coef = partial(meta_dice, "bcwh->bc")
 dice_batch = partial(meta_dice, "bcwh->c")  # used for 3d dice
 
 
-def save_images(segs: Tensor, names: Iterable[str], root: Union[str,Path], mode: str, iter: int, seg_num=None) -> None:
+def save_images(segs: Tensor, names: Iterable[str], root: Union[str, Path], mode: str, iter: int, seg_num=None) -> None:
     (b, w, h) = segs.shape  # type: Tuple[int, int,int] # Since we have the class numbers, we do not need a C axis
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', category=UserWarning)
@@ -255,13 +255,23 @@ class iterator_(object):
         super().__init__()
         self.dataloader = dataloader
         self.iter_dataloader = iter(dataloader)
+        self.cache = None
 
     def __next__(self):
         try:
-            return self.iter_dataloader.__next__()
+            self.cache = self.iter_dataloader.__next__()
+            return self.cache
         except:
             self.iter_dataloader = iter(self.dataloader)
-            return self.iter_dataloader.__next__()
+            self.cache = self.iter_dataloader.__next__()
+            return self.cache
+
+    def __cache__(self):
+        if self.cache is not None:
+            return self.cache
+        else:
+            warnings.warn('No cache found, iterator forward')
+            return self.__next__()
 
 
 # argparser
