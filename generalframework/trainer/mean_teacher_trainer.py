@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from generalframework.models import Segmentator
 from .trainer import Trainer
 from .. import ModelMode
-from ..dataset.augment import TensorAugment, temporary_seed
+from ..dataset.augment import temporary_seed, TensorAugment_4_dim
 from ..metrics2 import DiceMeter, AggragatedMeter, AverageValueMeter, ListAggregatedMeter
 from ..utils import tqdm_, iterator_, flatten_dict
 from ..scheduler import *
@@ -32,7 +32,7 @@ class MeanTeacherTrainer(Trainer):
                  save_dir: str = 'tmp',
                  device: str = 'cuda:0',
                  axises: List[int] = [1, 2, 3],
-                 cot_scheduler_dict:dict = {},
+                 cot_scheduler_dict: dict = {},
                  checkpoint: str = None,
                  metricname: str = 'metrics.csv',
                  whole_config=None
@@ -64,7 +64,7 @@ class MeanTeacherTrainer(Trainer):
 
         self.to(self.device)
 
-        self.cot_scheduler:RampScheduler = eval(cot_scheduler_dict['name'])(
+        self.cot_scheduler: RampScheduler = eval(cot_scheduler_dict['name'])(
             **{k: v for k, v in cot_scheduler_dict.items() if k != 'name'})
 
     def to(self, device):
@@ -165,15 +165,16 @@ class MeanTeacherTrainer(Trainer):
             with torch.no_grad():
                 t_preds = self.teacher.predict(o_img, logit=False)
             teacher_cDice.add(t_preds, o_gt)
-            img_lists, seed = zip(t_preds.detach()), map(eval, str_seed)
+            pred_lists, seed = zip(t_preds.detach()), map(eval, str_seed)
             t_preds_aug = []
-            for i, (t_pred, seed) in enumerate(zip(img_lists, seed)):
+            for i, (t_pred, seed) in enumerate(zip(pred_lists, seed)):
                 with temporary_seed(*seed):
-                    t_preds_aug.append(TensorAugment(t_pred)[0])
+                    t_preds_aug.append(TensorAugment_4_dim(t_pred)[0])
             t_preds_aug = torch.Tensor(t_preds_aug).float().to(self.device)
-            assert s_preds.shape == t_preds_aug.shape
-            con_loss1 = self.criterions.get('con')(s_preds, t_preds_aug.detach())
 
+            assert s_preds.shape == t_preds_aug.shape
+
+            con_loss1 = self.criterions.get('con')(s_preds, t_preds_aug.detach())
             ((img, _), ((o_img, _), str_seed), filenames) = fake_unlabel_iter.__next__()
             img, o_img = img.to(self.device), o_img.to(self.device)
             s_preds = self.student.predict(img, logit=False)
@@ -183,8 +184,27 @@ class MeanTeacherTrainer(Trainer):
             t_preds_aug = []
             for i, (t_pred, seed) in enumerate(zip(img_lists, seed)):
                 with temporary_seed(*seed):
-                    t_preds_aug.append(TensorAugment(t_pred)[0])
+                    t_preds_aug.append(TensorAugment_4_dim(t_pred)[0])
             t_preds_aug = torch.Tensor(t_preds_aug).float().to(self.device)
+
+            #
+            # import matplotlib.pyplot as plt
+            #
+            # plt.figure(1)
+            # plt.clf()
+            # plt.title('augmented image and original image')
+            # plt.subplot(121)
+            # plt.imshow(img[0].squeeze().cpu())
+            # plt.subplot(122)
+            # plt.imshow(o_img[0].squeeze().cpu())
+            #
+            # plt.subplot(121)
+            # plt.imshow(t_preds_aug.max(1)[1][0].squeeze().cpu(),alpha=0.5)
+            # plt.subplot(122)
+            # plt.imshow(t_preds.max(1)[1][0].squeeze().cpu(),alpha=0.5)
+            # plt.show()
+            # plt.pause(0.5)
+
             con_loss2 = self.criterions.get('con')(s_preds, t_preds_aug)
             total_loss = sup_loss + self.cot_scheduler.value * (con_loss1 + con_loss2)
             total_loss_meter.add(total_loss.item())

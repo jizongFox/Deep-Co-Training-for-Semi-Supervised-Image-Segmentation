@@ -3,7 +3,7 @@ from typing import List, Union, Dict
 import re
 from copy import deepcopy as dcopy
 from . import MedicalImageDataset
-from .augment import segment_transform, PILaugment
+from .augment import segment_transform, PILaugment, TensorAugment_2_dim
 import numpy as np
 from pathlib import Path
 from functools import reduce
