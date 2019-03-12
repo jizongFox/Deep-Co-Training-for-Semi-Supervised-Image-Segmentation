@@ -6,30 +6,26 @@ gitcommit_number=${gitcommit_number:0:8}
 
 la_ratio=$1
 max_epoch=$2
-step_size=$3
-
 overlap_ratio=1
-
 
 source utils.sh
 logdir="cardiac/task1_labeled_unlabeled_ratio_${la_ratio}"
 
-bash 1_labeled_unlabeled_ratio.sh $logdir FS $max_epoch $la_ratio $overlap_ratio $step_size &
+bash 1_labeled_unlabeled_ratio.sh $logdir FS $max_epoch $la_ratio $overlap_ratio  &
 
-bash 1_labeled_unlabeled_ratio.sh $logdir JSD_ADV $max_epoch $la_ratio $overlap_ratio $step_size &
-
-wait_script
-
-bash 1_labeled_unlabeled_ratio.sh $logdir PS $max_epoch $la_ratio $overlap_ratio $step_size &
+bash 1_labeled_unlabeled_ratio.sh $logdir JSD_ADV $max_epoch $la_ratio $overlap_ratio &
 
 wait_script
 
-bash 1_labeled_unlabeled_ratio.sh $logdir ADV $max_epoch $la_ratio $overlap_ratio $step_size &
-
-bash 1_labeled_unlabeled_ratio.sh $logdir JSD $max_epoch $la_ratio $overlap_ratio $step_size &
+bash 1_labeled_unlabeled_ratio.sh $logdir PS $max_epoch $la_ratio $overlap_ratio  &
 
 wait_script
 
+bash 1_labeled_unlabeled_ratio.sh $logdir ADV $max_epoch $la_ratio $overlap_ratio &
+
+bash 1_labeled_unlabeled_ratio.sh $logdir JSD $max_epoch $la_ratio $overlap_ratio &
+
+wait_script
 cd ../..
 python generalframework/postprocessing/report.py --folder=archives/$logdir/ --file=summary.csv
 

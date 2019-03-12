@@ -148,7 +148,7 @@ mkdir -p runs/${logdir}
 group1(){
 FS 0 &
 PS 0 &
-JSD 0 0 10 80 10 0.5 80
+JSD 0 0 0.5 80 0 0 100
 }
 
 group2(){

@@ -34,6 +34,7 @@ def get_models(config):
         return [Segmentator(arch_dict=config['Arch'], optim_dict=config['Optim'], scheduler_dict=config['Scheduler'])
                 for _ in range(num_models)]
 
+
 segmentators = get_models(config)
 
 with warnings.catch_warnings():

@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 set -e
-cd ..
 time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
-max_peoch=100
-data_aug=None
+max_peoch=120
+data_aug=PILaugment
 net=enet
-logdir=cardiac/$net"_refactor_test"
-tqdm=False
+logdir=cardiac/$net"_table1"
+tqdm=True
 
 source utils.sh
 Summary(){
@@ -26,7 +25,7 @@ rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,101],[1,101]]" \
+Lab_Partitions.partition_sets=1 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Trainer.use_tqdm=$tqdm
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
@@ -40,7 +39,7 @@ rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
+Lab_Partitions.partition_sets=0.2 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Trainer.use_tqdm=$tqdm
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
@@ -55,7 +54,7 @@ rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
+Lab_Partitions.partition_sets=0.2 Lab_Partitions.partition_overlap=1  \
 Arch.name=$net Trainer.use_tqdm=$tqdm
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
@@ -69,7 +68,7 @@ rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=True \
-Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
+Lab_Partitions.partition_sets=0.2 Lab_Partitions.partition_overlap=1  \
 Arch.name=$net Trainer.use_tqdm=$tqdm
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
@@ -83,7 +82,7 @@ rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=False \
-Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
+Lab_Partitions.partition_sets=0.2 Lab_Partitions.partition_overlap=1  \
 Arch.name=$net Trainer.use_tqdm=$tqdm
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
@@ -97,26 +96,27 @@ rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=True \
-Lab_Partitions.label="[[1,61],[1,61]]" Lab_Partitions.unlabel="[61,101]" \
+Lab_Partitions.partition_sets=0.2 Lab_Partitions.partition_overlap=1  \
 Arch.name=$net Trainer.use_tqdm=$tqdm
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
 }
 
+cd ../..
 
-rm -rf archives/$logdir
+#rm -rf archives/$logdir
 mkdir -p archives/$logdir
-rm -rf runs/$logdir
+#rm -rf runs/$logdir
 mkdir -p runs/$logdir
 
 
 FS 0 &
 Partial 0 &
-JSD 0
 wait_script
-
 ADV 0 &
+JSD 0 &
+wait_script
 JSD_ADV 0 &
 wait_script
 

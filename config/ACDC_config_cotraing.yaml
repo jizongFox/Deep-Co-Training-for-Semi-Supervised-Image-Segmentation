@@ -7,10 +7,9 @@ Optim:
   lr: 0.001
   weight_decay: 0.0001
 
-
 Scheduler:
   name: StepLR
-  step_size: 90
+  step_size: 30
   gamma: 0.1
 
 
@@ -43,7 +42,7 @@ Unlab_Dataloader:
   drop_last: True
 
 Trainer:
-  max_epoch: 300
+  max_epoch: 120
   save_dir: tmp/ACDC_cotraining
   device: cuda:0
   axises: [1,2,3]
@@ -52,20 +51,20 @@ Trainer:
 
 Cot_Scheduler:
   name: RampScheduler
-  begin_epoch: 10
-  max_epoch: 80
-  max_value: 5
+  begin_epoch: 0
+  max_epoch: 50
+  max_value: 0.5
   ramp_mult: -5
 
 Adv_Scheduler:
   name: RampScheduler
-  begin_epoch: 10
-  max_epoch: 150
-  max_value: 0.5
+  begin_epoch: 20
+  max_epoch: 50
+  max_value: 0.05
   ramp_mult: -5
 
 Adv_Training:
-  eplision:  0.05
+  eplision:  0.03
 
 Loss:
   name: cross_entropy

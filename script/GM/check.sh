@@ -134,11 +134,14 @@ mkdir -p runs/$logdir
 
 
 JSD_ADV $gpu &
-FS $gpu &
+wait_script
 
+FS $gpu &
 wait_script
 
 ADV $gpu &
+wait_script
+
 JSD $gpu &
 wait_script
 

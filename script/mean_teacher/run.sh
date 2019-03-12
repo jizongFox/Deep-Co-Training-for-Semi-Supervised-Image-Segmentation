@@ -34,5 +34,5 @@ wrapper_GM(){
      --mail-type=ALL   \
      run_mean_teacher_GM.sh
 }
-wrapper_ACDC 36
-wrapper_GM 36
+wrapper_ACDC 20
+wrapper_GM 20

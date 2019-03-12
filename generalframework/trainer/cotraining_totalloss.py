@@ -186,7 +186,8 @@ class CoTrainer(Trainer):
 
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
         # Here the concept of epoch is defined as the epoch
-        n_batch = max(map_(len, self.labeled_dataloaders))
+        # n_batch = max(map_(len, self.labeled_dataloaders))
+        n_batch = 200
         S = len(self.segmentators)
 
         # build fake_iterator

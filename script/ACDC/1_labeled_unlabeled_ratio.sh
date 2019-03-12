@@ -6,12 +6,11 @@ received_com=$2
 max_peoch=$3
 labeled_unlabeled_ratio=$4
 partiton_overlap=$5
-step_size=$6
-echo "step_size: ${step_size}"
-data_aug=None
+
+data_aug=PILaugment
 net=enet
 tqdm=False
-random_seed=2
+random_seed=1234
 echo "random seed: ${random_seed}"
 source utils.sh
 cd ../..
@@ -49,7 +48,7 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
 Lab_Partitions.partition_sets=$labeled_unlabeled_ratio Lab_Partitions.partition_overlap=$partiton_overlap \
-Arch.name=$net Trainer.use_tqdm=$tqdm Seed=$random_seed Scheduler.step_size=$step_size
+Arch.name=$net Trainer.use_tqdm=$tqdm Seed=$random_seed
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -65,7 +64,7 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=True \
 Lab_Partitions.partition_sets=$labeled_unlabeled_ratio Lab_Partitions.partition_overlap=$partiton_overlap \
-Arch.name=$net Trainer.use_tqdm=$tqdm Seed=$random_seed Scheduler.step_size=$step_size
+Arch.name=$net Trainer.use_tqdm=$tqdm Seed=$random_seed
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -81,7 +80,7 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=False \
 Lab_Partitions.partition_sets=$labeled_unlabeled_ratio Lab_Partitions.partition_overlap=$partiton_overlap \
-Arch.name=$net Trainer.use_tqdm=$tqdm Seed=$random_seed Scheduler.step_size=$step_size
+Arch.name=$net Trainer.use_tqdm=$tqdm Seed=$random_seed
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -97,7 +96,7 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=True \
 Lab_Partitions.partition_sets=$labeled_unlabeled_ratio Lab_Partitions.partition_overlap=$partiton_overlap \
-Arch.name=$net Trainer.use_tqdm=$tqdm Seed=$random_seed Scheduler.step_size=$step_size
+Arch.name=$net Trainer.use_tqdm=$tqdm Seed=$random_seed 
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
