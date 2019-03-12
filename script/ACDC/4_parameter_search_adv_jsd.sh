@@ -33,7 +33,7 @@ gpu=$1
 currentfoldername=FS
 rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
-Trainer.max_epoch=150 Dataset.augment=$data_aug \
+Trainer.max_epoch=120 Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
 Lab_Partitions.partition_sets=1 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Trainer.use_tqdm=False Seed=${random_seed}
@@ -148,22 +148,37 @@ mkdir -p runs/${logdir}
 group1(){
 FS 0 &
 PS 0 &
-JSD 0 0 0.5 80 0 0 100
+JSD 0 0 0.5 80 0 0 80
 }
 
 group2(){
-JSD_ADV 0 0 0.5 80 30 0.001 100 &
-JSD_ADV 0 0 0.5 80 30 0.005 100
-}
+JSD_ADV 0 0 0.5 80 30 0.001 80 &
+ADV 0 0 0.5 80 30 0.001 80 &
 
+}
 group3(){
-JSD_ADV 0 0 0.5 80 30 0.01 100 &
-JSD_ADV 0 0 0.5 80 30 0.05 100
+JSD_ADV 0 0 0.5 80 30 0.005 80 &
+ADV 0 0 0.5 80 30 0.005 80 &
 }
 
 group4(){
-JSD_ADV 0 0 0.5 80 30 0.1 100 &
-JSD_ADV 0 0 0.5 80 30 0.5 100
+JSD_ADV 0 0 0.5 80 30 0.01 80 &
+ADV 0 0 0.5 80 30 0.01 80 &
+}
+
+group5(){
+JSD_ADV 0 0 0.5 80 30 0.05 80 &
+ADV 0 0 0.5 80 30 0.05 80 &
+}
+
+group6(){
+JSD_ADV 0 0 0.5 80 30 0.1 80 &
+ADV 0 0 0.5 80 30 0.1 80 &
+}
+
+group7(){
+JSD_ADV 0 0 0.5 80 30 0.5 80 &
+ADV 0 0 0.5 80 30 0.5 80 &
 }
 
 
