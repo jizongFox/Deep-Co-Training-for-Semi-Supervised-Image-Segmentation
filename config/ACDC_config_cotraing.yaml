@@ -22,7 +22,7 @@ Dataset:
 
 Lab_Dataloader:
   pin_memory: False
-  batch_size: 4
+  batch_size: 2
   num_workers: 4
   shuffle: True
   drop_last: True
@@ -36,7 +36,7 @@ Lab_Partitions:
 
 Unlab_Dataloader:
   pin_memory: False
-  batch_size: 4
+  batch_size: 2
   num_workers: 4
   shuffle: True
   drop_last: True

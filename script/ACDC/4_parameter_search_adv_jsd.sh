@@ -10,7 +10,7 @@ gitcommit_number=${gitcommit_number:0:8}
 data_aug=PILaugment
 net=enet
 logdir=cardiac/${net}"_search_"${groupname}
-random_seed=1
+random_seed=1234
 echo "Experiment Summary:"
 echo "Group name to run: "${groupname}
 echo "Net:: "${net}
@@ -33,7 +33,7 @@ gpu=$1
 currentfoldername=FS
 rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
-Trainer.max_epoch=120 Dataset.augment=$data_aug \
+Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
 Lab_Partitions.partition_sets=1 Lab_Partitions.partition_overlap=1 \
 Arch.name=$net Trainer.use_tqdm=False Seed=${random_seed}

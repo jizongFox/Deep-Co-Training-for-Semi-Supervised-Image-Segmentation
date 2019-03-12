@@ -1,21 +1,14 @@
 #!/usr/bin/env bash
-groupname=$1
-max_epoch=$2
-
+seed=$1
 set -e
 time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
-data_aug=PILaugment
-net=enet
-logdir=cardiac/${net}"_search_"${groupname}
-random_seed=1
+
+logdir=cardiac/$"Detailedresultsforoneparameteronconfig"
+
 echo "Experiment Summary:"
-echo "Group name to run: "${groupname}
-echo "Net:: "${net}
-echo "Save dir: ${logdir}"
-echo "randon seed:${random_seed}"
 source utils.sh
 
 
@@ -33,10 +26,9 @@ gpu=$1
 currentfoldername=FS
 rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
-Trainer.max_epoch=150 Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
 Lab_Partitions.partition_sets=1 Lab_Partitions.partition_overlap=1 \
-Arch.name=$net Trainer.use_tqdm=False Seed=${random_seed}
+Trainer.use_tqdm=False Seed=${seed}
 Summary ${currentfoldername} $gpu
 rm -rf archives/${logdir}/${currentfoldername}
 mv -f runs/${logdir}/${currentfoldername} archives/${logdir}
@@ -48,10 +40,8 @@ gpu=$1
 currentfoldername=PS
 rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
-Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
-Lab_Partitions.partition_sets=0.2 Lab_Partitions.partition_overlap=1 \
-Arch.name=$net Trainer.use_tqdm=False Seed=${random_seed}
+Trainer.use_tqdm=False Seed=${seed}
 Summary ${currentfoldername} $gpu
 rm -rf archives/${logdir}/${currentfoldername}
 mv -f runs/${logdir}/${currentfoldername} archives/${logdir}
@@ -60,25 +50,11 @@ mv -f runs/${logdir}/${currentfoldername} archives/${logdir}
 JSD(){
 set -e
 gpu=$1
-Cot_beg_epoch=$2
-Cot_max_value=$3
-Cot_max_epoch=$4
-Adv_beg_epoch=$5
-Adv_max_value=$6
-Adv_max_epoch=$7
-currentfoldername="JSD_${Cot_max_value}_${Cot_max_epoch}_${Cot_beg_epoch}"
-ramp_mult=-5
+currentfoldername="JSD"
 rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
-Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=True \
-Lab_Partitions.partition_sets=0.2 Lab_Partitions.partition_overlap=1 \
-Arch.name=$net \
-Cot_Scheduler.begin_epoch=$Cot_beg_epoch Cot_Scheduler.max_epoch=$Cot_max_epoch Cot_Scheduler.max_value=$Cot_max_value \
-Cot_Scheduler.ramp_mult=$ramp_mult \
-Adv_Scheduler.begin_epoch=$Adv_beg_epoch Adv_Scheduler.max_epoch=$Adv_max_epoch Adv_Scheduler.max_value=$Adv_max_value \
-Adv_Scheduler.ramp_mult=$ramp_mult \
-Trainer.use_tqdm=False Seed=${random_seed}
+Trainer.use_tqdm=False Seed=${seed}
 Summary ${currentfoldername} ${gpu}
 rm -rf archives/${logdir}/${currentfoldername}
 mv -f runs/${logdir}/${currentfoldername} archives/${logdir}
@@ -88,25 +64,11 @@ mv -f runs/${logdir}/${currentfoldername} archives/${logdir}
 ADV(){
 set -e
 gpu=$1
-Cot_beg_epoch=$2
-Cot_max_value=$3
-Cot_max_epoch=$4
-Adv_beg_epoch=$5
-Adv_max_value=$6
-Adv_max_epoch=$7
-currentfoldername="ADV_${Cot_max_value}_${Cot_max_epoch}_${Cot_beg_epoch}_${Adv_max_value}_${Adv_max_epoch}_${Adv_beg_epoch}"
-ramp_mult=-5
+currentfoldername="ADV"
 rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
-Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=False \
-Lab_Partitions.partition_sets=0.2 Lab_Partitions.partition_overlap=1 \
-Arch.name=$net \
-Cot_Scheduler.begin_epoch=$Cot_beg_epoch Cot_Scheduler.max_epoch=$Cot_max_epoch Cot_Scheduler.max_value=$Cot_max_value \
-Cot_Scheduler.ramp_mult=$ramp_mult \
-Adv_Scheduler.begin_epoch=$Adv_beg_epoch Adv_Scheduler.max_epoch=$Adv_max_epoch Adv_Scheduler.max_value=$Adv_max_value \
-Adv_Scheduler.ramp_mult=$ramp_mult \
-Trainer.use_tqdm=False Seed=${random_seed}
+Trainer.use_tqdm=False Seed=${seed}
 Summary ${currentfoldername} $gpu
 rm -rf archives/${logdir}/${currentfoldername}
 mv -f runs/${logdir}/${currentfoldername} archives/${logdir}
@@ -116,25 +78,11 @@ mv -f runs/${logdir}/${currentfoldername} archives/${logdir}
 JSD_ADV(){
 set -e
 gpu=$1
-Cot_beg_epoch=$2
-Cot_max_value=$3
-Cot_max_epoch=$4
-Adv_beg_epoch=$5
-Adv_max_value=$6
-Adv_max_epoch=$7
-currentfoldername="JSDADV_${Cot_max_value}_${Cot_max_epoch}_${Cot_beg_epoch}_${Adv_max_value}_${Adv_max_epoch}_${Adv_beg_epoch}"
-ramp_mult=-5
+currentfoldername="JSD_ADV"
 rm -rf runs/${logdir}/${currentfoldername}
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/${logdir}/${currentfoldername} \
-Trainer.max_epoch=$max_epoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=True \
-Lab_Partitions.partition_sets=0.2 Lab_Partitions.partition_overlap=1 \
-Arch.name=$net \
-Cot_Scheduler.begin_epoch=$Cot_beg_epoch Cot_Scheduler.max_epoch=$Cot_max_epoch Cot_Scheduler.max_value=$Cot_max_value \
-Cot_Scheduler.ramp_mult=$ramp_mult \
-Adv_Scheduler.begin_epoch=$Adv_beg_epoch Adv_Scheduler.max_epoch=$Adv_max_epoch Adv_Scheduler.max_value=$Adv_max_value \
-Adv_Scheduler.ramp_mult=$ramp_mult \
-Trainer.use_tqdm=False Seed=${random_seed}
+Trainer.use_tqdm=False Seed=${seed}
 Summary ${currentfoldername} $gpu
 rm -rf archives/${logdir}/${currentfoldername}
 mv -f runs/${logdir}/${currentfoldername} archives/${logdir}
@@ -145,32 +93,16 @@ cd ../..
 mkdir -p archives/${logdir}
 mkdir -p runs/${logdir}
 
-group1(){
 FS 0 &
+
 PS 0 &
-JSD 0 0 0.5 80 0 0 100
-}
 
-group2(){
-JSD_ADV 0 0 0.5 80 30 0.001 100 &
-JSD_ADV 0 0 0.5 80 30 0.005 100
-}
+JSD 0 &
 
-group3(){
-JSD_ADV 0 0 0.5 80 30 0.01 100 &
-JSD_ADV 0 0 0.5 80 30 0.05 100
-}
+JSD_ADV 0 &
 
-group4(){
-JSD_ADV 0 0 0.5 80 30 0.1 100 &
-JSD_ADV 0 0 0.5 80 30 0.5 100
-}
+ADV 0 &
 
-
-
-## execute
-echo $groupname
-$groupname
 wait_script
 
 

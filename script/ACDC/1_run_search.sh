@@ -12,7 +12,7 @@ wrapper(){
      --nodes=1  \
      --gres=gpu:1 \
      --cpus-per-task=6  \
-     --mem=32000M \
+     --mem=16000M \
      --time=0-${hour}:00 \
      --account=def-chdesa \
      --mail-user=jizong.peng.1@etsmtl.net \
@@ -20,15 +20,15 @@ wrapper(){
      1_run.sh  $la_ratio $max_epoch
 }
 
-#wrapper 0.1  120 48
+#wrapper 0.1 120 48
 
 wrapper 0.2 120 48
 
-#wrapper 0.3  120 48
+#wrapper 0.3 120 48
 
 wrapper 0.4 120 48
 
-#wrapper 0.5  120 48
+#wrapper 0.5 120 48
 
 wrapper 0.6 120 48
 
