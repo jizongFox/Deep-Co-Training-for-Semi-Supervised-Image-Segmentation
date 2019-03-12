@@ -18,12 +18,12 @@ bash 1_labeled_unlabeled_ratio.sh $logdir JSD_ADV $max_epoch $la_ratio $overlap_
 wait_script
 
 bash 1_labeled_unlabeled_ratio.sh $logdir PS $max_epoch $la_ratio $overlap_ratio  &
+bash 1_labeled_unlabeled_ratio.sh $logdir JSD $max_epoch $la_ratio $overlap_ratio &
 
 wait_script
-
 bash 1_labeled_unlabeled_ratio.sh $logdir ADV $max_epoch $la_ratio $overlap_ratio &
 
-bash 1_labeled_unlabeled_ratio.sh $logdir JSD $max_epoch $la_ratio $overlap_ratio &
+
 
 wait_script
 cd ../..

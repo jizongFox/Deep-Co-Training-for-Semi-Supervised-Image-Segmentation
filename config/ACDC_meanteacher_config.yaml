@@ -2,7 +2,7 @@ Arch:
   name: enet
   num_classes: 4
 Dataset:
-  augment: PILaugment
+  augment: TensorAugment_2_dim
   metainfo:
     - getImage_GT
     - foldernames:
@@ -18,7 +18,7 @@ Trainer:
   max_epoch: 300
   save_dir: runs/ACDC_meanteacher
   device: cuda:0
-  axises: [1,2,3]
+  axises: [0,1,2,3]
   metricname: metrics.csv
 
 Lab_Dataloader:
@@ -36,7 +36,7 @@ Lab_Partitions:
 
 Optim:
   name: Adam
-  lr: 0.001
+  lr: 0.0005
   weight_decay: 0.0001
 
 Scheduler:

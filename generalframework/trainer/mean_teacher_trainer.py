@@ -148,8 +148,8 @@ class MeanTeacherTrainer(Trainer):
         fake_unlabel_iter = iterator_(unlabeled_dataloader)
         dataloader_ = tqdm_(labeled_dataloader)
 
-        student_cDice = DiceMeter(method='2d', report_axises=self.axises, C=4)
-        teacher_cDice = DiceMeter(method='2d', report_axises=self.axises, C=4)
+        student_cDice = DiceMeter(method='2d', report_axises=self.axises, C=self.C)
+        teacher_cDice = DiceMeter(method='2d', report_axises=self.axises, C=self.C)
         student_sup_loss_meter = AverageValueMeter()
         total_loss_meter = AverageValueMeter()
 
@@ -173,7 +173,6 @@ class MeanTeacherTrainer(Trainer):
             t_preds_aug = torch.Tensor(t_preds_aug).float().to(self.device)
 
             assert s_preds.shape == t_preds_aug.shape
-
 
             con_loss1 = self.criterions.get('con')(s_preds, t_preds_aug.detach())
             ((img, _), ((o_img, _), str_seed), filenames) = fake_unlabel_iter.__next__()
@@ -206,7 +205,6 @@ class MeanTeacherTrainer(Trainer):
             # plt.imshow(t_preds.max(1)[1][0].squeeze().cpu(),alpha=0.5)
             # plt.show()
             # plt.pause(0.5)
-
 
             con_loss2 = self.criterions.get('con')(s_preds, t_preds_aug)
             total_loss = sup_loss + self.cot_scheduler.value * (con_loss1 + con_loss2)

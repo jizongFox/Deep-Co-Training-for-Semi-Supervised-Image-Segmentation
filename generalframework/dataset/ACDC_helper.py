@@ -9,7 +9,7 @@ from typing import Any, Callable, BinaryIO, Dict, List, Match, Pattern, Tuple, U
 from torch.utils.data import DataLoader, Sampler
 from copy import deepcopy as dcopy
 from . import MedicalImageDataset
-from .augment import segment_transform, PILaugment
+from .augment import segment_transform, PILaugment,TensorAugment_2_dim
 from ..utils import export
 
 A = TypeVar("A")
