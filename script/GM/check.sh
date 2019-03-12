@@ -7,7 +7,7 @@ time=$(date +'%m%d_%H:%M')
 gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
-max_peoch=200
+max_peoch=120
 data_aug=PILaugment
 net=enet
 logdir=GM/weight_search/$net"_adv_weigth_check${adv_weight}"
@@ -134,14 +134,10 @@ mkdir -p runs/$logdir
 
 
 JSD_ADV $gpu &
-wait_script
-
 FS $gpu &
 wait_script
 
 ADV $gpu &
-wait_script
-
 JSD $gpu &
 wait_script
 
