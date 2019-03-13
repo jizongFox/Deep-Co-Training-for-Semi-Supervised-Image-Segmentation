@@ -8,7 +8,7 @@ wrapper(){
     module load python/3.6
     source $HOME/torchenv36/bin/activate
     module load scipy-stack
-    sbatch  --job-name="getting detailed results" \
+    sbatch  --job-name="getting detailed results: seed:${seed}" \
      --nodes=1  \
      --gres=gpu:1 \
      --cpus-per-task=6  \
@@ -20,5 +20,6 @@ wrapper(){
     ACDC_sanity_check.sh $seed
 }
 
-wrapper 1234 1
-wrapper 1235 1
+wrapper 1234 12
+wrapper 1235 12
+wrapper 1236 12

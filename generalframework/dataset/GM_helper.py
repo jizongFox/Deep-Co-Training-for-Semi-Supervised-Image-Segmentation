@@ -45,8 +45,8 @@ def get_GMC_split_dataloders(config):
 
     gm_dataloader = get_GM_dataloaders(config['Dataset'], config['Unlab_Dataloader'], quite=True)
     lab_dataloader, unlabeled_dataloader = gm_dataloader['train'], gm_dataloader['unlabeled']
-    val_dataloader = extract_patients_gmc(lab_dataloader, site_id=[1, 2])
-    train_dataloader = extract_patients_gmc(lab_dataloader, site_id=[3, 4])
+    val_dataloader = extract_patients_gmc(lab_dataloader, site_id=[3, 4])
+    train_dataloader = extract_patients_gmc(lab_dataloader, site_id=[1])
     print('-> Building dataloaders:\n'
           'train_image_num:', train_dataloader.dataset.__len__(),
           ' unlab_image_num:', unlabeled_dataloader.dataset.__len__(),

@@ -1,4 +1,4 @@
-from .loss import CrossEntropyLoss2d, MSE_2D, PartialCrossEntropyLoss2d, JSD_2D, KL_Divergence_2D, Entropy_2D, KL_Divergence_2D_Logit
+from .loss import CrossEntropyLoss2d, MSE_2D, PartialCrossEntropyLoss2d, JSD_2D, KL_Divergence_2D, Entropy_2D, KL_Divergence_2D_Logit, Entropy, JSD, KL_div
 import numpy as np
 
 __all__ = ['get_loss_fn', 'enet_weighing']

@@ -41,7 +41,7 @@ class FSGMGenerator(object):
         noise = epsilon * sign_data_grad
         perturbed_image = image + noise
         # Adding clipping to maintain [0,1] range
-        perturbed_image = torch.clamp(perturbed_image, 0, 1)
+        # perturbed_image = torch.clamp(perturbed_image, 0, 1)
         # Return the perturbed image
         return perturbed_image.detach(), noise.detach()
 

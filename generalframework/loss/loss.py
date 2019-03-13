@@ -50,6 +50,23 @@ class MSE_2D(nn.Module):
         return self.loss(prob, target.float())
 
 
+class Entropy(nn.Module):
+    def __init__(self):
+        super().__init__()
+        '''
+        the definition of Entropy is - \sum p(xi) log (p(xi))
+        '''
+
+    def forward(self, input: torch.Tensor):
+        assert input.shape.__len__() >= 2
+        b, _, *s = input.shape
+        assert simplex(input)
+        e = input * (input + 1e-16).log()
+        e = -1.0 * e.sum(1)
+        assert e.shape == torch.Size([b, *s])
+        return e
+
+
 class Entropy_2D(nn.Module):
     def __init__(self):
         super().__init__()
@@ -67,20 +84,27 @@ class Entropy_2D(nn.Module):
         return e
 
 
-class JSD_2D(nn.Module):
-    def __init__(self):
+class KL_div(nn.Module):
+    '''
+    KL(p,q)= -\sum p(x) * log(q(x)/p(x))
+    where p, q are distributions
+    q is usually the fixed one like one hot coding
+    q is the target and p is the distribution to get approached.
+    '''
+    def __init__(self, reduce=True,eps=1e-10):
         super().__init__()
-        # self.C = num_probabilities
-        self.entropy = Entropy_2D()
+        self.eps = eps
+        self.reduce= reduce
 
-    def forward(self, input: List[torch.Tensor]):
-        for inprob in input:
-            assert simplex(inprob, 1)
-        mean_prob = reduce(lambda x, y: x + y, input) / len(input)
-        f_term = self.entropy(mean_prob)
-        mean_entropy = sum(list(map(lambda x: self.entropy(x), input))) / len(input)
-        assert f_term.shape == mean_entropy.shape
-        return f_term - mean_entropy
+    def forward(self, p, q, reduce=False):
+        assert p.shape == q.shape
+        assert simplex(p)
+        assert simplex(q)
+        b, _, *s = p.shape
+        kl = (- p * torch.log(q / p + self.eps)).sum(1)
+        if self.reduce:
+            return kl.mean()
+        return kl
 
 
 class KL_Divergence_2D(nn.Module):
@@ -136,3 +160,37 @@ class KL_Divergence_2D_Logit(nn.Module):
             return (ylogy - ylogp).mean()
         else:
             return ylogy - ylogp
+
+
+class JSD(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.entropy = Entropy()
+
+    def forward(self, input: List[torch.Tensor], reduce=True):
+        for inprob in input:
+            assert simplex(inprob, 1)
+        # mean_prob = reduce(lambda x, y: x + y, input) / len(input)
+        mean_prob = sum(input)/input.__len__()
+        f_term = self.entropy(mean_prob)
+        mean_entropy = sum(list(map(lambda x: self.entropy(x), input))) / len(input)
+        assert f_term.shape == mean_entropy.shape
+        if reduce:
+            return (f_term - mean_entropy).mean()
+        return f_term - mean_entropy
+
+
+class JSD_2D(nn.Module):
+    def __init__(self):
+        super().__init__()
+        # self.C = num_probabilities
+        self.entropy = Entropy_2D()
+
+    def forward(self, input: List[torch.Tensor]):
+        for inprob in input:
+            assert simplex(inprob, 1)
+        mean_prob = reduce(lambda x, y: x + y, input) / len(input)
+        f_term = self.entropy(mean_prob)
+        mean_entropy = sum(list(map(lambda x: self.entropy(x), input))) / len(input)
+        assert f_term.shape == mean_entropy.shape
+        return f_term - mean_entropy

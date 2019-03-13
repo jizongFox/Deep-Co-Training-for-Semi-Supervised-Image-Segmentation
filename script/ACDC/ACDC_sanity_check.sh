@@ -6,7 +6,7 @@ gitcommit_number=$(git rev-parse HEAD)
 gitcommit_number=${gitcommit_number:0:8}
 
 
-logdir=cardiac/$"Detailedresultsforoneparameteronconfig"
+logdir=cardiac/$"Detailedresultsforoneparameteronconfig_seed_${seed}"
 
 echo "Experiment Summary:"
 source utils.sh
