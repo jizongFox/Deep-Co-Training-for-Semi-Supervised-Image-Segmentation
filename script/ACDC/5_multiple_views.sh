@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 #!/usr/bin/env bash
-logir=$1
+logdir=$1
 received_com=$2
 num_model=$3
 max_peoch=$4
+gpu=$5
 data_aug=PILaugment
 net=enet
 tqdm=False
 la_ratio=0.2
 overlap_ratio=1
+echo $logdir
 
 
 source utils.sh
@@ -101,7 +103,7 @@ mkdir -p archives/$logdir
 mkdir -p runs/$logdir
 
 echo $received_com
-$received_com  0 &
+$received_com  $gpu &
 wait_script
 
 #python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \

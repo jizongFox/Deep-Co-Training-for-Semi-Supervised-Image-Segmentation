@@ -16,9 +16,14 @@ sbatch  --job-name=multipleview_${model_num} \
  --account=def-chdesa \
  --mail-user=jizong.peng.1@etsmtl.net \
  --mail-type=ALL   \
-5_run.sh $model_num $max_epoch
+5_run.sh $model_num $max_epoch 0
 
 }
-wrapper 2 150 48
-wrapper 3 150 56
-wrapper 4 150 72
+wrapper 2 150 1
+wrapper 3 150 1
+wrapper 4 150 1
+
+## for local computer
+bash 5_run.sh 2 120 1
+bash 5_run.sh 3 120 2
+bash 5_run.sh 4 120 3

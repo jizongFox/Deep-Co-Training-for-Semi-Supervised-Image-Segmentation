@@ -5,7 +5,9 @@ logdir=$1
 received_com=$2
 max_peoch=$3
 labeled_unlabeled_ratio=$4
-partiton_overlap=$5
+gpu_global=$5
+partiton_overlap=1
+
 
 data_aug=PILaugment
 net=enet
@@ -29,7 +31,7 @@ gpu=$1
 currentfoldername=FS
 rm -rf runs/$logdir/$currentfoldername
 CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/$logdir/$currentfoldername \
-Trainer.max_epoch=100 Dataset.augment=$data_aug \
+Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
 Lab_Partitions.partition_sets=1 Lab_Partitions.partition_overlap=$partiton_overlap \
 Arch.name=$net Trainer.use_tqdm=$tqdm Seed=$random_seed
@@ -103,7 +105,7 @@ mkdir -p archives/$logdir
 mkdir -p runs/$logdir
 
 echo $received_com
-$received_com 0
+$received_com $gpu_global
 
 
 #python generalframework/postprocessing/plot.py --folders archives/$logdir/FS/ \

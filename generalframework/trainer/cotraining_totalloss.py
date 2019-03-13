@@ -216,7 +216,7 @@ class CoTrainer(Trainer):
                     save_images(pred2class(pred), names=path, root=self.save_dir, mode='train', iter=epoch,
                                 seg_num=str(enu_lab))
                 supervisedLoss += sup_loss
-            if train_jsd and self.cot_scheduler.value > 0:
+            if train_jsd :
                 # for unlabeled data update
                 [[unlab_img, unlab_gt], _, path] = fake_unlabeled_iterator.__next__()
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
@@ -230,7 +230,7 @@ class CoTrainer(Trainer):
                     [save_images(probs2class(prob), names=path, root=self.save_dir, mode='unlab',
                                  iter=epoch, seg_num=str(i)) for i, prob in enumerate(unlab_preds)]
 
-            if train_adv and self.adv_scheduler.value > 0:
+            if train_adv :
                 try:
                     choice = sorted(np.random.choice(list(range(S)), 2, replace=False).tolist())
                 except:

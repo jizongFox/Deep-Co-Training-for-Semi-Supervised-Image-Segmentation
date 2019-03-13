@@ -22,18 +22,25 @@ wrapper(){
 
 #wrapper 0.1 120 48
 
-wrapper 0.2 120 24
+#wrapper 0.2 120 24
 
 #wrapper 0.3 120 48
 
-wrapper 0.4 120 24
+#wrapper 0.4 120 24
 
 #wrapper 0.5 120 48
 
-wrapper 0.6 120 24
+#wrapper 0.6 120 24
 
 #wrapper 0.7 120 48
 
-wrapper 0.8 120 24
+#wrapper 0.8 120 24
 
 #wrapper 0.9 120 48
+
+bash 1_run.sh 0.2 2 5
+
+bash 1_run.sh 0.1 2 6
+
+bash 1_run.sh 0.5 2 6
+
