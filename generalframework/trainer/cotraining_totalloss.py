@@ -16,6 +16,7 @@ from ..utils.AEGenerator import FSGMGenerator, VATGenerator
 from ..utils import iterator_
 from ..utils.utils import *
 from ..metrics import DiceMeter, AverageValueMeter
+from .. import scheduler
 from ..scheduler import *
 
 
@@ -79,11 +80,10 @@ class CoTrainer(Trainer):
         self.metricname = metricname
 
         # scheduler
-        self.cot_scheduler = eval(cot_scheduler_dict['name'])(
+        self.cot_scheduler = getattr(scheduler, cot_scheduler_dict['name'])(
             **{k: v for k, v in cot_scheduler_dict.items() if k != 'name'})
-        self.adv_scheduler = eval(adv_scheduler_dict['name'])(
+        self.adv_scheduler = getattr(scheduler, adv_scheduler_dict['name'])(
             **{k: v for k, v in adv_scheduler_dict.items() if k != 'name'})
-
         self.adv_training_dict = adv_training_dict
 
         if checkpoint is not None:
@@ -127,6 +127,7 @@ class CoTrainer(Trainer):
                                                            epoch=epoch,
                                                            mode=ModelMode.EVAL,
                                                            save=save_val)
+
             self.schedulerStep()
             for k, v in metrics.items():
                 assert v[epoch].shape == eval(k).shape
@@ -234,10 +235,7 @@ class CoTrainer(Trainer):
                     choice = sorted(np.random.choice(list(range(S)), 2, replace=False).tolist())
                 except:
                     choice = sorted(np.random.choice(list(range(S)), 2, replace=True).tolist())
-                # advLoss = self._adv_training(segmentators=itemgetter(*choice)(self.segmentators),
-                #                              lab_data_iterators=itemgetter(*choice)(fake_labeled_iterators_adv),
-                #                              unlab_data_iterator=fake_unlabeled_iterator_adv,
-                #                              **self.adv_training_dict)
+
                 advLoss = self._FSGM_adv_training(segmentators=itemgetter(*choice)(self.segmentators),
                                                   lab_data_iterators=itemgetter(*choice)(fake_labeled_iterators),
                                                   unlab_data_iterator=fake_unlabeled_iterator,

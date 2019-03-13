@@ -56,7 +56,6 @@ mv -f runs/$logdir/$currentfoldername archives/$logdir
 
 JSD(){
 set -e
-
 gpu=$1
 currentfoldername=JSD
 rm -rf runs/$logdir/$currentfoldername
@@ -72,7 +71,6 @@ mv -f runs/$logdir/$currentfoldername archives/$logdir
 
 ADV(){
 set -e
-
 gpu=$1
 currentfoldername=ADV
 rm -rf runs/$logdir/$currentfoldername
@@ -88,7 +86,6 @@ mv -f runs/$logdir/$currentfoldername archives/$logdir
 
 JSD_ADV(){
 set -e
-
 gpu=$1
 currentfoldername=JSD_ADV
 rm -rf runs/$logdir/$currentfoldername

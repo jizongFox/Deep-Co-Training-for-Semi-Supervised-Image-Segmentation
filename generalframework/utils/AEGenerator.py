@@ -15,6 +15,8 @@ class FSGMGenerator(object):
 
     def __call__(self, img: Tensor, gt: Tensor, criterion: nn.Module) -> Tuple[Tensor, Tensor]:
         img.requires_grad = True
+        if img.grad is not None:
+            img.grad.zeros_()
         self.net.zero_grad()
         pred = self.net(img)
         loss = criterion(pred, gt.squeeze(1))
