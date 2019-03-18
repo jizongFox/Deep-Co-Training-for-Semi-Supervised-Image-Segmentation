@@ -13,17 +13,22 @@ class FSGMGenerator(object):
         self.net = net
         self.eplision = eplision
 
-    def __call__(self, img: Tensor, gt: Tensor, criterion: nn.Module) -> Tuple[Tensor, Tensor]:
+    def __call__(self, img: Tensor, gt: Tensor, criterion: nn.Module) -> Tuple[Tensor, Tensor, Tensor]:
+        assert img.shape.__len__() == 4
+        assert img.shape[0] >= gt.shape[0]
         img.requires_grad = True
         if img.grad is not None:
-            img.grad.zeros_()
+            img.grad.zero_()
         self.net.zero_grad()
         pred = self.net(img)
+        if img.shape[0] > gt.shape[0]:
+            gt = torch.cat((gt, pred.max(1)[1][gt.shape[0]:].unsqueeze(1)), dim=0)
         loss = criterion(pred, gt.squeeze(1))
         loss.backward()
         adv_img, noise = self.adversarial_fgsm(img, img.grad, epsilon=self.eplision)
         self.net.zero_grad()
-        return adv_img.detach(), noise.detach()
+        img.grad.zero_()
+        return adv_img.detach(), noise.detach(), F.softmax(pred, 1)
 
     @staticmethod
     # adversarial generation

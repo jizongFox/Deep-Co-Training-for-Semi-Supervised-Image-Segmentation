@@ -253,7 +253,7 @@ def save_images(segs: Tensor, names: Iterable[str], root: Union[str, Path], mode
 class iterator_(object):
     def __init__(self, dataloader: Union[DataLoader, List[Any]]) -> None:
         super().__init__()
-        self.dataloader = dataloader
+        self.dataloader = dcopy(dataloader)
         self.iter_dataloader = iter(dataloader)
         self.cache = None
 

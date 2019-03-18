@@ -192,8 +192,8 @@ class CoTrainer(Trainer):
         S = len(self.segmentators)
 
         # build fake_iterator
-        fake_labeled_iterators = [iterator_(dcopy(x)) for x in labeled_dataloaders]
-        fake_unlabeled_iterator = iterator_(dcopy(unlabeled_dataloader))
+        fake_labeled_iterators = [iterator_(x) for x in labeled_dataloaders]
+        fake_unlabeled_iterator = iterator_(unlabeled_dataloader)
 
         report_iterator = iterator_(['label', 'unlab'])
         report_status = 'label'
@@ -216,7 +216,7 @@ class CoTrainer(Trainer):
                     save_images(pred2class(pred), names=path, root=self.save_dir, mode='train', iter=epoch,
                                 seg_num=str(enu_lab))
                 supervisedLoss += sup_loss
-            if train_jsd :
+            if train_jsd:
                 # for unlabeled data update
                 [[unlab_img, unlab_gt], _, path] = fake_unlabeled_iterator.__next__()
                 unlab_img, unlab_gt = unlab_img.to(self.device), unlab_gt.to(self.device)
@@ -230,7 +230,7 @@ class CoTrainer(Trainer):
                     [save_images(probs2class(prob), names=path, root=self.save_dir, mode='unlab',
                                  iter=epoch, seg_num=str(i)) for i, prob in enumerate(unlab_preds)]
 
-            if train_adv :
+            if train_adv:
                 try:
                     choice = sorted(np.random.choice(list(range(S)), 2, replace=False).tolist())
                 except:
@@ -375,12 +375,34 @@ class CoTrainer(Trainer):
         assert segmentators.__len__() == 2, 'only implemented for 2 segmentators'
         adv_losses = []
 
+        '''
+         to have two forward_backward path.
+        '''
+        [[img_1, gt_1], _, _] = lab_data_iterators[0].__cache__()
+        img_1, gt_1 = img_1.to(self.device), gt_1.to(self.device)
+        [[unl_img, _], _, _] = unlab_data_iterator.__cache__()
+        unl_img = unl_img.to(self.device)
+        [[img_2, gt_2], _, _] = lab_data_iterators[1].__cache__()
+        img_2, gt_2 = img_2.to(self.device), gt_2.to(self.device)
+
+        img_adv, noise, real_preds = FSGMGenerator(segmentators[0].torchnet, eplision=eplision) \
+            (torch.cat((img_1, unl_img), dim=0), gt=gt_1, criterion=self.criterions['sup'])
+        adv_preds = segmentators[1].predict(img_adv, logit=False)
+        adv_losses.append(KL_Divergence_2D(reduce=True)(adv_preds, real_preds.detach()))
+
+        img_adv, noise, real_preds = FSGMGenerator(segmentators[1].torchnet, eplision=eplision) \
+            (torch.cat((img_2, unl_img), dim=0), gt=gt_2, criterion=self.criterions['sup'])
+        adv_preds = segmentators[0].predict(img_adv, logit=False)
+        adv_losses.append(KL_Divergence_2D(reduce=True)(adv_preds, real_preds.detach()))
+
+        #
         # draw first term from labeled1
+        '''
         [[img_1, gt_1], _, _] = lab_data_iterators[0].__cache__()
         img_1, gt_1 = img_1.to(self.device), gt_1.to(self.device)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            img_1_adv, _ = FSGMGenerator(segmentators[0].torchnet, eplision=eplision) \
+            img_1_adv, _,_ = FSGMGenerator(segmentators[0].torchnet, eplision=eplision) \
                 (dcopy(img_1), gt_1, criterion=self.criterions['sup'])
 
         adv_pred = segmentators[1].predict(img_1_adv, logit=False)
@@ -392,7 +414,7 @@ class CoTrainer(Trainer):
         img_2, gt_2 = img_2.to(self.device), gt_2.to(self.device)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            img_2_adv, _ = FSGMGenerator(segmentators[1].torchnet, eplision=eplision) \
+            img_2_adv, _,_ = FSGMGenerator(segmentators[1].torchnet, eplision=eplision) \
                 (dcopy(img_2), gt_2, criterion=self.criterions['sup'])
 
         adv_pred = segmentators[0].predict(img_2_adv, logit=False)
@@ -409,16 +431,16 @@ class CoTrainer(Trainer):
             unl_mask2 = unl_pred2.max(1)[1]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            unl_adv1, _ = FSGMGenerator(segmentators[0].torchnet, eplision=eplision) \
+            unl_adv1, _,_ = FSGMGenerator(segmentators[0].torchnet, eplision=eplision) \
                 (dcopy(unl_img), unl_mask1, criterion=self.criterions['sup'])
-            unl_adv2, _ = FSGMGenerator(segmentators[1].torchnet, eplision=eplision) \
+            unl_adv2, _,_ = FSGMGenerator(segmentators[1].torchnet, eplision=eplision) \
                 (dcopy(unl_img), unl_mask2, criterion=self.criterions['sup'])
         adv_pred = segmentators[1].predict(unl_adv1, logit=False)
         adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, unl_pred1.detach()))
 
         adv_pred = segmentators[0].predict(unl_adv2, logit=False)
         adv_losses.append(KL_Divergence_2D(reduce=True)(adv_pred, unl_pred2.detach()))
-
+        '''
         adv_loss = sum(adv_losses) / adv_losses.__len__()
 
         return adv_loss
