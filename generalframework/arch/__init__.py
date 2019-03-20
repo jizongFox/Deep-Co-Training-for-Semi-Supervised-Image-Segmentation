@@ -7,6 +7,7 @@ from .joseent import ENet as JEnet
 from .joseent import CorstemNet as CNet
 from torch import nn
 from .deeplab.enet import ENet as DEnet
+from .pretrain_torchvision import vgg_11,resnet_18
 
 __all__ = ['weights_init', 'get_arch']
 """
@@ -14,6 +15,7 @@ Package
 """
 # A Map from string to arch callables
 ARCH_CALLABLES = {}
+
 
 def _register_arch(arch, callable, alias=None):
     """ Private method to register the architecture to the ARCH_CALLABLES
@@ -47,6 +49,8 @@ _register_arch('deeplabv2', DeepLabV2)
 _register_arch('deeplabv3', DeepLabV3)
 _register_arch('deeplabv3plus', DeepLabV3Plus)
 _register_arch('deeplabenet', DEnet)
+_register_arch('vgg11',vgg_11)
+_register_arch('resnet18',resnet_18)
 
 """
 Public interface
@@ -70,5 +74,8 @@ def get_arch(arch, kwargs) -> Enet:
         pass
     assert arch_callable, "Architecture {} is not found!".format(arch)
     net = arch_callable(**kwargs)
-    net.apply(weights_init)
+    try:
+        net.apply(weights_init)
+    except AttributeError as e:
+        print(f'Using pretrained models with the error:{e}')
     return net
