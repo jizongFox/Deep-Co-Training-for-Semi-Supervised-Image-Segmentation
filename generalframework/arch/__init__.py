@@ -1,13 +1,13 @@
 """ Define the architecture. Modified from torchvision
 """
-from .network import FCN8, FCN16, FCN32, UNet, SegNet, PSPNet,UNet_bn
+from .network import FCN8, FCN16, FCN32, UNet, SegNet, PSPNet, UNet_bn
 from .enet import Enet
 from .deeplab import DeepLabV2, DeepLabV3, DeepLabV3Plus
 from .joseent import ENet as JEnet
 from .joseent import CorstemNet as CNet
 from torch import nn
 from .deeplab.enet import ENet as DEnet
-from .pretrain_torchvision import vgg_11,resnet_18
+from .pretrain_torchvision import vgg_11, resnet_18
 
 __all__ = ['weights_init', 'get_arch']
 """
@@ -49,8 +49,8 @@ _register_arch('deeplabv2', DeepLabV2)
 _register_arch('deeplabv3', DeepLabV3)
 _register_arch('deeplabv3plus', DeepLabV3Plus)
 _register_arch('deeplabenet', DEnet)
-_register_arch('vgg11',vgg_11)
-_register_arch('resnet18',resnet_18)
+_register_arch('vgg11', vgg_11)
+_register_arch('resnet18', resnet_18)
 
 """
 Public interface
