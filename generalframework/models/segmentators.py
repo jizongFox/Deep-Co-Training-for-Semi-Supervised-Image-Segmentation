@@ -103,10 +103,10 @@ class Segmentator(ABC):
                     state[k] = v.to(device)
 
     def set_mode(self, mode):
-        assert mode in (ModelMode.TRAIN, ModelMode.EVAL)
-        if mode == ModelMode.TRAIN:
+        assert mode in (ModelMode.TRAIN, ModelMode.EVAL) or mode in ('train','eval')
+        if mode in (ModelMode.TRAIN,'train' ):
             self.train()
-        elif mode == ModelMode.EVAL:
+        elif mode in (ModelMode.EVAL,'eval'):
             self.eval()
 
     def eval(self):

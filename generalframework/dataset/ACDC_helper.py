@@ -2,7 +2,7 @@ import random
 from pathlib import Path
 from itertools import repeat
 import re
-
+import os
 import torch
 import numpy as np
 from typing import Any, Callable, BinaryIO, Dict, List, Match, Pattern, Tuple, Union, Optional, TypeVar, Iterable
@@ -72,6 +72,7 @@ class PatientSampler(Sampler):
 @export
 def get_ACDC_dataloaders(dataset_dict: dict, dataloader_dict: dict, quite=False, mode1='train', mode2='val'):
     dataset_dict = {k: eval(v) if isinstance(v, str) and k != 'root_dir' else v for k, v in dataset_dict.items()}
+    dataset_dict['root_dir'] = Path(__file__).parents[2]/'dataset'/'ACDC-all'
     dataloader_dict = {k: eval(v) if isinstance(v, str) else v for k, v in dataloader_dict.items()}
     train_set = MedicalImageDataset(mode=mode1, quite=quite, **dataset_dict)
     val_set = MedicalImageDataset(mode=mode2, quite=quite, **dataset_dict)
