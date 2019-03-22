@@ -11,6 +11,7 @@ import numpy as np
 import torch
 from torch import Tensor
 from .metainfoGenerator import *
+from . import augment as augment_package
 from .augment import PILaugment, segment_transform, temporary_seed
 from ..utils import map_
 
@@ -41,7 +42,7 @@ class MedicalImageDataset(Dataset):
             print(f'->> Building {self.name}:\t')
         self.imgs, self.filenames = self.make_dataset(self.root_dir, self.mode, self.subfolders, self.pin_memory,
                                                       quite=quite)
-        self.augment = eval(augment) if isinstance(augment, str) else augment
+        self.augment = getattr(augment_package, augment) if isinstance(augment, str) else augment
         self.equalize = equalize
         self.training = ModelMode.TRAIN
         if metainfo is None:
@@ -50,6 +51,8 @@ class MedicalImageDataset(Dataset):
             if isinstance(metainfo[0], str):
                 metainfo[0]: Callable = eval(metainfo[0])
                 metainfo[1]: dict = eval(metainfo[1]) if isinstance(metainfo[1], str) else metainfo[1]
+            else:
+                raise NotImplementedError(f'check the metainfo configuration, given {metainfo[0]}')
             self.metainfo_generator: Callable = metainfo[0](**metainfo[1])
 
     def __len__(self) -> int:

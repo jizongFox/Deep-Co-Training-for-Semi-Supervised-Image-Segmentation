@@ -71,9 +71,7 @@ class PatientSampler(Sampler):
 
 @export
 def get_ACDC_dataloaders(dataset_dict: dict, dataloader_dict: dict, quite=False, mode1='train', mode2='val'):
-    dataset_dict = {k: eval(v) if isinstance(v, str) and k != 'root_dir' else v for k, v in dataset_dict.items()}
-    dataset_dict['root_dir'] = Path(__file__).parents[2]/'dataset'/'ACDC-all'
-    dataloader_dict = {k: eval(v) if isinstance(v, str) else v for k, v in dataloader_dict.items()}
+    dataset_dict['root_dir'] = Path(__file__).parents[2] / 'dataset' / 'ACDC-all'
     train_set = MedicalImageDataset(mode=mode1, quite=quite, **dataset_dict)
     val_set = MedicalImageDataset(mode=mode2, quite=quite, **dataset_dict)
     train_loader = DataLoader(train_set, **{**dataloader_dict, **{'batch_sampler': None}})
@@ -139,3 +137,25 @@ def extract_patients(dataloader: DataLoader, patient_ids: List[str]):
     new_dataloader.dataset.imgs = files
     new_dataloader.dataset.filenames = files
     return new_dataloader
+
+
+# todo new dataset interface for data access.
+# highlight the sampler=Subsetrandomsampler is mutaully exclusive with batch_size, shuffle, sampler, and drop_last
+# and the best way to implement the batch_sampler is to change directed the stored images.
+#
+# @export
+# def get_ACDC_datasets(dataset_dict: dict, mode1='train', mode2='val', quite=False) \
+#         -> Tuple[MedicalImageDataset, MedicalImageDataset]:
+#     dataset_dict['root_dir'] = Path(__file__).parents[2] / 'dataset' / 'ACDC-all'
+#     train_set = MedicalImageDataset(mode=mode1, quite=quite, **dataset_dict)
+#     val_set = MedicalImageDataset(mode=mode2, quite=quite, **dataset_dict)
+#     return train_set, val_set
+#
+# def get_split_idex(train_dataset)
+#
+#
+# def extract_ids(dataset: MedicalImageDataset, patterns: List[str]):
+#     pass
+#
+# # def get_ACDC_dataloaders():
+# #     pass
