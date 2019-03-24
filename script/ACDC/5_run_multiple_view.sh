@@ -19,11 +19,16 @@ sbatch  --job-name=multipleview_${model_num} \
 5_run.sh $model_num $max_epoch 0
 
 }
-wrapper 2 150 24
-wrapper 3 150 36
-wrapper 4 150 48
-
+#wrapper 2 150 24
+#wrapper 3 150 36
+#wrapper 4 150 48
+#
 ## for local computer
 #bash 5_run.sh 2 120 1
-#bash 5_run.sh 3 120 2
-#bash 5_run.sh 4 120 3
+bash 5_run.sh 3 300 2 1234
+bash 5_run.sh 3 300 2 1235
+bash 5_run.sh 3 300 2 1236
+
+bash 5_run.sh 4 300 2 1234
+bash 5_run.sh 4 300 2 1235
+bash 5_run.sh 4 300 2 1236

@@ -5,6 +5,7 @@ received_com=$2
 num_model=$3
 max_peoch=$4
 gpu=$5
+seed=$6
 data_aug=PILaugment
 net=enet
 tqdm=False
@@ -33,7 +34,8 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
 Lab_Partitions.num_models=$num_model Lab_Partitions.partition_sets=1 Lab_Partitions.partition_overlap=1 \
-Arch.name=$net Trainer.use_tqdm=$tqdm
+Arch.name=$net Trainer.use_tqdm=$tqdm \
+Seed=$seed
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -48,7 +50,8 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=False \
 Lab_Partitions.num_models=$num_model Lab_Partitions.partition_sets=$la_ratio Lab_Partitions.partition_overlap=$overlap_ratio \
-Arch.name=$net Trainer.use_tqdm=$tqdm
+Arch.name=$net Trainer.use_tqdm=$tqdm \
+Seed=$seed
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -63,7 +66,8 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=False StartTraining.train_jsd=True \
 Lab_Partitions.num_models=$num_model Lab_Partitions.partition_sets=$la_ratio Lab_Partitions.partition_overlap=$overlap_ratio \
-Arch.name=$net Trainer.use_tqdm=$tqdm
+Arch.name=$net Trainer.use_tqdm=$tqdm \
+Seed=$seed
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -78,7 +82,8 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=False \
 Lab_Partitions.num_models=$num_model Lab_Partitions.partition_sets=$la_ratio Lab_Partitions.partition_overlap=$overlap_ratio \
-Arch.name=$net Trainer.use_tqdm=$tqdm
+Arch.name=$net Trainer.use_tqdm=$tqdm \
+Seed=$seed
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
@@ -93,7 +98,8 @@ CUDA_VISIBLE_DEVICES=$gpu python train_ACDC_cotraining.py Trainer.save_dir=runs/
 Trainer.max_epoch=$max_peoch Dataset.augment=$data_aug \
 StartTraining.train_adv=True StartTraining.train_jsd=True \
 Lab_Partitions.num_models=$num_model Lab_Partitions.partition_sets=$la_ratio Lab_Partitions.partition_overlap=$overlap_ratio \
-Arch.name=$net Trainer.use_tqdm=$tqdm
+Arch.name=$net Trainer.use_tqdm=$tqdm \
+Seed=$seed
 Summary $currentfoldername $gpu
 rm -rf archives/$logdir/$currentfoldername
 mv -f runs/$logdir/$currentfoldername archives/$logdir
