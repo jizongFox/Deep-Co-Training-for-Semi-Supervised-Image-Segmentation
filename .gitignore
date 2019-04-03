@@ -1,6 +1,6 @@
 *__pycache__/
 *.idea/*
-dataset/Cityscapes
+#dataset/Cityscapes
 checkpoints/*
 results/*
 .DS_Store
