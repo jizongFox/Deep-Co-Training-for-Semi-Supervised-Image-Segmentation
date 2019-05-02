@@ -11,6 +11,7 @@ from torch.optim import lr_scheduler
 
 from generalframework import ModelMode
 from generalframework.arch import get_arch
+from .. import optim as selfdefined_optim
 
 
 class Segmentator(ABC):
@@ -33,7 +34,11 @@ class Segmentator(ABC):
         if torch.cuda.device_count() > 1:
             print("Let's use", torch.cuda.device_count(), "GPUs!")
             torchnet = nn.DataParallel(torchnet)
-        optimizer: optim.adam.Adam = getattr(optim, self.optim_name)(torchnet.parameters(), **self.optim_params)
+        if self.optim_name in ("AdaBound", "AdaBoundW"):
+            optimizer: optim.optimizer = getattr(selfdefined_optim, self.optim_name)(torchnet.parameters(),
+                                                                                     **self.optim_params)
+        else:
+            optimizer: optim.adam.Adam = getattr(optim, self.optim_name)(torchnet.parameters(), **self.optim_params)
         scheduler: lr_scheduler._LRScheduler = getattr(lr_scheduler, self.scheduler_name)(optimizer,
                                                                                           **self.scheduler_params)
         return torchnet, optimizer, scheduler
@@ -98,10 +103,10 @@ class Segmentator(ABC):
                     state[k] = v.to(device)
 
     def set_mode(self, mode):
-        assert mode in (ModelMode.TRAIN, ModelMode.EVAL)
-        if mode == ModelMode.TRAIN:
+        assert mode in (ModelMode.TRAIN, ModelMode.EVAL) or mode in ('train','eval')
+        if mode in (ModelMode.TRAIN,'train' ):
             self.train()
-        elif mode == ModelMode.EVAL:
+        elif mode in (ModelMode.EVAL,'eval'):
             self.eval()
 
     def eval(self):

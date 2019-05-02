@@ -383,13 +383,9 @@ class CoTrainer(Trainer):
         [[unl_img, _], _, _] = unlab_data_iterator.__cache__()
         unl_img = unl_img.to(self.device)
 
-        img_adv, noise, real_preds = FSGMGenerator(segmentators[0].torchnet, eplision=eplision) \
-            (torch.cat((img_1, unl_img), dim=0), gt=gt_1, criterion=self.criterions['sup'])
-        adv_preds = segmentators[1].predict(img_adv, logit=False)
-        adv_losses.append(KL_Divergence_2D(reduce=True)(adv_preds, real_preds.detach()))
-
         [[img_2, gt_2], _, _] = lab_data_iterators[1].__cache__()
         img_2, gt_2 = img_2.to(self.device), gt_2.to(self.device)
+
 
         img_adv, noise, real_preds = FSGMGenerator(segmentators[1].torchnet, eplision=eplision) \
             (torch.cat((img_2, unl_img), dim=0), gt=gt_2, criterion=self.criterions['sup'])

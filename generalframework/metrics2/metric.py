@@ -1,5 +1,5 @@
 import functools
-from typing import List, Iterable,Union, Optional
+from typing import List, Iterable, Union, Optional
 
 import pandas as pd
 
@@ -42,21 +42,21 @@ class AggragatedMeter(object):
 
     def __init__(self) -> None:
         super().__init__()
-        self.record:List[dict] = []
+        self.record: List[dict] = []
 
     # public interface of dict
-    def summary(self, if_dict=False)->Union[pd.DataFrame,List[dict]]:
+    def summary(self, if_dict=False) -> Union[pd.DataFrame, List[dict]]:
         if if_dict:
             return self.record
         return pd.DataFrame(self.record)
 
-    def add(self, input_dict)->None:
+    def add(self, input_dict) -> None:
         self.record.append(input_dict)
 
     def reset(self):
         self.record = []
 
-    def state_dict(self)->dict:
+    def state_dict(self) -> dict:
         """Returns the state of the scheduler as a :class:`dict`.
 
         It contains an entry for every variable in self.__dict__ which
@@ -64,7 +64,7 @@ class AggragatedMeter(object):
         """
         return {key: value for key, value in self.__dict__.items() if key != 'meter'}
 
-    def load_state_dict(self, state_dict)->None:
+    def load_state_dict(self, state_dict) -> None:
         """Loads the schedulers state.
 
         Arguments:
@@ -105,11 +105,10 @@ class ListAggregatedMeter(object):
 
     @property
     def state_dict(self):
-        return {n:l.record for n,l in zip(self.names,self.ListAggragatedMeter)}
+        return {n: l.record for n, l in zip(self.names, self.ListAggragatedMeter)}
 
-    def load_state_dict(self,checkpoint):
-        assert isinstance(checkpoint,dict)
+    def load_state_dict(self, checkpoint):
+        assert isinstance(checkpoint, dict)
         for n, l in zip(self.names, self.ListAggragatedMeter):
             l.record = checkpoint[n]
         print(self.summary())
-

@@ -18,7 +18,7 @@ class FSGMGenerator(object):
         assert img.shape[0] >= gt.shape[0]
         img.requires_grad = True
         if img.grad is not None:
-            img.grad.zeros_()
+            img.grad.zero_()
         self.net.zero_grad()
         pred = self.net(img)
         if img.shape[0] > gt.shape[0]:
@@ -27,6 +27,7 @@ class FSGMGenerator(object):
         loss.backward()
         adv_img, noise = self.adversarial_fgsm(img, img.grad, epsilon=self.eplision)
         self.net.zero_grad()
+        img.grad.zero_()
         return adv_img.detach(), noise.detach(), F.softmax(pred, 1)
 
     @staticmethod

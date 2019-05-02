@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 from .utils import mmap_, uc_, map_, augment
 
 
-## normalized np.narray from [0,255], return dtype = np.uint8
+# normalized np.narray from [0,255], return dtype = np.uint8
 def norm_arr(img: np.ndarray) -> np.ndarray:
     casted = img.astype(np.float32)
     shifted = casted - casted.min()
@@ -38,7 +38,7 @@ def get_frame(filename: str, regex: str = ".*_frame(\d+)(_gt)?\.nii.*") -> str:
     raise ValueError(regex, filename)
 
 
-## get patient id
+# get patient id
 def get_p_id(path: Path) -> str:
     '''
     The patient ID, for the ACDC dataset, is the folder containing the data.
@@ -87,7 +87,7 @@ def save_slices(img_p: Path, gt_p: Path,
         assert r_img.dtype == r_gt.dtype == np.uint8
         assert 0 <= r_img.min() and r_img.max() <= 255  # The range might be smaller
         assert set(uniq(r_gt)).issubset(set(uniq(gt)))
-        ## only calculate the gt ==3, ventrical surface.
+        # only calculate the gt ==3, ventrical surface.
         # sizes_2d[j] = r_gt[r_gt == 3].sum()
         sizes_2d[j] = (r_gt == 3).sum()
 
@@ -95,7 +95,7 @@ def save_slices(img_p: Path, gt_p: Path,
             if k == 0:
                 a_img, a_gt = r_img, r_gt
             else:
-                ## the data augmentation is only with rotation, flip and mirror
+                # the data augmentation is only with rotation, flip and mirror
                 a_img, a_gt = map_(np.asarray, augment(r_img, r_gt))
 
             for save_dir, data in zip([save_dir_img, save_dir_gt], [a_img, a_gt]):
@@ -105,7 +105,7 @@ def save_slices(img_p: Path, gt_p: Path,
                 with warnings.catch_warnings():
                     warnings.filterwarnings("ignore", category=UserWarning)
                     imsave(str(Path(save_dir, filename)), data)
-    ## return 3D size, minimal size for positive images. maximal size for positive image, f_id, and size_2d list
+    # return 3D size, minimal size for positive images. maximal size for positive image, f_id, and size_2d list
     return sizes_2d.sum(), sizes_2d[sizes_2d > 0].min(), sizes_2d.max(), f_id, sizes_2d
 
 
@@ -124,7 +124,7 @@ def main(args: argparse.Namespace):
     # We sort now, but also id matching is checked while iterating later on
     img_nii_paths: List[Path] = sorted(p for p in nii_paths if "_gt" not in str(p))
     gt_nii_paths: List[Path] = sorted(p for p in nii_paths if "_gt" in str(p))
-    ## img_nii and gt_nii are paths for the images and ground truths respectively.
+    # img_nii and gt_nii are paths for the images and ground truths respectively.
     assert len(img_nii_paths) == len(gt_nii_paths)
     paths: List[Tuple[Path, Path]] = list(zip(img_nii_paths, gt_nii_paths))
 

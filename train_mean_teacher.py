@@ -1,6 +1,5 @@
 from pprint import pprint
 import warnings
-import torch
 import yaml
 from easydict import EasyDict
 from torch import nn
@@ -40,14 +39,16 @@ elif config['Dataset']['root_dir'].find('GM') >= 0:
 else:
     raise NotImplementedError
 
-meanTeacherTrainer = MeanTeacherTrainer(student_segmentator=student,
-                                        teacher_segmentator=teacher,
-                                        labeled_dataloader=labeled_dataloader[0],
-                                        unlabeled_dataloader=unlabeled_dataloader,
-                                        val_dataloader=val_dataloader,
-                                        criterions={'sup': nn.CrossEntropyLoss(),
-                                                    'con': nn.MSELoss()},
-                                        cot_scheduler_dict=config['Cot_Scheduler'],
-                                        **config['Trainer'],
-                                        whole_config=config)
+meanTeacherTrainer = MeanTeacherTrainer(
+    student_segmentator=student,
+    teacher_segmentator=teacher,
+    labeled_dataloader=labeled_dataloader[0],
+    unlabeled_dataloader=unlabeled_dataloader,
+    val_dataloader=val_dataloader,
+    criterions={'sup': nn.CrossEntropyLoss(),
+                'con': nn.MSELoss()},
+    cot_scheduler_dict=config['Cot_Scheduler'],
+    **config['Trainer'],
+    whole_config=config
+)
 meanTeacherTrainer.start_training()

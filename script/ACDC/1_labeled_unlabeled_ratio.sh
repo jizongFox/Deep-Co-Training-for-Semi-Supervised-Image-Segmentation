@@ -6,13 +6,13 @@ received_com=$2
 max_peoch=$3
 labeled_unlabeled_ratio=$4
 gpu_global=$5
+random_seed=$6
 partiton_overlap=1
-
 
 data_aug=PILaugment
 net=enet
 tqdm=False
-random_seed=1234
+
 echo "random seed: ${random_seed}"
 source utils.sh
 cd ../..

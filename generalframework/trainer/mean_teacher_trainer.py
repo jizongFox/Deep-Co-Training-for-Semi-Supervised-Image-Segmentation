@@ -184,7 +184,6 @@ class MeanTeacherTrainer(Trainer):
             t_preds_aug = []
             for i, (t_pred, seed) in enumerate(zip(img_lists, seed)):
                 with temporary_seed(*seed):
-
                     t_preds_aug.append(TensorAugment_4_dim(t_pred)[0])
             t_preds_aug = torch.Tensor(t_preds_aug).float().to(self.device)
 
