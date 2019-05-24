@@ -3,7 +3,7 @@ import shutil
 import warnings
 from pathlib import Path
 from typing import Dict, List
-from numpy import uint32, array
+
 import torch
 import torch.nn.functional as F
 import yaml
@@ -16,8 +16,8 @@ from .trainer import Trainer
 from .. import ModelMode
 from ..dataset.augment import temporary_seed, TensorAugment_4_dim
 from ..metrics2 import DiceMeter, AggragatedMeter, AverageValueMeter, ListAggregatedMeter
-from ..utils import tqdm_, iterator_, flatten_dict
 from ..scheduler import *
+from ..utils import tqdm_, iterator_, flatten_dict
 
 
 class MeanTeacherTrainer(Trainer):
@@ -116,21 +116,21 @@ class MeanTeacherTrainer(Trainer):
             wholeMeter.load_state_dict(torch.load(self.checkpoint, map_location='cpu')['meters'])
 
         for epoch in range(self.start_epoch, self.max_epoch):
-            tra_teacher_2d_dice, tra_stduent_2d_dice, tra_student_loss = self._train_loop(self.labeled_dataloader,
-                                                                                          self.unlabel_dataloader,
-                                                                                          epoch=epoch,
-                                                                                          mode=ModelMode.TRAIN)
+            tra_teacher_2d_dice, tra_stduent_2d_dice, \
+            tra_student_loss = self._train_loop(self.labeled_dataloader,
+                                                self.unlabel_dataloader,
+                                                epoch=epoch,
+                                                mode=ModelMode.TRAIN)
 
             with torch.no_grad():
-                save_criterion, val_teacher_2d_dice, val_teacher_3d_dice, val_teacher_loss = self._eval_loop(
-                    self.val_dataloader, epoch=epoch)
+                save_criterion, val_teacher_2d_dice, \
+                val_teacher_3d_dice, val_teacher_loss = self._eval_loop(self.val_dataloader, epoch=epoch)
             for k, v in METERS.items():
                 v.add(eval(k))
             for k, v in METERS.items():
                 v.summary().to_csv(Path(self.save_dir, 'meters', f'{k}.csv'))
             wholeMeter.summary().to_csv(Path(self.save_dir, f'wholeMeter.csv'))
             self.schedulerStep()
-
             self.save_checkpoint(save_criterion, epoch, wholeMeter)
 
     def _train_loop(self, labeled_dataloader, unlabeled_dataloader, epoch, mode=ModelMode.TRAIN):
