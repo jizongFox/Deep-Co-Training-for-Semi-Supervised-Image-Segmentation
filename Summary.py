@@ -1,6 +1,26 @@
 import argparse
-import warnings
 from pathlib import Path
+
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input_dir', required=True, help='input folder directory')
+    parser.add_argument('--ensemble_method', default='soft', choices=('hard', 'soft'),
+                        help='Ensemble method, either `soft` or `hard`')
+    # parser.add_argument('--dataset', default='ACDC', type=str, choices=('ACDC, GM'), help='default dataset')
+    # parser.add_argument('--kappa_considered_class', default=[1, 2, 3], type=int, nargs='+',
+    #                     help='considered class in kappa')
+
+    return parser.parse_args()
+
+
+args = get_args()
+input_dir = Path(args.input_dir)
+assert input_dir.exists()
+assert (input_dir / 'config.yml').exists()
+
+
+import warnings
 from typing import List
 from easydict import EasyDict
 import numpy as np
@@ -13,36 +33,26 @@ from torch import Tensor
 from generalframework.dataset.ACDC_helper import get_ACDC_dataloaders
 from generalframework.dataset.GM_helper import get_GMC_split_dataloders
 from generalframework.metrics import KappaMetrics, DiceMeter, Kappa2Annotator
+from deepclustering.meters import HaussdorffDistance
 from generalframework.models import Segmentator
-from generalframework.utils import probs2one_hot, class2one_hot, save_images, pred2class
+from generalframework.utils import probs2one_hot, class2one_hot, save_images, pred2class, dict_merge, tqdm_
 
 warnings.filterwarnings('ignore')
 
 
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--input_dir', required=True, help='input folder directory')
-    parser.add_argument('--dataset', default='ACDC', type=str, choices=('ACDC, GM'), help='default dataset')
-    parser.add_argument('--kappa_considered_class', default=[1, 2, 3], type=int, nargs='+',
-                        help='considered class in kappa')
-
-    return parser.parse_args()
 
 
-args = get_args()
-
-with open(f'config/ensembling_{args.dataset}_config.yaml', 'r') as f:
+with open(str(input_dir / 'config.yml'), 'r') as f:
     config = yaml.load(f.read())
     config = EasyDict(config)
 
-input_dir = Path(args.input_dir)
 checkpoints = list(input_dir.glob('best*.pth'))
 
-if args.dataset == 'ACDC':
-    dataloaders = get_ACDC_dataloaders(config['Dataset'], config['Dataloader'], quite=True)
+if config.Dataset.root_dir.find('ACDC') >= 0:
+    dataloaders = get_ACDC_dataloaders(config['Dataset'], config['Lab_Dataloader'], quite=True)
     dataloaders['val'].dataset.training = 'eval'
     report_axises = [1, 2, 3]
-elif args.dataset == "GM":
+elif config.Dataset.root_dir.find('GM') >= 0:
     config["Lab_Partitions"]["num_models"] = len(checkpoints)
 
     *_, val_dataloader = get_GMC_split_dataloders(config)
@@ -107,8 +117,8 @@ class Ensembleway(object):
         return hard_preds.float()
 
 
-device = torch.device(config['Device'])
-ensemble = Ensembleway(config['Ensemble_method'])
+device = torch.device(config['Trainer']['device'])
+ensemble = Ensembleway(args.ensemble_method)
 
 models = load_models(checkpoints)
 
@@ -118,8 +128,11 @@ num_classes = state_dicts[0]['segmentator']['arch_dict']['num_classes']
 
 diceMeters = [DiceMeter(method='2d', report_axises=report_axises, C=num_classes) for _ in range(checkpoints.__len__())]
 bdiceMeters = [DiceMeter(method='3d', report_axises=report_axises, C=num_classes) for _ in range(checkpoints.__len__())]
+hdMeter = [HaussdorffDistance(report_axises=report_axises, C=num_classes) for _ in range(checkpoints.__len__())]
+
 ensembleMeter = DiceMeter(method='2d', report_axises=report_axises, C=num_classes)
 bensembleMeter = DiceMeter(method='3d', report_axises=report_axises, C=num_classes)
+hdensembleMeter = HaussdorffDistance(report_axises=report_axises, C=num_classes)
 kappameter = KappaMetrics()
 
 for i, (model, state_dict) in enumerate(zip(models, state_dicts)):
@@ -129,12 +142,14 @@ for i, (model, state_dict) in enumerate(zip(models, state_dicts)):
     print(f'model {i} has the best score: {state_dict["best_score"]:.3f}.')
 
 with torch.no_grad():
-    for i, ((img, gt), _, path) in enumerate(dataloaders['val']):
+    for i, ((img, gt), _, path) in enumerate(tqdm_(dataloaders['val'])):
         img, gt = img.to(device), gt.to(device)
         preds = [model.predict(img, logit=False) for model in models]
         for j, pred in enumerate(preds):
             diceMeters[j].add(pred, gt)
             bdiceMeters[j].add(pred, gt)
+            hdMeter[j].add(class2one_hot(pred2class(pred), C=num_classes), class2one_hot(gt.squeeze(1), C=num_classes))
+
             save_images(pred2class(pred), names=path, root=args.input_dir, mode='val', iter=1000,
                         seg_num=str(j))
 
@@ -145,8 +160,10 @@ with torch.no_grad():
 
         ensembleMeter.add(voting_preds, gt)
         bensembleMeter.add(voting_preds, gt)
+        hdensembleMeter.add(class2one_hot(pred2class(voting_preds), C=num_classes),
+                            class2one_hot(gt.squeeze(1), C=num_classes))
         kappameter.add(predicts=[pred.max(1)[1] for pred in preds], target=voting_preds.max(1)[1],
-                       considered_classes=args.kappa_considered_class)
+                       considered_classes=report_axises)
         # todo: add kappa2 score
 
 # for 2D dice:
@@ -182,10 +199,18 @@ individual_result_dict = \
         f'model_{i}': {f'DSC{j}': bdiceMeters[i].value()[1][0][j].item() \
                        for j in range(num_classes)} for i in range(models.__len__())
     }
+individual_HD_dict = \
+    {
+        f'model_{i}': {f'HD{j}': hdMeter[i].value()[1][0][j].item() \
+                       for j in range(num_classes)} for i in range(models.__len__())
+    }
+individual_result_dict = dict_merge(individual_result_dict, individual_HD_dict, re=True)
+
 individual_std_dict = \
     {
         f'model_{i}': {f'DSC{j}': bdiceMeters[i].value()[1][1][j].item() \
-                       for j in range(num_classes)} for i in range(models.__len__())
+                       for j in range(num_classes)
+                       } for i in range(models.__len__())
     }
 
 ensemble_result_dict = \
@@ -193,6 +218,13 @@ ensemble_result_dict = \
         f'ensemble': {f'DSC{i}': bensembleMeter.value()[1][0][i].item() \
                       for i in range(num_classes)}
     }
+
+ensemble_HD_dict = \
+    {
+        f'ensemble': {f'HD{i}': hdensembleMeter.value()[1][0][i].item() \
+                      for i in range(num_classes)}
+    }
+ensemble_result_dict = dict_merge(ensemble_result_dict, ensemble_HD_dict, re=True)
 ensemble_std_dict = \
     {
         f'ensemble': {f'DSC{i}': bensembleMeter.value()[1][1][i].item() for i in range(num_classes)}

@@ -386,7 +386,6 @@ class CoTrainer(Trainer):
         [[img_2, gt_2], _, _] = lab_data_iterators[1].__cache__()
         img_2, gt_2 = img_2.to(self.device), gt_2.to(self.device)
 
-
         img_adv, noise, real_preds = FSGMGenerator(segmentators[1].torchnet, eplision=eplision) \
             (torch.cat((img_2, unl_img), dim=0), gt=gt_2, criterion=self.criterions['sup'])
         adv_preds = segmentators[0].predict(img_adv, logit=False)
@@ -466,7 +465,6 @@ class CoTrainer(Trainer):
             state_dict = torch.load(cp, map_location=torch.device('cpu'))
             self.segmentators[i].load_state_dict(state_dict['segmentator'])
             self.best_scores[i] = state_dict['best_score']
-            # self.start_epoch = max(state_dict['best_epoch'], self.start_epoch)
             print(f'>>>  {cp} has been loaded successfully. \
                 Best score {self.best_scores[i]:.3f} @ {state_dict["best_epoch"]}.')
             self.segmentators[i].train()
