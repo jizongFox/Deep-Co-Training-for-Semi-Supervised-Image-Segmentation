@@ -7,10 +7,6 @@ def get_args():
     parser.add_argument('--input_dir', required=True, help='input folder directory')
     parser.add_argument('--ensemble_method', default='soft', choices=('hard', 'soft'),
                         help='Ensemble method, either `soft` or `hard`')
-    # parser.add_argument('--dataset', default='ACDC', type=str, choices=('ACDC, GM'), help='default dataset')
-    # parser.add_argument('--kappa_considered_class', default=[1, 2, 3], type=int, nargs='+',
-    #                     help='considered class in kappa')
-
     return parser.parse_args()
 
 
@@ -18,7 +14,6 @@ args = get_args()
 input_dir = Path(args.input_dir)
 assert input_dir.exists()
 assert (input_dir / 'config.yml').exists()
-
 
 import warnings
 from typing import List
@@ -39,9 +34,6 @@ from generalframework.utils import probs2one_hot, class2one_hot, save_images, pr
 
 warnings.filterwarnings('ignore')
 
-
-
-
 with open(str(input_dir / 'config.yml'), 'r') as f:
     config = yaml.load(f.read())
     config = EasyDict(config)
@@ -52,6 +44,7 @@ if config.Dataset.root_dir.find('ACDC') >= 0:
     dataloaders = get_ACDC_dataloaders(config['Dataset'], config['Lab_Dataloader'], quite=True)
     dataloaders['val'].dataset.training = 'eval'
     report_axises = [1, 2, 3]
+    patient_info = pd.read_csv('dataset/ACDC-all/patient_info.csv', header=None, index_col=[0])
 elif config.Dataset.root_dir.find('GM') >= 0:
     config["Lab_Partitions"]["num_models"] = len(checkpoints)
 
@@ -60,6 +53,7 @@ elif config.Dataset.root_dir.find('GM') >= 0:
     dataloaders['val'] = val_dataloader
     dataloaders['val'].dataset.training = 'eval'
     report_axises = [0, 1]
+    patient_info = None
 else:
     raise NotImplementedError
 
@@ -144,11 +138,14 @@ for i, (model, state_dict) in enumerate(zip(models, state_dicts)):
 with torch.no_grad():
     for i, ((img, gt), _, path) in enumerate(tqdm_(dataloaders['val'])):
         img, gt = img.to(device), gt.to(device)
+        patient_id = list(set([p.split('_')[0] for p in path]))[0]
         preds = [model.predict(img, logit=False) for model in models]
         for j, pred in enumerate(preds):
             diceMeters[j].add(pred, gt)
             bdiceMeters[j].add(pred, gt)
-            hdMeter[j].add(class2one_hot(pred2class(pred), C=num_classes), class2one_hot(gt.squeeze(1), C=num_classes))
+            hdMeter[j].add(class2one_hot(pred2class(pred), C=num_classes), class2one_hot(gt.squeeze(1), C=num_classes),
+                           voxelspacing=patient_info.loc[patient_id].to_numpy()[
+                               0] if patient_info is not None else None)
 
             save_images(pred2class(pred), names=path, root=args.input_dir, mode='val', iter=1000,
                         seg_num=str(j))

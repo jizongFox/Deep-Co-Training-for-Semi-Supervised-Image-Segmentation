@@ -1,20 +1,19 @@
 #!/usr/bin/env python3.6
 
-import re
-import random
 import argparse
+import random
+import re
 import warnings
+from functools import partial
 from pathlib import Path
 from pprint import pprint
-from functools import partial
 from typing import Any, Callable, List, Tuple
 
-import numpy as np
 import nibabel as nib
+import numpy as np
 from numpy import unique as uniq
 from skimage.io import imsave
 from skimage.transform import resize
-import matplotlib.pyplot as plt
 
 from .utils import mmap_, uc_, map_, augment
 
@@ -152,17 +151,6 @@ def main(args: argparse.Namespace):
         set1 = [e for s, f in zip(sizes_2d, frames) for e in s if f == '01' and e > 0]
         set2 = [e for s, f in zip(sizes_2d, frames) for e in s if f != '01' and e > 0]
         print(len(set1), len(set2))
-
-        # plt.hist(set1, bins=50, alpha=0.5, label='01')
-        # plt.hist(set2, bins=50, alpha=0.5, label='02')
-        # plt.legend(loc='upper right')
-        # plt.show()
-
-        # for sizes in sizes_2d:
-        #     trimmed = [e for e in sizes if e > 0]
-        #     plt.hist(trimmed, bins=100, alpha=0.5)
-        # plt.show()
-
         print("2d sizes: ", sizes_2d_min.min(), sizes_2d_max.max())
         print("3d sizes: ", sizes_3d.min(), sizes_3d.mean(), sizes_3d.max())
 
