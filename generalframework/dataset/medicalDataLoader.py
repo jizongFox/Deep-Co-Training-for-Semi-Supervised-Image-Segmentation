@@ -58,15 +58,17 @@ class MedicalImageDataset(Dataset):
         self.augment = getattr(augment_package, augment) if isinstance(augment, str) else augment
         self.equalize = equalize
         self.training = ModelMode.TRAIN
-        if metainfo is None:
+        if metainfo is None or metainfo == []:
             self.metainfo_generator = None
         else:
-            metainfo = list()
+            # metainfo = list()
             if isinstance(metainfo[0], str):
                 metainfo[0]: Callable = getattr(metainfoGenerator, metainfo[0])
                 metainfo[1]: dict = eval(metainfo[1]) if isinstance(metainfo[1], str) else metainfo[1]
             else:
-                raise NotImplementedError(f'check the metainfo configuration, given {metainfo[0]}')
+                # raise NotImplementedError(f'check the metainfo configuration, given {metainfo[0]}')
+                self.metainfo_generator: Callable = metainfo[0](**metainfo[1])
+
             self.metainfo_generator: Callable = metainfo[0](**metainfo[1])
 
     def __len__(self) -> int:
