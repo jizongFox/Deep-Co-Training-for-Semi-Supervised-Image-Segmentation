@@ -380,7 +380,7 @@ class CoTrainer(Trainer):
         '''
         [[img_1, gt_1], _, _] = lab_data_iterators[0].__cache__()
         img_1, gt_1 = img_1.to(self.device), gt_1.to(self.device)
-        [[unl_img, _], _, _] = unlab_data_iterator.__cache__()
+        [[unl_img, unl_gt], _, _] = unlab_data_iterator.__cache__()
         unl_img = unl_img.to(self.device)
 
         [[img_2, gt_2], _, _] = lab_data_iterators[1].__cache__()

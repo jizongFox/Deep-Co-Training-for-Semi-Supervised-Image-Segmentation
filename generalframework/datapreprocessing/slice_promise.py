@@ -1,21 +1,18 @@
 #!/usr/bin/env python3.6
 
-import re
-import random
 import argparse
+import random
+import re
 import warnings
+from functools import partial
 from pathlib import Path
 from pprint import pprint
-from functools import partial
 from typing import Any, Callable, List, Tuple
 
 import numpy as np
-import nibabel as nib
-from tqdm import tqdm
 from numpy import unique as uniq
 from skimage.io import imread, imsave
 from skimage.transform import resize
-
 from utils import mmap_, uc_, map_, augment
 
 
@@ -68,12 +65,9 @@ def save_slices(img_p: Path, gt_p: Path,
         assert img_s.shape == gt_s.shape
 
         # Resize and check the data are still what we expect
-        from time import time
-        tic = time()
         resize_: Callable = partial(resize, mode="constant", preserve_range=True, anti_aliasing=False)
         r_img: np.ndarray = resize_(img_s, shape).astype(np.uint8)
         r_gt: np.ndarray = resize_(gt_s, shape).astype(np.uint8)
-        # print(time() - tic)
         assert r_img.dtype == r_gt.dtype == np.uint8
         assert 0 <= r_img.min() and r_img.max() <= 255  # The range might be smaller
         assert set(uniq(r_gt)).issubset(set(uniq(gt)))
@@ -157,7 +151,8 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--shape', type=int, nargs="+", default=[256, 256])
     parser.add_argument('--retain', type=int, default=10, help="Number of retained patient for the validation data")
     parser.add_argument('--seed', type=int, default=0)
-    parser.add_argument('--n_augment', type=int, default=0, help="Number of augmentation to create per image, only for the training set")
+    parser.add_argument('--n_augment', type=int, default=0,
+                        help="Number of augmentation to create per image, only for the training set")
 
     args = parser.parse_args()
     random.seed(args.seed)
