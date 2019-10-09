@@ -23,3 +23,10 @@ generalframework.egg-info/
 /generalframework.egg-info/
 /runs/
 /dataset/ACDC-all/.ipynb_checkpoints/
+dataset/Spleen/imagesTr
+dataset/Spleen/labelsTr
+dataset/Spleen/._dataset.json
+dataset/Spleen/._imagesTr
+dataset/Spleen/._imagesTs
+dataset/Spleen/._labelsTr
+

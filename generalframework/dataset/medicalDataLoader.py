@@ -90,6 +90,7 @@ class MedicalImageDataset(Dataset):
             img_list, filename_list = [Image.open(self.imgs[subfolder][index]) for subfolder in self.subfolders], [
                 self.filenames[subfolder][index] for subfolder in self.subfolders]
         assert img_list.__len__() == self.subfolders.__len__()
+
         # make sure the filename is the same image
         assert set(map_(lambda x: Path(x).stem, filename_list)).__len__() == 1, \
             f"Check the filename list, given {filename_list}."

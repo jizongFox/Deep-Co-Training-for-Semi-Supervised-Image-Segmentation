@@ -1,0 +1,80 @@
+Arch:
+  name: enet
+  num_classes: 4
+
+Optim:
+  name: Adam
+  lr: 0.001
+  weight_decay: 0.0001
+
+Scheduler:
+  name: StepLR
+  step_size: 90
+  gamma: 0.1
+
+Dataset:
+  root_dir: dataset/Spleen
+  subfolders: ['img','gt']
+  transform: segment_transform((256,256))
+  augment: PILaugment
+  pin_memory: False
+
+Lab_Dataloader:
+  pin_memory: False
+  batch_size: 4
+  num_workers: 4
+  shuffle: True
+  drop_last: True
+  batch_sampler: [PatientSampler,
+                  {grp_regex: 'Patient_\d+',shuffle: False}]
+
+Lab_Partitions:
+  num_models: 2
+  partition_sets: 0.5
+  partition_overlap: 1
+
+Unlab_Dataloader:
+  pin_memory: False
+  batch_size: 4
+  num_workers: 4
+  shuffle: True
+  drop_last: True
+
+Trainer:
+  max_epoch: 300
+  save_dir: tmp/spleen_cotraining
+  device: cuda:0
+  axises: [0,1]
+  metricname: metrics.csv
+  use_tqdm: True
+
+Cot_Scheduler:
+  name: RampScheduler
+  begin_epoch: 0
+  max_epoch: 50
+  max_value: 0.5
+  ramp_mult: -5
+
+Adv_Scheduler:
+  name: RampScheduler
+  begin_epoch: 20
+  max_epoch: 50
+  max_value: 0.05
+  ramp_mult: -5
+
+Adv_Training:
+  eplision:  0.03
+
+Loss:
+  name: cross_entropy
+  weight: [1, 1, 1, 1]
+
+StartTraining:
+  train_jsd: False
+  train_adv: False
+  save_train: False
+  save_val: False
+  augment_labeled_data: True
+  augment_unlabeled_data: True
+
+Seed: 1234
