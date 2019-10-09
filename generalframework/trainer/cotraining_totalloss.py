@@ -112,16 +112,16 @@ class CoTrainer(Trainer):
 
         for epoch in range(self.start_epoch, self.max_epoch):
 
-            # train_dice, train_unlab_dice = self._train_loop(labeled_dataloaders=self.labeled_dataloaders,
-            #                                                 unlabeled_dataloader=self.unlabeled_dataloader,
-            #                                                 epoch=epoch,
-            #                                                 mode=ModelMode.TRAIN,
-            #                                                 save=save_train,
-            #                                                 train_jsd=train_jsd,
-            #                                                 train_adv=train_adv,
-            #                                                 augment_labeled_data=augment_labeled_data,
-            #                                                 augment_unlabeled_data=augment_unlabeled_data
-            #                                                 )
+            train_dice, train_unlab_dice = self._train_loop(labeled_dataloaders=self.labeled_dataloaders,
+                                                            unlabeled_dataloader=self.unlabeled_dataloader,
+                                                            epoch=epoch,
+                                                            mode=ModelMode.TRAIN,
+                                                            save=save_train,
+                                                            train_jsd=train_jsd,
+                                                            train_adv=train_adv,
+                                                            augment_labeled_data=augment_labeled_data,
+                                                            augment_unlabeled_data=augment_unlabeled_data
+                                                            )
             with torch.no_grad():
                 val_dice, val_batch_dice = self._eval_loop(val_dataloader=self.val_dataloader,
                                                            epoch=epoch,

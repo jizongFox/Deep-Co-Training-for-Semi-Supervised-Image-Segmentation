@@ -68,12 +68,20 @@ def slice_data(image_data: np.ndarray, gt_data: np.ndarray, patient_name: str, i
     Path(main_folder, "img").mkdir(exist_ok=True, parents=True)
     Path(main_folder, "gt").mkdir(exist_ok=True, parents=True)
 
+    ## maybe to clip data here.
+    z_with_gt = gt_data.sum(axis=(0, 1)) > 0
+    z_with_gt = np.where(z_with_gt == True)[0]
+    gt_begin = z_with_gt.min()
+    gt_end = z_with_gt.max()
+    image_data = image_data[:,:,gt_begin-5:gt_end+5]
+    gt_data = gt_data[:,:,gt_begin-5:gt_end+5]
+
     assert image_data.shape == gt_data.shape
     slice_num = image_data.shape[2]
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
         for i in range(slice_num):
-            slice_image = resize(image_data[:, :, i], output_shape=OUTOUT_SHAPE, order=1,preserve_range=True)  #
+            slice_image = resize(image_data[:, :, i], output_shape=OUTOUT_SHAPE, order=1, preserve_range=True)  #
             #         0: Nearest-neighbor
             #         1: Bi-linear (default)
             #         2: Bi-quadratic

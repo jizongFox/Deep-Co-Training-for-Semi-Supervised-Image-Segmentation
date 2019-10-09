@@ -1,6 +1,6 @@
 Arch:
   name: enet
-  num_classes: 4
+  num_classes: 2
 
 Optim:
   name: Adam
@@ -67,7 +67,7 @@ Adv_Training:
 
 Loss:
   name: cross_entropy
-  weight: [1, 1, 1, 1]
+  weight: [1, 1]
 
 StartTraining:
   train_jsd: False
