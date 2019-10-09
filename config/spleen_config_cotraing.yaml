@@ -44,7 +44,7 @@ Trainer:
   max_epoch: 300
   save_dir: tmp/spleen_cotraining
   device: cuda:0
-  axises: [0,1]
+  axises: [1]
   metricname: metrics.csv
   use_tqdm: True
 

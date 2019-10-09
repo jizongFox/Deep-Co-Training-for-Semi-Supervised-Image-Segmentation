@@ -152,7 +152,7 @@ class CoTrainer(Trainer):
             writer.save()
             writer.close()
 
-            current_metric = val_dice[:, self.axises, 0].mean(1)
+            current_metric = val_batch_dice[:, self.axises, 0].mean(1)
             self.checkpoint(current_metric, epoch)
 
     def _train_loop(self,
@@ -188,7 +188,7 @@ class CoTrainer(Trainer):
         desc = f">>   Training   ({epoch})" if mode == ModelMode.TRAIN else f">> Validating   ({epoch})"
         # Here the concept of epoch is defined as the epoch
         # n_batch = max(map_(len, self.labeled_dataloaders))
-        n_batch = 200
+        n_batch = 300
         S = len(self.segmentators)
 
         # build fake_iterator
@@ -248,12 +248,12 @@ class CoTrainer(Trainer):
             map_(lambda x: x.optimizer.step(), self.segmentators)
 
             # for recording
-            lab_dsc_dict = {f"S{i}": {f"DSC{n}": diceMeters[i].value()[1][0][n] for n in self.axises} \
+            lab_dsc_dict = {f"S{i}": {f"DSC{n}": diceMeters[i].value()[1][0][n].cpu() for n in self.axises} \
                             for i in range(len(self.segmentators))}
-            unlab_dsc_dict = {f"S{i}": {f"DSC{n}": unlabdiceMeters[i].value()[1][0][n] \
+            unlab_dsc_dict = {f"S{i}": {f"DSC{n}": unlabdiceMeters[i].value()[1][0][n].cpu() \
                                         for n in self.axises} for i in range(len(self.segmentators))}
-            lab_mean_dict = {f"S{i}": {"DSC": diceMeters[i].value()[0][0]} for i in range(len(self.segmentators))}
-            unlab_mean_dict = {f"S{i}": {"DSC": unlabdiceMeters[i].value()[0][0]} for i in
+            lab_mean_dict = {f"S{i}": {"DSC": diceMeters[i].value()[0][0].cpu()} for i in range(len(self.segmentators))}
+            unlab_mean_dict = {f"S{i}": {"DSC": unlabdiceMeters[i].value()[0][0].cpu()} for i in
                                range(len(self.segmentators))}
             loss_dict = {f'L{i}': suplossMeters[i].value()[0] for i in range(len(self.segmentators))}
             nice_dict = dict_merge(lab_dsc_dict, lab_mean_dict, re=True) if report_status == 'label' else dict_merge(
