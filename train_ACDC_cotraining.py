@@ -1,5 +1,6 @@
 import warnings
 from pprint import pprint
+from typing import List
 
 import yaml
 
@@ -15,7 +16,9 @@ warnings.filterwarnings('ignore')
 parser_args = yaml_parser()
 print('->>Input args:')
 pprint(parser_args)
-with open('archives/cardiac/labeled_unlabled_ratio/new_results/02/task1_labeled_unlabeled_ratio_0.2_seed_1234/JSD_ADV/config.yml', 'r') as f:
+with open(
+        'archives/cardiac/labeled_unlabled_ratio/new_results/02/task1_labeled_unlabeled_ratio_0.2_seed_1234/JSD_ADV/config.yml',
+        'r') as f:
     config = yaml.load(f.read())
 print('->> Merged Config:')
 config = dict_merge(config, parser_args, True)
@@ -37,7 +40,7 @@ def get_models(config):
                 for _ in range(num_models)]
 
 
-segmentators = get_models(config)
+segmentators: List[Segmentator] = get_models(config)
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)
