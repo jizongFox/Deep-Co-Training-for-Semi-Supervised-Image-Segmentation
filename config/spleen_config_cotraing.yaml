@@ -30,7 +30,7 @@ Lab_Dataloader:
 
 Lab_Partitions:
   num_models: 2
-  partition_sets: 0.5
+  partition_sets: 0.20
   partition_overlap: 1
 
 Unlab_Dataloader:

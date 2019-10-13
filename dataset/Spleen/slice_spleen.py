@@ -13,7 +13,7 @@ from skimage.io import imsave
 from skimage.transform import resize
 
 _num = re.compile(r"\d+")
-OUTOUT_SHAPE = (256, 256)
+OUTOUT_SHAPE = (512, 512)
 
 
 def _str2path(path: Union[str, Path]):
