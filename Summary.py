@@ -27,7 +27,8 @@ from torch import Tensor
 
 from generalframework.dataset.ACDC_helper import get_ACDC_dataloaders
 from generalframework.dataset.GM_helper import get_GMC_split_dataloders
-from generalframework.metrics import KappaMetrics, DiceMeter, Kappa2Annotator
+from generalframework.dataset.spleen_helper import get_spleen_split_dataloders
+from generalframework.metrics import KappaMetrics, DiceMeter
 from deepclustering.meters import HaussdorffDistance
 from generalframework.models import Segmentator
 from generalframework.utils import probs2one_hot, class2one_hot, save_images, pred2class, dict_merge, tqdm_
@@ -40,12 +41,12 @@ with open(str(input_dir / 'config.yml'), 'r') as f:
 
 checkpoints = list(input_dir.glob('best*.pth'))
 
-if config.Dataset.root_dir.find('ACDC') >= 0:
+if str(config.Dataset.root_dir).find('ACDC') >= 0:
     dataloaders = get_ACDC_dataloaders(config['Dataset'], config['Lab_Dataloader'], quite=True)
     dataloaders['val'].dataset.training = 'eval'
     report_axises = [1, 2, 3]
     patient_info = pd.read_csv('dataset/ACDC-all/patient_info.csv', header=None, index_col=[0])
-elif config.Dataset.root_dir.find('GM') >= 0:
+elif str(config.Dataset.root_dir).find('GM') >= 0:
     config["Lab_Partitions"]["num_models"] = len(checkpoints)
 
     *_, val_dataloader = get_GMC_split_dataloders(config)
@@ -54,6 +55,14 @@ elif config.Dataset.root_dir.find('GM') >= 0:
     dataloaders['val'].dataset.training = 'eval'
     report_axises = [0, 1]
     patient_info = None
+elif str(config.Dataset.root_dir).lower().find("spleen") >= 0:
+    *_, val_dataloader = get_spleen_split_dataloders(config)
+    dataloaders = {}
+    dataloaders['val'] = val_dataloader
+    dataloaders['val'].dataset.training = 'eval'
+    report_axises = [0, 1]
+    patient_info = None
+
 else:
     raise NotImplementedError
 

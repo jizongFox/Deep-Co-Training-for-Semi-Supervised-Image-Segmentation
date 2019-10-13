@@ -12,8 +12,8 @@ set -e
 
 account=def-mpederso  #rrg-mpederso, def-mpederso, and def-chdesa
 time=12
-main_dir="spleen"
-max_epoch=5
+main_dir="spleen_high_re"
+max_epoch=300
 seed=1
 load_checkpoint="#"
 

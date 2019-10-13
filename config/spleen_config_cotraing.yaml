@@ -15,7 +15,7 @@ Scheduler:
 Dataset:
   root_dir: dataset/Spleen
   subfolders: ['img','gt']
-  transform: segment_transform((256,256))
+  transform: segment_transform((512,512))
   augment: PILaugment
   pin_memory: False
 
