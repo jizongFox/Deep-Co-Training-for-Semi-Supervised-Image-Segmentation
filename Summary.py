@@ -1,8 +1,22 @@
 import argparse
-import warnings
 from pathlib import Path
-from typing import List
 
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input_dir', required=True, help='input folder directory')
+    parser.add_argument('--ensemble_method', default='soft', choices=('hard', 'soft'),
+                        help='Ensemble method, either `soft` or `hard`')
+    return parser.parse_args()
+
+
+args = get_args()
+input_dir = Path(args.input_dir)
+assert input_dir.exists()
+assert (input_dir / 'config.yml').exists()
+
+import warnings
+from typing import List
 import numpy as np
 import pandas as pd
 import torch
@@ -20,20 +34,6 @@ from generalframework.models import Segmentator
 from generalframework.utils import probs2one_hot, class2one_hot, save_images, pred2class, dict_merge, tqdm_
 
 warnings.filterwarnings('ignore')
-
-
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--input_dir', required=True, help='input folder directory')
-    parser.add_argument('--ensemble_method', default='soft', choices=('hard', 'soft'),
-                        help='Ensemble method, either `soft` or `hard`')
-    return parser.parse_args()
-
-
-args = get_args()
-input_dir = Path(args.input_dir)
-assert input_dir.exists()
-assert (input_dir / 'config.yml').exists()
 
 with open(str(input_dir / 'config.yml'), 'r') as f:
     config = yaml.load(f.read())

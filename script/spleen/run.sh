@@ -10,7 +10,7 @@ source $WRAPPER_PATH
 cd ${PROJECT_PATH}
 set -e
 
-account=def-mpederso  #rrg-mpederso, def-mpederso, and def-chdesa
+account=$3  #rrg-mpederso, def-mpederso, and def-chdesa
 time=24
 max_epoch=1
 seed=1
@@ -45,6 +45,6 @@ ${load_checkpoint}Trainer.checkpoint=runs/${main_dir}/${seed}/jsd_adv " \
 for cmd in "${StringArray[@]}"
 do
 echo ${cmd}
-#wrapper "${time}" "${account}" "${cmd}" 16
- ${cmd}
+wrapper "${time}" "${account}" "${cmd}" 16
+# ${cmd}
 done
