@@ -1,5 +1,25 @@
 import argparse
+import warnings
 from pathlib import Path
+from typing import List
+
+import numpy as np
+import pandas as pd
+import torch
+import torch.nn.functional as F
+import yaml
+from deepclustering.meters import HaussdorffDistance
+from easydict import EasyDict
+from torch import Tensor
+
+from generalframework.dataset.ACDC_helper import get_ACDC_dataloaders
+from generalframework.dataset.GM_helper import get_GMC_split_dataloders
+from generalframework.dataset.spleen_helper import get_spleen_split_dataloders
+from generalframework.metrics import KappaMetrics, DiceMeter
+from generalframework.models import Segmentator
+from generalframework.utils import probs2one_hot, class2one_hot, save_images, pred2class, dict_merge, tqdm_
+
+warnings.filterwarnings('ignore')
 
 
 def get_args():
@@ -14,26 +34,6 @@ args = get_args()
 input_dir = Path(args.input_dir)
 assert input_dir.exists()
 assert (input_dir / 'config.yml').exists()
-
-import warnings
-from typing import List
-from easydict import EasyDict
-import numpy as np
-import pandas as pd
-import torch
-import torch.nn.functional as F
-import yaml
-from torch import Tensor
-
-from generalframework.dataset.ACDC_helper import get_ACDC_dataloaders
-from generalframework.dataset.GM_helper import get_GMC_split_dataloders
-from generalframework.dataset.spleen_helper import get_spleen_split_dataloders
-from generalframework.metrics import KappaMetrics, DiceMeter
-from deepclustering.meters import HaussdorffDistance
-from generalframework.models import Segmentator
-from generalframework.utils import probs2one_hot, class2one_hot, save_images, pred2class, dict_merge, tqdm_
-
-warnings.filterwarnings('ignore')
 
 with open(str(input_dir / 'config.yml'), 'r') as f:
     config = yaml.load(f.read())

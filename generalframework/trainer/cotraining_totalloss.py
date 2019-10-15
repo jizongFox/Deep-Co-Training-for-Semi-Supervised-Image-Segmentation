@@ -301,8 +301,8 @@ class CoTrainer(Trainer):
                 [save_images(pred2class(pred), names=path, root=self.save_dir, mode='eval', seg_num=str(i), iter=epoch)
                  for i, pred in enumerate(preds)]
 
-            dsc_dict = {f"S{i}": {f"DSC{n}": coefdiceMeters[i].value()[1][0][n] for n in self.axises} for i in range(S)}
-            mean_dict = {f"S{i}": {"DSC": coefdiceMeters[i].value()[0][0]} for i in range(S)}
+            dsc_dict = {f"S{i}": {f"DSC{n}": batchdiceMeters[i].value()[1][0][n] for n in self.axises} for i in range(S)}
+            mean_dict = {f"S{i}": {"DSC": batchdiceMeters[i].value()[0][0]} for i in range(S)}
             nice_dict = dict_merge(dsc_dict, mean_dict, True)
             loss_dict = {f'L{i}': vallossMeters[i].value()[0] for i in range(S)}
 
@@ -456,8 +456,10 @@ class CoTrainer(Trainer):
         self.adv_scheduler.step()
 
     def _load_checkpoint(self, checkpoint):
-        if isinstance(checkpoint, str):
-            checkpoint = eval(checkpoint)
+        # load checklit
+        # if isinstance(checkpoint, str):
+        #     checkpoint = eval(checkpoint)
+        checkpoint = list(Path(checkpoint).glob('best*.pth'))
         assert isinstance(checkpoint, list), 'checkpoint should be provided as a list.'
         for i, cp in enumerate(checkpoint):
             cp = Path(cp)
