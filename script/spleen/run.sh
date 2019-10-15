@@ -11,33 +11,33 @@ cd ${PROJECT_PATH}
 set -e
 
 account=def-mpederso  #rrg-mpederso, def-mpederso, and def-chdesa
-time=12
+time=24
 max_epoch=300
 seed=1
-load_checkpoint=""
+load_checkpoint="#"
+partition_ratio=0.10
 resolution=128
-main_dir="spleen_re_${resolution}"
+main_dir="1015/spleen_re_${resolution}"
 
 
 declare -a StringArray=(
 "python -O train_ACDC_cotraining.py Config=config/spleen_config_cotraing.yaml Trainer.save_dir=runs/${main_dir}/${seed}/baseline  \
-Trainer.max_epoch=${max_epoch} Seed=${seed} \
+Trainer.max_epoch=${max_epoch} Seed=${seed} Lab_Partitions.partition_sets=${partition_ratio} \
 Dataset.transform=\"segment_transform((${resolution},${resolution}))\" \
 ${load_checkpoint}Trainer.checkpoint=runs/${main_dir}/${seed}/baseline " \
 
-
 "python -O train_ACDC_cotraining.py Config=config/spleen_config_cotraing.yaml Trainer.save_dir=runs/${main_dir}/${seed}/jsd  \
-Trainer.max_epoch=${max_epoch} Seed=${seed} StartTraining.train_jsd=True \
+Trainer.max_epoch=${max_epoch} Seed=${seed} StartTraining.train_jsd=True  Lab_Partitions.partition_sets=${partition_ratio}\
 Dataset.transform=\"segment_transform((${resolution},${resolution}))\" \
 ${load_checkpoint}Trainer.checkpoint=runs/${main_dir}/${seed}/jsd " \
 
 "python -O train_ACDC_cotraining.py Config=config/spleen_config_cotraing.yaml Trainer.save_dir=runs/${main_dir}/${seed}/adv  \
-Trainer.max_epoch=${max_epoch} Seed=${seed} StartTraining.train_adv=True \
+Trainer.max_epoch=${max_epoch} Seed=${seed} StartTraining.train_adv=True  Lab_Partitions.partition_sets=${partition_ratio}\
 Dataset.transform=\"segment_transform((${resolution},${resolution}))\" \
 ${load_checkpoint}Trainer.checkpoint=runs/${main_dir}/${seed}/adv " \
 
 "python -O train_ACDC_cotraining.py Config=config/spleen_config_cotraing.yaml Trainer.save_dir=runs/${main_dir}/${seed}/jsd_adv  \
-Trainer.max_epoch=${max_epoch} Seed=${seed} StartTraining.train_jsd=True StartTraining.train_adv=True \
+Trainer.max_epoch=${max_epoch} Seed=${seed} StartTraining.train_jsd=True StartTraining.train_adv=True Lab_Partitions.partition_sets=${partition_ratio} \
 Dataset.transform=\"segment_transform((${resolution},${resolution}))\" \
 ${load_checkpoint}Trainer.checkpoint=runs/${main_dir}/${seed}/jsd_adv " \
 )

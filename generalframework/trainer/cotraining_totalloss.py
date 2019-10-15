@@ -459,7 +459,7 @@ class CoTrainer(Trainer):
         # load checklit
         # if isinstance(checkpoint, str):
         #     checkpoint = eval(checkpoint)
-        checkpoint = list(Path(checkpoint).glob('best*.pth'))
+        checkpoint = list(Path(checkpoint).glob('last*.pth'))
         assert isinstance(checkpoint, list), 'checkpoint should be provided as a list.'
         for i, cp in enumerate(checkpoint):
             cp = Path(cp)
