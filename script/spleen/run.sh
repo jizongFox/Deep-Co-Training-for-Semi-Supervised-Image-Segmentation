@@ -12,11 +12,11 @@ set -e
 
 account=def-mpederso  #rrg-mpederso, def-mpederso, and def-chdesa
 time=24
-max_epoch=300
+max_epoch=1
 seed=1
 load_checkpoint="#"
-partition_ratio=0.10
-resolution=128
+partition_ratio=$1
+resolution=$2
 main_dir="1015/spleen_re_${resolution}"
 
 
@@ -27,12 +27,12 @@ Dataset.transform=\"segment_transform((${resolution},${resolution}))\" \
 ${load_checkpoint}Trainer.checkpoint=runs/${main_dir}/${seed}/baseline " \
 
 "python -O train_ACDC_cotraining.py Config=config/spleen_config_cotraing.yaml Trainer.save_dir=runs/${main_dir}/${seed}/jsd  \
-Trainer.max_epoch=${max_epoch} Seed=${seed} StartTraining.train_jsd=True  Lab_Partitions.partition_sets=${partition_ratio}\
+Trainer.max_epoch=${max_epoch} Seed=${seed} StartTraining.train_jsd=True  Lab_Partitions.partition_sets=${partition_ratio} \
 Dataset.transform=\"segment_transform((${resolution},${resolution}))\" \
 ${load_checkpoint}Trainer.checkpoint=runs/${main_dir}/${seed}/jsd " \
 
 "python -O train_ACDC_cotraining.py Config=config/spleen_config_cotraing.yaml Trainer.save_dir=runs/${main_dir}/${seed}/adv  \
-Trainer.max_epoch=${max_epoch} Seed=${seed} StartTraining.train_adv=True  Lab_Partitions.partition_sets=${partition_ratio}\
+Trainer.max_epoch=${max_epoch} Seed=${seed} StartTraining.train_adv=True  Lab_Partitions.partition_sets=${partition_ratio} \
 Dataset.transform=\"segment_transform((${resolution},${resolution}))\" \
 ${load_checkpoint}Trainer.checkpoint=runs/${main_dir}/${seed}/adv " \
 
@@ -45,6 +45,6 @@ ${load_checkpoint}Trainer.checkpoint=runs/${main_dir}/${seed}/jsd_adv " \
 for cmd in "${StringArray[@]}"
 do
 echo ${cmd}
-wrapper "${time}" "${account}" "${cmd}" 16
-# ${cmd}
+#wrapper "${time}" "${account}" "${cmd}" 16
+ ${cmd}
 done
